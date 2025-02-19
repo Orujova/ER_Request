@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@azure/msal-browser": "^3.28.1",
+    "@azure/msal-react": "^2.2.0",
     "@radix-ui/react-form": "^0.1.1",
     "@radix-ui/react-icons": "^1.3.2",
     "@radix-ui/react-scroll-area": "^1.2.2",
