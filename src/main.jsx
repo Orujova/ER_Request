@@ -1,46 +1,57 @@
-// src/main.jsx
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { Provider } from "react-redux";
 import { PublicClientApplication, EventType } from "@azure/msal-browser";
 import { MsalProvider } from "@azure/msal-react";
-import { msalConfig } from "../authConfig"; // Make sure this path is correct
+import { msalConfig } from "../authConfig";
+import { verifyTokenWithBackend } from "./utils/authHandler";
 import store from "./store";
 import App from "./App";
 import "./App.css";
 
-// MSAL instance setup - properly initialize first
+// Initialize MSAL
 const msalInstance = new PublicClientApplication(msalConfig);
 
-// Initialize first, then handle redirects
+const handleAuthSuccess = async (response) => {
+  try {
+    if (response?.accessToken) {
+      await verifyTokenWithBackend(response.accessToken);
+
+      if (response.account) {
+        msalInstance.setActiveAccount(response.account);
+      }
+    }
+  } catch (error) {
+    console.error("Token verification failed:", error);
+  }
+};
+
+// Handle redirect promise only once on initial load
+const handleRedirectPromise = async () => {
+  try {
+    const response = await msalInstance.handleRedirectPromise();
+    if (response) {
+      console.log("Redirect response received", response);
+      await handleAuthSuccess(response);
+    }
+  } catch (error) {
+    console.error("Redirect error:", error);
+  }
+};
+
+// Initialize MSAL and handle redirect
 msalInstance
   .initialize()
   .then(() => {
     console.log("MSAL initialized successfully");
-
-    // Now it's safe to handle redirects
-    msalInstance
-      .handleRedirectPromise()
-      .then((response) => {
-        if (response) {
-          console.log("Redirect response received", response);
-
-          // Set active account if we have one
-          if (response.account) {
-            msalInstance.setActiveAccount(response.account);
-          }
-        }
-      })
-      .catch((error) => {
-        console.error("Redirect error:", error);
-      });
+    return handleRedirectPromise();
   })
   .catch((err) => {
     console.error("MSAL initialization failed:", err);
   });
 
-// Set active account if one exists
+// Set active account if exists
 const accounts = msalInstance.getAllAccounts();
 if (accounts.length > 0) {
   msalInstance.setActiveAccount(accounts[0]);
@@ -53,20 +64,10 @@ msalInstance.addEventCallback((event) => {
       event.eventType === EventType.ACQUIRE_TOKEN_SUCCESS) &&
     event.payload.account
   ) {
-    const account = event.payload.account;
-    console.log("Auth event success, setting active account:", account);
-    msalInstance.setActiveAccount(account);
-  }
-
-  if (
-    event.eventType === EventType.LOGIN_FAILURE ||
-    event.eventType === EventType.ACQUIRE_TOKEN_FAILURE
-  ) {
-    console.error("Auth event failure:", event.error);
+    handleAuthSuccess(event.payload);
   }
 });
 
-// Render React app
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter>

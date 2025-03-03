@@ -10,23 +10,62 @@ import {
  * Attaches a given access token to a Microsoft Graph API call
  * @param accessToken - Bearer access token
  */
+
+let isFetchingGraph = false;
+let cachedGraphData = null;
+let lastFetchTime = 0;
+
+const CACHE_EXPIRATION_MS = 5 * 60 * 1000;
+
 export async function callMsGraph(accessToken) {
-  const headers = new Headers();
-  const bearer = `Bearer ${accessToken}`;
+  if (isFetchingGraph) {
+    console.log("Graph API request already in progress, waiting...");
 
-  headers.append("Authorization", bearer);
-
-  const options = {
-    method: "GET",
-    headers: headers,
-  };
-
-  return fetch(graphConfig.graphMeEndpoint, options)
-    .then((response) => response.json())
-    .catch((error) => {
-      console.error("Error calling MS Graph API:", error);
-      throw error;
+    return new Promise((resolve) => {
+      const checkCache = setInterval(() => {
+        if (!isFetchingGraph && cachedGraphData) {
+          clearInterval(checkCache);
+          resolve(cachedGraphData);
+        }
+      }, 100);
     });
+  }
+
+  // If we have cached data that's not expired, use it
+  const now = Date.now();
+  if (cachedGraphData && now - lastFetchTime < CACHE_EXPIRATION_MS) {
+    console.log("Using cached Graph data");
+    return cachedGraphData;
+  }
+
+  // Set flag to prevent parallel requests
+  isFetchingGraph = true;
+
+  try {
+    const headers = new Headers();
+    const bearer = `Bearer ${accessToken}`;
+    headers.append("Authorization", bearer);
+
+    const options = {
+      method: "GET",
+      headers: headers,
+    };
+
+    const response = await fetch(graphConfig.graphMeEndpoint, options);
+    const data = await response.json();
+
+    // Cache the result
+    cachedGraphData = data;
+    lastFetchTime = Date.now();
+
+    return data;
+  } catch (error) {
+    console.error("Error calling MS Graph API:", error);
+    throw error;
+  } finally {
+    // Reset the flag when done, regardless of success or failure
+    isFetchingGraph = false;
+  }
 }
 
 /**
@@ -34,6 +73,7 @@ export async function callMsGraph(accessToken) {
  * @param {string} accessToken - Access token
  * @param {string} endpoint - API endpoint to call
  */
+
 export async function callApi(accessToken, endpoint = apiConfig.endpoint) {
   const headers = new Headers();
   const bearer = `Bearer ${accessToken}`;
@@ -65,6 +105,7 @@ export async function callApi(accessToken, endpoint = apiConfig.endpoint) {
  * @param {string} accessToken
  * @param {string} endpoint - Optional specific endpoint
  */
+
 export async function callBackendApi(
   accessToken,
   endpoint = apiConfig.backendEndpoint

@@ -2,46 +2,50 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Theme } from "@radix-ui/themes";
 import "@radix-ui/themes/styles.css";
-import Dashboard from "./Pages/Dashboard";
-// import RequestForm from "./Pages/RequestForm";
-// import RequestDetail from "./features/request/RequestDetail";
-// import AdminPanel from "./Pages/AdminPanel";
-// import RequestMatrix from "./Pages/RequestMatrix";
-// import FilterSection from "./components/FilterSection";
+import { useIsAuthenticated } from "@azure/msal-react";
 
+// Components
+import Dashboard from "./Pages/Dashboard";
+import RequestForm from "./Pages/RequestForm";
+import RequestDetail from "./features/request/RequestDetail";
+import AdminPanel from "./Pages/AdminPanel";
+import RequestMatrix from "./Pages/RequestMatrix";
 import Layout from "./components/layout/Layout";
 import MainContainer from "./components/layout/MainContainer";
-import {
-  AuthenticatedTemplate,
-  UnauthenticatedTemplate,
-} from "@azure/msal-react";
-import NavHeader from "./components/layout/Navbar.jsx";
-import LoginPage from "./Pages/LoginPage.jsx";
+import Navbar from "./components/layout/Navbar";
+import LoginPage from "./Pages/LoginPage";
 import ProfilePage from "./Pages/ProfilePage";
 import { AuthGuard } from "./components/common/AuthGuard";
+
+// Auth redirect component
+const AuthRedirect = ({ children, requireAuth = true }) => {
+  const isAuthenticated = useIsAuthenticated();
+
+  if (requireAuth && !isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!requireAuth && isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+};
 
 function App() {
   return (
     <Theme appearance="light" accentColor="blue" radius="medium">
       <Layout>
-        <NavHeader />
+        <Navbar />
         <MainContainer>
           <Routes>
-            {/* Login Page - Public */}
+            {/* Public Routes */}
             <Route
               path="/login"
               element={
-                <AuthenticatedTemplate>
-                  <Navigate to="/" replace />
-                </AuthenticatedTemplate>
-              }
-            />
-            <Route
-              path="/login"
-              element={
-                <UnauthenticatedTemplate>
+                <AuthRedirect requireAuth={false}>
                   <LoginPage />
-                </UnauthenticatedTemplate>
+                </AuthRedirect>
               }
             />
 
@@ -64,8 +68,6 @@ function App() {
               }
             />
 
-            {/* Add other protected routes here when ready */}
-            {/*
             <Route
               path="/request/:id"
               element={
@@ -101,25 +103,9 @@ function App() {
                 </AuthGuard>
               }
             />
-            */}
 
-            {/* Catch-all routes */}
-            <Route
-              path="*"
-              element={
-                <AuthenticatedTemplate>
-                  <Navigate to="/" replace />
-                </AuthenticatedTemplate>
-              }
-            />
-            <Route
-              path="*"
-              element={
-                <UnauthenticatedTemplate>
-                  <Navigate to="/login" replace />
-                </UnauthenticatedTemplate>
-              }
-            />
+            {/* Catch-all route */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </MainContainer>
       </Layout>

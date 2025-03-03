@@ -35,23 +35,3 @@ module.exports = {
   },
   plugins: [],
 };
-
-// const theme = {
-//   colors: {
-//     primary: "#0284c7",
-//     primaryGradientStart: "#0ea5e9",
-//     primaryGradientEnd: "#0369a1",
-//     primaryHover: "#0369a1",
-//     secondary: "#f8fafc",
-//     secondaryHover: "#f1f5f9",
-//     border: "#e2e8f0",
-//     borderHover: "#cbd5e1",
-//     text: "#1e293b",
-//     textLight: "#64748b",
-//     background: "#ffffff",
-//     error: "#ef4444",
-//     success: "#22c55e",
-//     shadowLight: "rgba(148, 163, 184, 0.1)",
-//     shadowMedium: "rgba(148, 163, 184, 0.2)",
-//   },
-// };

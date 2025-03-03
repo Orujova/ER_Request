@@ -22,7 +22,6 @@ import {
   FilterIcon,
 } from "lucide-react";
 
-// Import FilterSection - fayl adının BOŞLUQSUZ olduğundan əmin olun!!!
 import FilterSection from "../components/FilterSection";
 
 const Dashboard = () => {
