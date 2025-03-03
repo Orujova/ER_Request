@@ -103,6 +103,7 @@ const storeJwtToken = (jwtToken) => {
     console.error("Error storing JWT token:", error);
   }
 };
+const USER_ID_COOKIE = "userId";
 
 const storeUserInfo = (userInfo) => {
   if (!userInfo) return;
@@ -112,9 +113,19 @@ const storeUserInfo = (userInfo) => {
       secure: true,
       sameSite: "strict",
     });
+
+    // userId ayrıca saxlanır
+    Cookies.set(USER_ID_COOKIE, userInfo.userId, {
+      secure: true,
+      sameSite: "strict",
+    });
   } catch (error) {
     console.error("Error storing user info:", error);
   }
+};
+
+export const getUserId = () => {
+  return Cookies.get(USER_ID_COOKIE) || null;
 };
 
 let expirationTimer;
@@ -136,6 +147,7 @@ export const clearAuthTokens = () => {
   Cookies.remove(MSAL_TOKEN_COOKIE);
   Cookies.remove(JWT_TOKEN_COOKIE);
   Cookies.remove(USER_INFO_COOKIE);
+  Cookies.remove(USER_ID_COOKIE);
   clearTimeout(expirationTimer);
 };
 
@@ -148,6 +160,7 @@ export const getStoredTokens = () => {
 
 export const getUserInfo = () => {
   const userInfoStr = Cookies.get(USER_INFO_COOKIE);
+
   return userInfoStr ? JSON.parse(userInfoStr) : null;
 };
 

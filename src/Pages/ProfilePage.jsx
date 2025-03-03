@@ -5,7 +5,7 @@ import {
   UnauthenticatedTemplate,
 } from "@azure/msal-react";
 import { Navigate } from "react-router-dom";
-import UserProfile from "../components/common/UserProfile";
+import UserProfile from "../components/UserProfile";
 import { Box, Flex, Text, Heading, Tabs, Card, Button } from "@radix-ui/themes";
 import {
   User,

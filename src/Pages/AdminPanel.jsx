@@ -1,49 +1,11 @@
 import React, { useState, useEffect } from "react";
-import * as Select from "@radix-ui/react-select";
-import { Plus, Save, Edit, Loader2, Link } from "lucide-react";
+import { Plus, Loader2, Link } from "lucide-react";
 import { API_BASE_URL } from "../../apiConfig";
 import { getStoredTokens } from "../utils/authHandler";
+import Alert from "../components/common/Alert";
+import SearchableSelect from "../components/common/SearchableSelect";
 
 const { jwtToken } = getStoredTokens();
-
-const StyledSelect = ({
-  label,
-  value,
-  onChange,
-  options = [],
-  placeholder,
-}) => (
-  <div>
-    <label className="block text-sm font-semibold mb-2 text-gray-700">
-      {label}
-    </label>
-    <Select.Root value={value || ""} onValueChange={onChange}>
-      <Select.Trigger
-        className="w-full px-4 py-2.5 bg-white border rounded-lg shadow-sm
-        focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
-        hover:border-gray-300 transition-colors duration-200"
-      >
-        <Select.Value placeholder={placeholder} />
-      </Select.Trigger>
-      <Select.Portal>
-        <Select.Content className="bg-white rounded-lg shadow-lg border overflow-hidden">
-          <Select.Viewport className="p-1">
-            {options.map((option) => (
-              <Select.Item
-                key={option.id}
-                value={String(option.id)}
-                className="px-4 py-2.5 outline-none cursor-pointer rounded-md
-                text-gray-700 hover:bg-blue-50 focus:bg-blue-50 transition-colors duration-150"
-              >
-                <Select.ItemText>{option.name}</Select.ItemText>
-              </Select.Item>
-            ))}
-          </Select.Viewport>
-        </Select.Content>
-      </Select.Portal>
-    </Select.Root>
-  </div>
-);
 
 const AdminPanel = () => {
   // Data states
@@ -95,7 +57,7 @@ const AdminPanel = () => {
         ]);
 
       setProjects(projectsData[0]?.Projects || []);
-      setEmployees(employeesData || []);
+      setEmployees(employeesData[0]?.Employees || []);
       setAreaManagers(managersData[0]?.AreaManagerProjects || []);
       setErMembers(erMembersData[0]?.AppUsers || []);
     } catch (err) {
@@ -142,6 +104,9 @@ const AdminPanel = () => {
       await fetchAllData();
       setSelectedProject("");
       setSelectedEmployee("");
+
+      // Auto-dismiss success message after 3 seconds
+      setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
       setError(err.message || "Failed to assign area manager");
     } finally {
@@ -160,6 +125,15 @@ const AdminPanel = () => {
     setError(null);
 
     try {
+      // Find the selected manager to get the correct Id (not EmployeeId)
+      const selectedManager = areaManagers.find(
+        (manager) => String(manager.EmployeeId) === selectedAreaManager
+      );
+
+      if (!selectedManager) {
+        throw new Error("Selected area manager not found");
+      }
+
       const response = await fetch(
         `${API_BASE_URL}/api/AdminApplicationUser/UpdateAreaManagerUserLink`,
         {
@@ -169,7 +143,8 @@ const AdminPanel = () => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            AreaManagerId: parseInt(selectedAreaManager),
+            // Use the actual Id field from the manager object, not the EmployeeId
+            AreaManagerId: parseInt(selectedManager.Id),
             AppUserId: parseInt(selectedErMember),
           }),
         }
@@ -177,10 +152,13 @@ const AdminPanel = () => {
 
       if (!response.ok) throw new Error("Failed to link ER member");
 
-      setSuccess("ER Member linked successfully");
+      setSuccess("ER Member updated successfully");
       await fetchAllData();
       setSelectedAreaManager("");
       setSelectedErMember("");
+
+      // Auto-dismiss success message after 3 seconds
+      setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
       setError(err.message || "Failed to link ER member");
     } finally {
@@ -210,179 +188,203 @@ const AdminPanel = () => {
   }));
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
-        {/* Header */}
-        <div className="px-8 py-6 bg-gradient-to-r from-blue-500 to-blue-600">
-          <h1 className="text-2xl font-bold text-white">
-            Area Manager & ER Member Management
-          </h1>
-        </div>
-
-        {/* Main Content */}
-        <div className="p-8">
-          {/* Tab Navigation */}
-          <div className="border-b mb-8">
-            <div className="flex gap-2">
-              <button
-                onClick={() => setActiveTab("assign")}
-                className={`px-6 py-3 font-medium rounded-t-lg transition-all duration-200
-                  ${
-                    activeTab === "assign"
-                      ? "text-blue-600 border-b-2 border-blue-500 bg-white"
-                      : "text-gray-500 hover:text-blue-600"
-                  }`}
-              >
-                Assign Area Manager
-              </button>
-              <button
-                onClick={() => setActiveTab("link")}
-                className={`px-6 py-3 font-medium rounded-t-lg transition-all duration-200
-                  ${
-                    activeTab === "link"
-                      ? "text-blue-600 border-b-2 border-blue-500 bg-white"
-                      : "text-gray-500 hover:text-blue-600"
-                  }`}
-              >
-                Change ER Member
-              </button>
-            </div>
+    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+      <div className="max-w-6xl mx-auto">
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+          {/* Header */}
+          <div className="px-6 py-5 bg-cyan-600">
+            <h1 className="text-xl font-semibold text-white">
+              Area Manager & ER Member Management
+            </h1>
           </div>
 
-          {/* Messages */}
-          {error && (
-            <div className="mb-6 px-6 py-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
-              {error}
-            </div>
-          )}
-          {success && (
-            <div className="mb-6 px-6 py-4 rounded-lg bg-green-50 border border-green-200 text-green-700">
-              {success}
-            </div>
-          )}
-
-          {/* Forms */}
-          {activeTab === "assign" && (
-            <form onSubmit={handleAreaManagerAssignment} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-gray-50 rounded-xl">
-                <StyledSelect
-                  label="Project"
-                  value={selectedProject}
-                  onChange={setSelectedProject}
-                  options={projectOptions}
-                  placeholder="Select Project"
-                />
-                <StyledSelect
-                  label="Employee"
-                  value={selectedEmployee}
-                  onChange={setSelectedEmployee}
-                  options={employeeOptions}
-                  placeholder="Select Employee"
-                />
-              </div>
-
-              <div className="flex justify-end">
+          {/* Main Content */}
+          <div className="p-6">
+            {/* Tab Navigation */}
+            <div className="border-b border-gray-200 mb-6">
+              <div className="flex gap-1 -mb-px">
                 <button
-                  type="submit"
-                  disabled={loading || !selectedProject || !selectedEmployee}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-lg text-white font-medium
-                    transition-all duration-200 transform hover:scale-105
+                  onClick={() => setActiveTab("assign")}
+                  className={`px-5 py-3 text-sm font-medium rounded-t-md transition-colors
                     ${
-                      loading
-                        ? "bg-gray-400"
-                        : "bg-gradient-to-r from-blue-500 to-blue-600 hover:shadow-lg"
+                      activeTab === "assign"
+                        ? "text-cyan-600 border-b-2 border-cyan-500 bg-white"
+                        : "text-gray-500 hover:text-cyan-600 hover:bg-gray-50"
                     }`}
+                  aria-current={activeTab === "assign" ? "page" : undefined}
                 >
-                  {loading ? (
-                    <Loader2 className="animate-spin" size={20} />
-                  ) : (
-                    <Plus size={20} />
-                  )}
                   Assign Area Manager
                 </button>
-              </div>
-            </form>
-          )}
-
-          {activeTab === "link" && (
-            <form onSubmit={handleErMemberLink} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-gray-50 rounded-xl">
-                <StyledSelect
-                  label="Area Manager"
-                  value={selectedAreaManager}
-                  onChange={setSelectedAreaManager}
-                  options={managerOptions}
-                  placeholder="Select Area Manager"
-                />
-                <StyledSelect
-                  label="ER Member"
-                  value={selectedErMember}
-                  onChange={setSelectedErMember}
-                  options={erMemberOptions}
-                  placeholder="Select ER Member"
-                />
-              </div>
-
-              <div className="flex justify-end">
                 <button
-                  type="submit"
-                  disabled={
-                    loading || !selectedAreaManager || !selectedErMember
-                  }
-                  className={`flex items-center gap-2 px-6 py-3 rounded-lg text-white font-medium
-                    transition-all duration-200 transform hover:scale-105
+                  onClick={() => setActiveTab("link")}
+                  className={`px-5 py-3 text-sm font-medium rounded-t-md transition-colors
                     ${
-                      loading
-                        ? "bg-gray-400"
-                        : "bg-gradient-to-r from-blue-500 to-blue-600 hover:shadow-lg"
+                      activeTab === "link"
+                        ? "text-cyan-600 border-b-2 border-cyan-500 bg-white"
+                        : "text-gray-500 hover:text-cyan-600 hover:bg-gray-50"
                     }`}
+                  aria-current={activeTab === "link" ? "page" : undefined}
                 >
-                  {loading ? (
-                    <Loader2 className="animate-spin" size={20} />
-                  ) : (
-                    <Link size={20} />
-                  )}
-                  Update ER Member
+                  Assing ER Member
                 </button>
               </div>
-            </form>
-          )}
+            </div>
 
-          {/* Table */}
-          <div className="mt-12">
-            <h2 className="text-xl font-semibold mb-6 text-gray-900">
-              Current Assignments
-            </h2>
-            <div className="overflow-x-auto rounded-xl border border-gray-200">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-50">
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
-                      Area Manager
-                    </th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
-                      ER Member
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {areaManagers.map((assignment, index) => (
-                    <tr
-                      key={assignment.Id || index}
-                      className={`border-t border-gray-100
-                        ${index % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                        hover:bg-blue-50 transition-colors duration-150`}
-                    >
-                      <td className="px-6 py-4">
-                        {assignment.FullName || "N/A"}
-                      </td>
-                      <td className="px-6 py-4">
-                        {assignment.UserFullName || "N/A"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            {/* Messages */}
+            <Alert
+              variant="error"
+              message={error}
+              onDismiss={() => setError(null)}
+            />
+            <Alert
+              variant="success"
+              message={success}
+              onDismiss={() => setSuccess("")}
+            />
+
+            {/* Forms */}
+            {activeTab === "assign" && (
+              <form
+                onSubmit={handleAreaManagerAssignment}
+                className="space-y-6"
+              >
+                <div className="bg-gray-50 p-5 rounded-md space-y-5 md:space-y-0 md:grid md:grid-cols-2 md:gap-5">
+                  <SearchableSelect
+                    label="Select Project"
+                    value={selectedProject}
+                    onChange={setSelectedProject}
+                    options={projectOptions}
+                    placeholder="Choose a project"
+                    disabled={loading}
+                  />
+                  <SearchableSelect
+                    label="Select Employee"
+                    value={selectedEmployee}
+                    onChange={setSelectedEmployee}
+                    options={employeeOptions}
+                    placeholder="Choose an employee"
+                    disabled={loading}
+                  />
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={loading || !selectedProject || !selectedEmployee}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-md text-white font-medium
+                      bg-cyan-600 hover:bg-cyan-700 focus:ring-1 focus:ring-cyan-500 focus:ring-offset-2
+                      transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  >
+                    {loading ? (
+                      <Loader2 className="animate-spin" size={18} />
+                    ) : (
+                      <Plus size={18} />
+                    )}
+                    Assign Area Manager
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {activeTab === "link" && (
+              <form onSubmit={handleErMemberLink} className="space-y-6">
+                <div className="bg-gray-50 p-5 rounded-md space-y-5 md:space-y-0 md:grid md:grid-cols-2 md:gap-5">
+                  <SearchableSelect
+                    label="Select Area Manager"
+                    value={selectedAreaManager}
+                    onChange={setSelectedAreaManager}
+                    options={managerOptions}
+                    placeholder="Choose an area manager"
+                    disabled={loading}
+                  />
+                  <SearchableSelect
+                    label="Select ER Member"
+                    value={selectedErMember}
+                    onChange={setSelectedErMember}
+                    options={erMemberOptions}
+                    placeholder="Choose an ER member"
+                    disabled={loading}
+                  />
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={
+                      loading || !selectedAreaManager || !selectedErMember
+                    }
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-md text-white font-medium
+                      bg-cyan-600 hover:bg-cyan-700 focus:ring-1 focus:ring-cyan-500 focus:ring-offset-2
+                      transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  >
+                    {loading ? (
+                      <Loader2 className="animate-spin" size={18} />
+                    ) : (
+                      <Plus size={18} />
+                    )}
+                    Assign ER Member
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Table - Simplified and more scannable */}
+            <div className="mt-10">
+              <h2 className="text-lg font-medium mb-4 text-gray-800">
+                Current Assignments
+              </h2>
+              <div className="border border-gray-200 rounded-md overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th
+                          scope="col"
+                          className="px-5 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          Area Manager
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-5 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          ER Member
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {areaManagers.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan="2"
+                            className="px-5 py-4 text-sm text-gray-500 text-center"
+                          >
+                            No assignments found
+                          </td>
+                        </tr>
+                      ) : (
+                        areaManagers.map((assignment, index) => (
+                          <tr
+                            key={assignment.Id || index}
+                            className="hover:bg-gray-50 transition-colors"
+                          >
+                            <td className="px-5 py-3.5 text-sm text-gray-900">
+                              {assignment.FullName || "N/A"}
+                            </td>
+                            <td className="px-5 py-3.5 text-sm text-gray-900">
+                              {assignment.UserFullName || (
+                                <span className="text-gray-400">
+                                  Not assigned
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useRef } from "react";
 import * as Tabs from "@radix-ui/react-tabs";
 import * as Select from "@radix-ui/react-select";
 import { styled, keyframes } from "@stitches/react";
 import { ChevronDownIcon } from "@radix-ui/react-icons";
+import { getStoredTokens, getUserId } from "../utils/authHandler";
 
-// Enhanced theme colors
 const theme = {
   colors: {
     primary: "#0284c7",
@@ -373,68 +373,6 @@ const Button = styled("button", {
   },
 });
 
-// Complete case structure from the table
-const caseStructure = {
-  Davamiyyət: [
-    "İşə gecikmə",
-    "Bir gün tam işə gəlməmə",
-    "3 gün və daha çox işə gəlməmək",
-    "3 gün və daha çox işə gəlməmək (qayıtmadığı hal)",
-  ],
-  Oğurluq: [
-    "Wastage oğurluq",
-    "Kassadan oğurluq",
-    "Seyfdən oğurluq",
-    "Məhsul oğurluğu",
-    "Avadanlıq oğurluğu",
-  ],
-  SOP: [],
-  "Daxili nizam-intizam qaydası": [
-    "Dress code",
-    "Subordinasiya qaydasının pozulması",
-    "Əlbəyaxa mübahisə",
-    "Əməkdaşlara kobud rəftar",
-    "Daxili istifadə məsullarını mənimsəmə",
-  ],
-  "Sui-istifadə və saxtakarlıq": [
-    "Yanlış məhsul qəbulu",
-    "ƏDV çekləri",
-    "Umico",
-    "Tarixi bitmiş məhsullar",
-  ],
-  "Vəzifə öhdəlikləri": [
-    "Verilmiş tapşırığın icra edilməməsi",
-    "Kassada yanlışlıq",
-    "Müştəriyə qarşı kobudluq",
-    "Avadanlığın korlanması/ Yanlış istifadə",
-  ],
-  "Müştəri şikayəti": [],
-  "Speak up": [
-    "İş yerində rəhbər şəxslər tərəfindən düzgün olmayan münasibət, qısnama və ya zorakılıq halları",
-    "Etik davranış qaydalarının digər prinsiplərinin pozulması",
-    "İşçi hüquqlarının pozulması /iş şəraiti",
-    "Diskriminasiya, iş yerində digər əməkdaşlar tərəfindən düzgün olmayan münasibət",
-    "Digər səbəblər",
-  ],
-};
-
-// Mock employee data
-const mockEmployees = [
-  { badge: "E001", name: "John Doe", position: "Manager", department: "IT" },
-  {
-    badge: "E002",
-    name: "Jane Smith",
-    position: "Developer",
-    department: "Engineering",
-  },
-  {
-    badge: "E003",
-    name: "Alice Johnson",
-    position: "Analyst",
-    department: "Finance",
-  },
-];
-
 const SearchableSelect = styled("div", {
   position: "relative",
   width: "100%",
@@ -516,12 +454,28 @@ const SearchResult = styled("div", {
   },
 });
 
+const ERRequestType = {
+  EmployeeRequest: 0,
+  GeneralRequest: 1,
+};
+
 const RequestForm = () => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const dropdownRefs = useRef({});
   const [requestType, setRequestType] = useState("");
   const [subCase, setSubCase] = useState("");
   const [activeTab, setActiveTab] = useState("employee");
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [formData, setFormData] = useState({
+    projectId: null,
+
+    ccAddresses: "",
+    mailBody: "",
+    hyperlink: "",
+    attachments: [],
+    erMemberId: null,
+  });
   const [searchQueries, setSearchQueries] = useState({
     case: "",
     subCase: "",
@@ -535,18 +489,194 @@ const RequestForm = () => {
     name: false,
   });
 
-  // Filter functions
+  // Fetch dependencies (Cases, Employees, Projects, etc.)
+  const [cases, setCases] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [erMembers, setErMembers] = useState([]);
+  const [subCases, setSubCases] = useState([]);
+
+  useEffect(() => {
+    const fetchDependencies = async () => {
+      try {
+        const { jwtToken } = getStoredTokens();
+        const userId = getUserId();
+
+        const fetchOptions = {
+          headers: {
+            Authorization: `Bearer ${jwtToken}`,
+            Accept: "application/json",
+          },
+        };
+
+        // Fetch Cases
+        const casesResponse = await fetch(
+          "https://192.168.148.89:7252/api/Case",
+          fetchOptions
+        );
+        const casesData = await casesResponse.json();
+        const fetchedCases = casesData[0]?.Cases || [];
+        setCases(fetchedCases);
+
+        // Fetch SubCases
+        const subCasesResponse = await fetch(
+          "https://192.168.148.89:7252/api/SubCase",
+          fetchOptions
+        );
+        const subCasesData = await subCasesResponse.json();
+        const fetchedSubCases = subCasesData[0]?.SubCases || [];
+        setSubCases(fetchedSubCases);
+
+        // Fetch Employees
+        const employeesResponse = await fetch(
+          "https://192.168.148.89:7252/api/Employee",
+          fetchOptions
+        );
+        const employeesData = await employeesResponse.json();
+        const fetchedEmployees = employeesData[0]?.Employees || [];
+        setEmployees(fetchedEmployees);
+
+        // Fetch Projects
+        const projectsResponse = await fetch(
+          "https://192.168.148.89:7252/api/Project",
+          fetchOptions
+        );
+        const projectsData = await projectsResponse.json();
+        const fetchedProjects = projectsData[0]?.Projects || [];
+        setProjects(fetchedProjects);
+      } catch (err) {
+        console.error("Failed to fetch dependencies", err);
+        setError("Failed to load form data");
+
+        // Set default empty arrays to prevent undefined errors
+        setCases([]);
+        setSubCases([]);
+        setEmployees([]);
+        setProjects([]);
+        setErMembers([]);
+      }
+    };
+
+    fetchDependencies();
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { jwtToken } = getStoredTokens();
+
+      // Prepare request payload
+      const payload = {
+        CaseId: cases.find((c) => c.CaseName === requestType)?.Id || 0,
+        SubCaseId: subCases.find((sc) => sc.Description === subCase)?.Id || 0,
+        ProjectId: formData.projectId || 0,
+        EmployeeId: selectedEmployee?.Id || 0,
+        ERHyperLink: formData.hyperlink,
+
+        MailCcAddresses: formData.ccAddresses,
+        MailBody: formData.mailBody,
+        RequestType:
+          activeTab === "employee"
+            ? ERRequestType.EmployeeRequest
+            : ERRequestType.GeneralRequest,
+        Attachments: formData.attachments,
+      };
+
+      // Submit request
+      const response = await fetch(
+        "https://192.168.148.89:7252/api/ERRequest/AddERRequest",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${jwtToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Submission failed");
+      }
+
+      // Handle successful submission
+      alert("Request submitted successfully");
+
+      // Reset form
+      resetForm();
+    } catch (err) {
+      console.error("Submission failed", err);
+      setError(err.message || "Submission failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Reset form to initial state
+  const resetForm = () => {
+    setRequestType("");
+    setSubCase("");
+    setSelectedEmployee(null);
+    setFormData({
+      projectId: null,
+
+      ccAddresses: "",
+      mailBody: "",
+      hyperlink: "",
+      attachments: [],
+      erMemberId: null,
+    });
+  };
+
+  // File upload handler
+  const handleFileUpload = (e, type) => {
+    const files = Array.from(e.target.files);
+    // Convert files to base64 or prepare for upload
+    const filePromises = files.map((file) => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = (error) => reject(error);
+      });
+    });
+
+    Promise.all(filePromises).then((base64Files) => {
+      setFormData((prev) => ({
+        ...prev,
+        attachments: [...prev.attachments, ...base64Files],
+      }));
+    });
+  };
+
+  // Filtering methods with additional null checks
   const getFilteredCases = () => {
-    return Object.keys(caseStructure).filter((caseType) =>
-      caseType.toLowerCase().includes(searchQueries.case.toLowerCase())
-    );
+    if (!cases) return [];
+    return cases
+      .filter((caseItem) =>
+        caseItem?.CaseName?.toLowerCase().includes(
+          searchQueries.case.toLowerCase() || ""
+        )
+      )
+      .map((caseItem) => caseItem.CaseName);
   };
 
   const getFilteredSubCases = () => {
-    if (!requestType) return [];
-    return caseStructure[requestType].filter((subCase) =>
-      subCase.toLowerCase().includes(searchQueries.subCase.toLowerCase())
-    );
+    if (!requestType || !subCases) return [];
+    const selectedCaseId = cases.find((c) => c.CaseName === requestType)?.Id;
+    return subCases
+      .filter(
+        (subCaseItem) =>
+          subCaseItem.CaseId === selectedCaseId &&
+          subCaseItem.Description?.toLowerCase().includes(
+            searchQueries.subCase.toLowerCase() || ""
+          )
+      )
+      .map((subCaseItem) => subCaseItem.Description);
   };
 
   useEffect(() => {
@@ -565,19 +695,40 @@ const RequestForm = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSearch = (field, value) => {
-    if (field === "case" && value === "") {
-      setRequestType("");
-      setSubCase("");
+  const handleSearch = (field, value = "") => {
+    // Ensure value is a string
+    const searchValue = value || "";
+
+    // Reset states based on search field
+    switch (field) {
+      case "case":
+        if (searchValue === "") {
+          setRequestType("");
+          setSubCase("");
+        }
+        break;
+      case "subCase":
+        if (searchValue === "") {
+          setSubCase("");
+        }
+        break;
+      case "badge":
+      case "name":
+        if (searchValue === "") {
+          setSelectedEmployee(null);
+        }
+        break;
     }
-    if (field === "subCase" && value === "") {
-      setSubCase("");
-    }
-    if ((field === "badge" || field === "name") && value === "") {
-      setSelectedEmployee(null);
-    }
-    setSearchQueries((prev) => ({ ...prev, [field]: value }));
-    setShowDropdowns((prev) => ({ ...prev, [field]: true }));
+
+    // Update search queries and dropdown visibility
+    setSearchQueries((prev) => ({
+      ...prev,
+      [field]: searchValue,
+    }));
+    setShowDropdowns((prev) => ({
+      ...prev,
+      [field]: true,
+    }));
   };
 
   const handleSelect = (field, value) => {
@@ -590,11 +741,11 @@ const RequestForm = () => {
         setSubCase(value);
         break;
       case "badge":
-        const empByBadge = mockEmployees.find((emp) => emp.badge === value);
+        const empByBadge = employees.find((emp) => emp.Badge === value);
         setSelectedEmployee(empByBadge);
         break;
       case "name":
-        const empByName = mockEmployees.find((emp) => emp.name === value);
+        const empByName = employees.find((emp) => emp.FullName === value);
         setSelectedEmployee(empByName);
         break;
     }
@@ -602,21 +753,34 @@ const RequestForm = () => {
     setShowDropdowns((prev) => ({ ...prev, [field]: false }));
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log({
-      requestType,
-      subCase,
-      employee: selectedEmployee,
-      // Add other form fields here
-    });
-  };
-
   return (
     <StyledCard>
+      {error && (
+        <div
+          style={{
+            backgroundColor: theme.colors.error,
+            color: "white",
+            padding: "1rem",
+            marginBottom: "1rem",
+            borderRadius: "0.5rem",
+          }}
+        >
+          {error}
+        </div>
+      )}
+
       <Title>Create New Request</Title>
 
-      <Tabs.Root defaultValue="employee" onValueChange={setActiveTab}>
+      <Tabs.Root
+        defaultValue="employee"
+        onValueChange={(value) => {
+          setActiveTab(value);
+          // Reset relevant fields when switching tabs
+          setSelectedEmployee(null);
+          setRequestType("");
+          setSubCase("");
+        }}
+      >
         <StyledTabsList>
           <StyledTabsTrigger value="employee">
             Əməkdaş üçün sorğu
@@ -695,7 +859,7 @@ const RequestForm = () => {
 
                     {showDropdowns.subCase && requestType && (
                       <SearchResults>
-                        {caseStructure[requestType]?.length > 0 ? (
+                        {getFilteredSubCases().length > 0 ? (
                           getFilteredSubCases().map((subCaseItem, index) => (
                             <SearchResult
                               key={index}
@@ -724,21 +888,6 @@ const RequestForm = () => {
                             No sub cases available
                           </SearchResult>
                         )}
-                        {getFilteredSubCases().length === 0 &&
-                          caseStructure[requestType]?.length > 0 && (
-                            <SearchResult
-                              css={{
-                                color: theme.colors.textLight,
-                                cursor: "default",
-                                textAlign: "center",
-                                "&:hover": {
-                                  backgroundColor: "transparent",
-                                },
-                              }}
-                            >
-                              No results found
-                            </SearchResult>
-                          )}
                       </SearchResults>
                     )}
                   </SearchableSelect>
@@ -747,6 +896,7 @@ const RequestForm = () => {
             </FormGrid>
           </FormSection>
 
+          {/* Employee Related Information */}
           <FormSection>
             <SectionTitle>Employee Related Information</SectionTitle>
             <FormGrid>
@@ -758,7 +908,7 @@ const RequestForm = () => {
                       <SearchableSelect>
                         <SearchInput
                           placeholder="Search by badge..."
-                          value={selectedEmployee?.badge || searchQueries.badge}
+                          value={selectedEmployee?.Badge || searchQueries.badge}
                           onChange={(e) =>
                             handleSearch("badge", e.target.value)
                           }
@@ -771,20 +921,20 @@ const RequestForm = () => {
                         />
                         {showDropdowns.badge && (
                           <SearchResults>
-                            {mockEmployees
+                            {employees
                               .filter((emp) =>
-                                emp.badge
-                                  .toLowerCase()
-                                  .includes(searchQueries.badge.toLowerCase())
+                                emp.Badge.toLowerCase().includes(
+                                  searchQueries.badge.toLowerCase()
+                                )
                               )
                               .map((emp, index) => (
                                 <SearchResult
                                   key={index}
                                   onClick={() =>
-                                    handleSelect("badge", emp.badge)
+                                    handleSelect("badge", emp.Badge)
                                   }
                                 >
-                                  {emp.badge} - {emp.name}
+                                  {emp.Badge} - {emp.FullName}
                                 </SearchResult>
                               ))}
                           </SearchResults>
@@ -792,13 +942,16 @@ const RequestForm = () => {
                       </SearchableSelect>
                     </div>
                   </FormField>
+
                   <FormField>
                     <Label>A.S.A</Label>
                     <div ref={(el) => (dropdownRefs.current.name = el)}>
                       <SearchableSelect>
                         <SearchInput
                           placeholder="Search by name..."
-                          value={selectedEmployee?.name || searchQueries.name}
+                          value={
+                            selectedEmployee?.FullName || searchQueries.name
+                          }
                           onChange={(e) => handleSearch("name", e.target.value)}
                           onFocus={() =>
                             setShowDropdowns((prev) => ({
@@ -809,18 +962,20 @@ const RequestForm = () => {
                         />
                         {showDropdowns.name && (
                           <SearchResults>
-                            {mockEmployees
+                            {employees
                               .filter((emp) =>
-                                emp.name
-                                  .toLowerCase()
-                                  .includes(searchQueries.name.toLowerCase())
+                                emp.FullName.toLowerCase().includes(
+                                  searchQueries.name.toLowerCase()
+                                )
                               )
                               .map((emp, index) => (
                                 <SearchResult
                                   key={index}
-                                  onClick={() => handleSelect("name", emp.name)}
+                                  onClick={() =>
+                                    handleSelect("name", emp.FullName)
+                                  }
                                 >
-                                  {emp.name} ({emp.badge})
+                                  {emp.FullName} ({emp.Badge})
                                 </SearchResult>
                               ))}
                           </SearchResults>
@@ -828,33 +983,133 @@ const RequestForm = () => {
                       </SearchableSelect>
                     </div>
                   </FormField>
+
                   <FormField>
                     <Label>Position</Label>
                     <Input
                       type="text"
-                      value={selectedEmployee?.position || ""}
+                      value={selectedEmployee?.Position?.Name || ""}
                       readOnly
                       css={{ backgroundColor: theme.colors.secondary }}
                     />
                   </FormField>
+
                   <FormField>
                     <Label>Department</Label>
                     <Input
                       type="text"
-                      value={selectedEmployee?.department || ""}
+                      value={selectedEmployee?.Section?.Name || ""}
                       readOnly
                       css={{ backgroundColor: theme.colors.secondary }}
                     />
                   </FormField>
                 </>
               )}
-              <FormField>
-                <Label>Business Unit</Label>
-                <Input type="text" placeholder="Enter business unit" />
-              </FormField>
+
               <FormField>
                 <Label>Project</Label>
-                <Input type="text" placeholder="Enter project" />
+                <Select.Root
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      projectId: projects.find((p) => p.ProjectName === value)
+                        ?.Id,
+                    }))
+                  }
+                >
+                  <StyledTrigger>
+                    <Select.Value placeholder="Select Project" />
+                    <Select.Icon>
+                      <ChevronDownIcon />
+                    </Select.Icon>
+                  </StyledTrigger>
+                  <Select.Portal>
+                    <StyledContent>
+                      <Select.Viewport>
+                        {projects.map((project) => (
+                          <StyledItem
+                            key={project.Id}
+                            value={
+                              project.ProjectName || `project-${project.Id}`
+                            }
+                          >
+                            {project.ProjectName}
+                          </StyledItem>
+                        ))}
+                      </Select.Viewport>
+                    </StyledContent>
+                  </Select.Portal>
+                </Select.Root>
+              </FormField>
+
+              <FormField>
+                <Label>Project</Label>
+                <div
+                  ref={(el) => (dropdownRefs.current.subCase = el)}
+                  className="relative"
+                >
+                  <SearchableSelect>
+                    <div className="relative">
+                      <SearchInput
+                        placeholder={
+                          !requestType
+                            ? "First select a case"
+                            : "Search sub case..."
+                        }
+                        value={subCase || searchQueries.subCase}
+                        onChange={(e) =>
+                          handleSearch("subCase", e.target.value)
+                        }
+                        onFocus={() => {
+                          if (requestType) {
+                            setShowDropdowns((prev) => ({
+                              ...prev,
+                              subCase: true,
+                            }));
+                          }
+                        }}
+                        disabled={!requestType}
+                      />
+                      <SearchIcon>
+                        <ChevronDownIcon size={20} />
+                      </SearchIcon>
+                    </div>
+
+                    {showDropdowns.subCase && requestType && (
+                      <SearchResults>
+                        {getFilteredSubCases().length > 0 ? (
+                          getFilteredSubCases().map((subCaseItem, index) => (
+                            <SearchResult
+                              key={index}
+                              onClick={() => {
+                                handleSelect("subCase", subCaseItem);
+                                setShowDropdowns((prev) => ({
+                                  ...prev,
+                                  subCase: false,
+                                }));
+                              }}
+                            >
+                              {subCaseItem}
+                            </SearchResult>
+                          ))
+                        ) : (
+                          <SearchResult
+                            css={{
+                              color: theme.colors.textLight,
+                              cursor: "default",
+                              textAlign: "center",
+                              "&:hover": {
+                                backgroundColor: "transparent",
+                              },
+                            }}
+                          >
+                            No sub cases available
+                          </SearchResult>
+                        )}
+                      </SearchResults>
+                    )}
+                  </SearchableSelect>
+                </div>
               </FormField>
             </FormGrid>
           </FormSection>
@@ -862,17 +1117,33 @@ const RequestForm = () => {
           {/* Mail Information */}
           <FormSection>
             <SectionTitle>Mail</SectionTitle>
+
             <FormField>
               <Label>CC</Label>
-              <Input type="text" placeholder="Enter CC email addresses" />
+              <Input
+                type="text"
+                placeholder="Enter CC email addresses"
+                value={formData.ccAddresses}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    ccAddresses: e.target.value,
+                  }))
+                }
+              />
             </FormField>
             <FormField>
               <Label>Mail Body</Label>
-              <Textarea placeholder="Enter your message here..." />
-            </FormField>
-            <FormField>
-              <Label>Mail Attachments</Label>
-              <Input type="file" multiple />
+              <Textarea
+                placeholder="Enter your message here..."
+                value={formData.mailBody}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    mailBody: e.target.value,
+                  }))
+                }
+              />
             </FormField>
           </FormSection>
 
@@ -881,17 +1152,30 @@ const RequestForm = () => {
             <SectionTitle>Hyperlink</SectionTitle>
             <FormField>
               <Label>Hyperlink</Label>
-              <Input type="url" placeholder="Enter URL" />
+              <Input
+                type="url"
+                placeholder="Enter URL"
+                value={formData.hyperlink}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    hyperlink: e.target.value,
+                  }))
+                }
+              />
             </FormField>
           </FormSection>
 
           {/* Attachments */}
           <FormSection>
             <SectionTitle>Attachments</SectionTitle>
-
             <FormField>
               <Label>Other Attachments</Label>
-              <Input type="file" multiple />
+              <Input
+                type="file"
+                multiple
+                onChange={(e) => handleFileUpload(e, "otherAttachments")}
+              />
             </FormField>
           </FormSection>
 
@@ -899,7 +1183,14 @@ const RequestForm = () => {
           <FormSection>
             <SectionTitle>ER Member</SectionTitle>
             <FormField>
-              <Select.Root>
+              <Select.Root
+                onValueChange={(value) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    erMemberId: erMembers.find((m) => m.Name === value)?.Id,
+                  }))
+                }
+              >
                 <StyledTrigger>
                   <Select.Value placeholder="Select ER Member" />
                   <Select.Icon>
@@ -909,9 +1200,14 @@ const RequestForm = () => {
                 <Select.Portal>
                   <StyledContent>
                     <Select.Viewport>
-                      <StyledItem value="member1">Member 1</StyledItem>
-                      <StyledItem value="member2">Member 2</StyledItem>
-                      <StyledItem value="member3">Member 3</StyledItem>
+                      {erMembers.map((member) => (
+                        <StyledItem
+                          key={member.Id}
+                          value={member.Name || `member-${member.Id}`}
+                        >
+                          {member.Name}
+                        </StyledItem>
+                      ))}
                     </Select.Viewport>
                   </StyledContent>
                 </Select.Portal>
@@ -919,7 +1215,9 @@ const RequestForm = () => {
             </FormField>
           </FormSection>
 
-          <Button type="submit">Submit Request</Button>
+          <Button type="submit" disabled={loading}>
+            {loading ? "Submitting..." : "Submit Request"}
+          </Button>
         </form>
       </Tabs.Root>
     </StyledCard>
@@ -927,5 +1225,3 @@ const RequestForm = () => {
 };
 
 export default RequestForm;
-
-

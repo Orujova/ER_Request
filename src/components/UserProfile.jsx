@@ -1,8 +1,8 @@
 // src/components/common/UserProfile.jsx
 import React, { useState, useEffect } from "react";
 import { useMsal } from "@azure/msal-react";
-import { callMsGraph } from "../../utils/authService";
-import { getLoginParameters } from "../../utils/authService";
+import { callMsGraph } from "../utils/authService";
+import { getLoginParameters } from "../utils/authService";
 import {
   Box,
   Card,
@@ -23,7 +23,7 @@ import {
   AlertCircle,
   CheckCircle2,
 } from "lucide-react";
-import { themeColors } from "../../styles/theme";
+import { themeColors } from "../styles/theme";
 
 const ProfileField = ({ icon: Icon, label, value, emphasized = false }) => {
   if (!value) return null;

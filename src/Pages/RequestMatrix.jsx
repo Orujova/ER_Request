@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { API_BASE_URL } from "../../apiConfig";
 import { themeColors } from "../styles/theme";
+import { getStoredTokens, getUserId } from "../utils/authHandler";
+
+const { jwtToken } = getStoredTokens();
 
 const CaseManagementSystem = () => {
   // Main state
