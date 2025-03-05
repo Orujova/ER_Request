@@ -1,236 +1,114 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { setRequest, addMessage, setMessages } from "./requestSlice";
-import { Send, Paperclip, Link2, Mail, Check, X } from "lucide-react";
-import * as Tabs from "@radix-ui/react-tabs";
-import * as ScrollArea from "@radix-ui/react-scroll-area";
-import * as Separator from "@radix-ui/react-separator";
-import { styled } from "@stitches/react";
+import {
+  Send,
+  Paperclip,
+  Link2,
+  Mail,
+  Check,
+  X,
+  ArrowRight,
+} from "lucide-react";
+import { API_BASE_URL } from "../../../apiConfig";
+import { getStoredTokens } from "../../utils/authHandler";
 
-// Styled Components with Stitches
-const StyledCard = styled("div", {
-  background: "white",
-  borderRadius: "12px",
-  boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
-  padding: "24px",
-  marginBottom: "20px",
-});
-
-const StyledButton = styled("button", {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: "8px",
-  borderRadius: "6px",
-  padding: "10px 16px",
-  fontSize: "14px",
-  fontWeight: 500,
-  lineHeight: 1,
-  cursor: "pointer",
-  border: "none",
-  transition: "all 0.2s",
-
-  variants: {
-    variant: {
-      primary: {
-        backgroundColor: "#3b82f6",
-        color: "white",
-        "&:hover": { backgroundColor: "#2563eb" },
-      },
-      secondary: {
-        backgroundColor: "#f3f4f6",
-        color: "#374151",
-        "&:hover": { backgroundColor: "#e5e7eb" },
-      },
-      success: {
-        backgroundColor: "#10b981",
-        color: "white",
-        "&:hover": { backgroundColor: "#059669" },
-      },
-      danger: {
-        backgroundColor: "#ef4444",
-        color: "white",
-        "&:hover": { backgroundColor: "#dc2626" },
-      },
-      ghost: {
-        backgroundColor: "transparent",
-        color: "#6b7280",
-        "&:hover": { backgroundColor: "#f3f4f6" },
-      },
-    },
-    size: {
-      sm: { padding: "6px 12px", fontSize: "12px" },
-      md: { padding: "10px 16px", fontSize: "14px" },
-      lg: { padding: "12px 20px", fontSize: "16px" },
-    },
-  },
-  defaultVariants: {
-    variant: "primary",
-    size: "md",
-  },
-});
-
-const StyledInput = styled("input", {
-  width: "100%",
-  padding: "10px 16px",
-  borderRadius: "6px",
-  border: "1px solid #e5e7eb",
-  fontSize: "14px",
-  transition: "all 0.2s",
-  outline: "none",
-
-  "&:focus": {
-    borderColor: "#3b82f6",
-    boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.1)",
-  },
-});
-
-const StyledBadge = styled("span", {
-  display: "inline-flex",
-  alignItems: "center",
-  padding: "4px 12px",
-  borderRadius: "9999px",
-  fontSize: "12px",
-  fontWeight: 500,
-
-  variants: {
-    variant: {
-      inProgress: {
-        backgroundColor: "#fef3c7",
-        color: "#92400e",
-      },
-      completed: {
-        backgroundColor: "#d1fae5",
-        color: "#065f46",
-      },
-      pending: {
-        backgroundColor: "#e0f2fe",
-        color: "#075985",
-      },
-    },
-  },
-});
-
-const StyledTabs = styled(Tabs.Root, {
-  display: "flex",
-  flexDirection: "column",
-  width: "100%",
-});
-
-const StyledTabsList = styled(Tabs.List, {
-  display: "flex",
-  borderBottom: "1px solid #e5e7eb",
-  marginBottom: "24px",
-});
-
-const StyledTabsTrigger = styled(Tabs.Trigger, {
-  padding: "12px 20px",
-  border: "none",
-  background: "none",
-  fontSize: "14px",
-  fontWeight: 500,
-  color: "#6b7280",
-  cursor: "pointer",
-  borderBottom: "2px solid transparent",
-  transition: "all 0.2s",
-
-  '&[data-state="active"]': {
-    color: "#3b82f6",
-    borderBottomColor: "#3b82f6",
-  },
-
-  "&:hover": {
-    color: "#3b82f6",
-  },
-});
-
-const StyledScrollArea = styled(ScrollArea.Root, {
-  height: "400px",
-  padding: "16px",
-  paddingRight: "24px",
-});
-
-const ScrollViewport = styled(ScrollArea.Viewport, {
-  width: "100%",
-  height: "100%",
-  borderRadius: "inherit",
-});
-
-const ScrollBar = styled(ScrollArea.Scrollbar, {
-  display: "flex",
-  userSelect: "none",
-  touchAction: "none",
-  padding: "2px",
-  background: "#f3f4f6",
-  transition: "background 160ms ease-out",
-  '&[data-orientation="vertical"]': { width: "10px" },
-  '&[data-orientation="horizontal"]': {
-    height: "10px",
-    flexDirection: "column",
-  },
-});
-
-const ScrollThumb = styled(ScrollArea.Thumb, {
-  flex: 1,
-  background: "#9ca3af",
-  borderRadius: "9999px",
-  position: "relative",
-  "&::before": {
-    content: '""',
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    transform: "translate(-50%, -50%)",
-    width: "100%",
-    height: "100%",
-    minWidth: "44px",
-    minHeight: "44px",
-  },
-});
+// Helper function to convert ERRequestStatus enum to readable text
+const getStatusText = (statusCode) => {
+  switch (statusCode) {
+    case 0:
+      return "Pending";
+    case 1:
+      return "Under Review";
+    case 2:
+      return "Decision Made";
+    case 3:
+      return "Order Created";
+    case 4:
+      return "Completed";
+    case 5:
+      return "Order Canceled";
+    default:
+      return "Unknown";
+  }
+};
 
 function RequestDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const request = useSelector((state) => state.request.currentRequest);
   const messages = useSelector((state) => state.request.messages);
   const [newMessage, setNewMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    const mockRequest = {
-      id,
-      case: "Davamiyyət",
-      subCase: "İşə gecikmə",
-      status: "In Progress",
-      employeeInfo: {
-        badge: "EMP123",
-        name: "John Smith",
-        position: "Developer",
-        department: "IT",
-        businessUnit: "Technology",
-        project: "ER System",
-      },
-      mailInfo: {
-        email: "john@example.com",
-        cc: "manager@example.com",
-        body: "Request details...",
-      },
-      attachments: ["presentation.pptx", "document.pdf"],
-      hyperlinks: ["https://example.com"],
-      erMember: "Sarah Johnson",
+    const fetchRequestData = async () => {
+      try {
+        setLoading(true);
+        const { token } = getStoredTokens();
+
+        const response = await fetch(`${API_BASE_URL}/api/ERRequest/${id}`, {
+          method: "GET",
+          headers: {
+            accept: "*/*",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error fetching request data: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Transform API data to match our component structure
+        const transformedRequest = {
+          id: data.Id,
+          case: data.CaseName,
+          subCase: data.SubCaseDescription,
+          status: getStatusText(data.ERRequestStatus),
+          employeeInfo: {
+            name: data.EmployeeName,
+            project: data.ProjectName,
+            projectCode: data.ProjectCode,
+            employee_id: data.EmployeeId,
+          },
+          mailInfo: {
+            email: data.MailToAdresses,
+            cc: data.MailCcAddresses,
+            body: data.MailBody,
+          },
+          attachments: [], // API doesn't provide this information
+          hyperlinks: data.ERHyperLink ? [data.ERHyperLink] : [],
+          erMember: data.ERMember,
+          createdDate: data.CreatedDate,
+        };
+
+        dispatch(setRequest(transformedRequest));
+
+        // You would also fetch messages here if there's an API endpoint for that
+        dispatch(
+          setMessages([
+            {
+              id: 1,
+              sender: data.EmployeeName,
+              message: "Initial request",
+              timestamp: new Date(data.CreatedDate).toLocaleString(),
+            },
+          ])
+        );
+
+        setLoading(false);
+      } catch (err) {
+        setError(err.message);
+        setLoading(false);
+      }
     };
 
-    dispatch(setRequest(mockRequest));
-    dispatch(
-      setMessages([
-        {
-          id: 1,
-          sender: "John Doe",
-          message: "Initial message",
-          timestamp: new Date().toLocaleString(),
-        },
-      ])
-    );
+    fetchRequestData();
   }, [dispatch, id]);
 
   const handleSendMessage = () => {
@@ -247,389 +125,265 @@ function RequestDetail() {
     }
   };
 
-  if (!request) return <div>Loading...</div>;
+  const navigateToAction = () => {
+    navigate(`/request/${id}/action`);
+  };
+
+  if (loading)
+    return (
+      <div className="flex justify-center items-center h-64">Loading...</div>
+    );
+  if (error) return <div className="text-red-500 p-4">Error: {error}</div>;
+  if (!request)
+    return <div className="text-gray-500 p-4">Request not found</div>;
 
   return (
-    <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "24px" }}>
+    <div className="max-w-7xl mx-auto p-6">
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "32px",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <h1
-            style={{
-              fontSize: "24px",
-              fontWeight: 600,
-              color: "#111827",
-            }}
-          >
+      <div className="flex justify-between items-center mb-8">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-semibold text-gray-900">
             Request #{id}
           </h1>
-          <StyledBadge
-            variant={
-              request.status === "In Progress" ? "inProgress" : "completed"
-            }
+          <span
+            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium
+            ${
+              request.status === "Pending"
+                ? "bg-gray-100 text-gray-800"
+                : request.status === "Under Review"
+                ? "bg-amber-100 text-amber-800"
+                : request.status === "Decision Made"
+                ? "bg-blue-100 text-blue-800"
+                : request.status === "Order Created"
+                ? "bg-purple-100 text-purple-800"
+                : request.status === "Completed"
+                ? "bg-emerald-100 text-emerald-800"
+                : "bg-red-100 text-red-800"
+            }`}
           >
             {request.status}
-          </StyledBadge>
+          </span>
         </div>
 
-        <div style={{ display: "flex", gap: "8px" }}>
-          <StyledButton variant="ghost" size="sm">
+        <div className="flex gap-2">
+          <button
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-md transition-colors"
+            onClick={navigateToAction}
+          >
+            <ArrowRight size={16} />
+            Go to Action
+          </button>
+          <button className="inline-flex items-center gap-2 px-3 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-md transition-colors">
             <Mail size={16} />
             Export
-          </StyledButton>
-          <StyledButton variant="ghost" size="sm">
+          </button>
+          <button className="inline-flex items-center gap-2 px-3 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-md transition-colors">
             Print
-          </StyledButton>
+          </button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "2fr 1fr",
-          gap: "24px",
-        }}
-      >
-        {/* Left Column */}
-        <div>
-          <StyledTabs defaultValue="case">
-            <StyledTabsList>
-              <StyledTabsTrigger value="case">Case Info</StyledTabsTrigger>
-              <StyledTabsTrigger value="employee">Employee</StyledTabsTrigger>
-              <StyledTabsTrigger value="mail">Mail</StyledTabsTrigger>
-              <StyledTabsTrigger value="attachments">
-                Attachments
-              </StyledTabsTrigger>
-            </StyledTabsList>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column - Takes 2/3 of the space */}
+        <div className="lg:col-span-2">
+          <div className="mb-6">
+            <div className="border-b border-gray-200">
+              <nav className="flex -mb-px" aria-label="Tabs">
+                <button className="border-blue-500 text-blue-600 px-5 py-3 text-sm font-medium border-b-2">
+                  Case Info
+                </button>
+                <button className="text-gray-500 hover:text-gray-700 hover:border-gray-300 px-5 py-3 text-sm font-medium border-b-2 border-transparent">
+                  Employee
+                </button>
+                <button className="text-gray-500 hover:text-gray-700 hover:border-gray-300 px-5 py-3 text-sm font-medium border-b-2 border-transparent">
+                  Mail
+                </button>
+                <button className="text-gray-500 hover:text-gray-700 hover:border-gray-300 px-5 py-3 text-sm font-medium border-b-2 border-transparent">
+                  Attachments
+                </button>
+              </nav>
+            </div>
 
-            <Tabs.Content value="case">
-              <StyledCard>
-                <h3
-                  style={{
-                    fontSize: "18px",
-                    fontWeight: 600,
-                    marginBottom: "20px",
-                  }}
-                >
-                  Case Information
-                </h3>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "20px",
-                  }}
-                >
-                  <div>
-                    <div
-                      style={{
-                        fontWeight: 500,
-                        color: "#6b7280",
-                        marginBottom: "4px",
-                      }}
-                    >
-                      Case
-                    </div>
-                    <div style={{ color: "#111827" }}>{request.case}</div>
+            {/* Case Info Tab Content */}
+            <div className="bg-white rounded-lg shadow p-6 mt-6">
+              <h3 className="text-lg font-semibold mb-5">Case Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <div className="font-medium text-gray-500 mb-1">Case</div>
+                  <div className="text-gray-900">{request.case}</div>
+                </div>
+                <div>
+                  <div className="font-medium text-gray-500 mb-1">Sub Case</div>
+                  <div className="text-gray-900">{request.subCase}</div>
+                </div>
+                <div>
+                  <div className="font-medium text-gray-500 mb-1">
+                    Created Date
                   </div>
-                  <div>
-                    <div
-                      style={{
-                        fontWeight: 500,
-                        color: "#6b7280",
-                        marginBottom: "4px",
-                      }}
-                    >
-                      Sub Case
-                    </div>
-                    <div style={{ color: "#111827" }}>{request.subCase}</div>
+                  <div className="text-gray-900">{request.createdDate}</div>
+                </div>
+                <div>
+                  <div className="font-medium text-gray-500 mb-1">
+                    ER Member
                   </div>
+                  <div className="text-gray-900">{request.erMember}</div>
                 </div>
-              </StyledCard>
-            </Tabs.Content>
+              </div>
+            </div>
 
-            <Tabs.Content value="employee">
-              <StyledCard>
-                <h3
-                  style={{
-                    fontSize: "18px",
-                    fontWeight: 600,
-                    marginBottom: "20px",
-                  }}
-                >
-                  Employee Information
-                </h3>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "20px",
-                  }}
-                >
-                  {Object.entries(request.employeeInfo).map(([key, value]) => (
-                    <div key={key}>
-                      <div
-                        style={{
-                          fontWeight: 500,
-                          color: "#6b7280",
-                          marginBottom: "4px",
-                        }}
-                      >
-                        {key.replace(/([A-Z])/g, " $1")}
-                      </div>
-                      <div style={{ color: "#111827" }}>{value}</div>
+            {/* Employee Info Tab Content */}
+            <div className="bg-white rounded-lg shadow p-6 mt-6 hidden">
+              <h3 className="text-lg font-semibold mb-5">
+                Employee Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {Object.entries(request.employeeInfo).map(([key, value]) => (
+                  <div key={key}>
+                    <div className="font-medium text-gray-500 mb-1">
+                      {key.charAt(0).toUpperCase() +
+                        key.slice(1).replace(/([A-Z])/g, " $1")}
                     </div>
-                  ))}
-                </div>
-              </StyledCard>
-            </Tabs.Content>
+                    <div className="text-gray-900">{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-            <Tabs.Content value="mail">
-              <StyledCard>
-                <h3
-                  style={{
-                    fontSize: "18px",
-                    fontWeight: 600,
-                    marginBottom: "20px",
-                  }}
-                >
-                  Mail Information
-                </h3>
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "20px",
-                  }}
-                >
-                  {Object.entries(request.mailInfo).map(([key, value]) => (
-                    <div key={key}>
-                      <div
-                        style={{
-                          fontWeight: 500,
-                          color: "#6b7280",
-                          marginBottom: "4px",
-                        }}
-                      >
-                        {key.replace(/([A-Z])/g, " $1")}
-                      </div>
-                      <div style={{ color: "#111827" }}>{value}</div>
+            {/* Mail Info Tab Content */}
+            <div className="bg-white rounded-lg shadow p-6 mt-6 hidden">
+              <h3 className="text-lg font-semibold mb-5">Mail Information</h3>
+              <div className="flex flex-col gap-5">
+                {Object.entries(request.mailInfo).map(([key, value]) => (
+                  <div key={key}>
+                    <div className="font-medium text-gray-500 mb-1">
+                      {key.charAt(0).toUpperCase() +
+                        key.slice(1).replace(/([A-Z])/g, " $1")}
                     </div>
-                  ))}
-                </div>
-              </StyledCard>
-            </Tabs.Content>
+                    <div className="text-gray-900">{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-            <Tabs.Content value="attachments">
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "24px",
-                }}
-              >
-                <StyledCard>
-                  <h3
-                    style={{
-                      fontSize: "18px",
-                      fontWeight: 600,
-                      marginBottom: "20px",
-                    }}
-                  >
-                    Attachments
-                  </h3>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "8px",
-                    }}
-                  >
-                    {request.attachments.map((file, index) => (
-                      <StyledButton
+            {/* Attachments Tab Content */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 ">
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-semibold mb-5">Attachments</h3>
+                <div className="flex flex-col gap-2">
+                  {request.attachments && request.attachments.length > 0 ? (
+                    request.attachments.map((file, index) => (
+                      <button
                         key={index}
-                        variant="ghost"
-                        style={{ justifyContent: "flex-start", width: "100%" }}
+                        className="inline-flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md text-left w-full transition-colors"
                       >
                         <Paperclip size={16} />
                         {file}
-                      </StyledButton>
-                    ))}
-                  </div>
-                </StyledCard>
+                      </button>
+                    ))
+                  ) : (
+                    <p className="text-gray-500">No attachments</p>
+                  )}
+                </div>
+              </div>
 
-                <StyledCard>
-                  <h3
-                    style={{
-                      fontSize: "18px",
-                      fontWeight: 600,
-                      marginBottom: "20px",
-                    }}
-                  >
-                    Hyperlinks
-                  </h3>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "8px",
-                    }}
-                  >
-                    {request.hyperlinks.map((link, index) => (
-                      <StyledButton
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-semibold mb-5">Hyperlinks</h3>
+                <div className="flex flex-col gap-2">
+                  {request.hyperlinks && request.hyperlinks.length > 0 ? (
+                    request.hyperlinks.map((link, index) => (
+                      <a
                         key={index}
-                        variant="ghost"
-                        style={{ justifyContent: "flex-start", width: "100%" }}
-                        as="a"
                         href={link}
                         target="_blank"
                         rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md text-left w-full transition-colors"
                       >
                         <Link2 size={16} />
                         {link}
-                      </StyledButton>
-                    ))}
-                  </div>
-                </StyledCard>
+                      </a>
+                    ))
+                  ) : (
+                    <p className="text-gray-500">No hyperlinks</p>
+                  )}
+                </div>
               </div>
-            </Tabs.Content>
-          </StyledTabs>
+            </div>
+          </div>
         </div>
 
-        {/* Right Column */}
-        <div>
-          <StyledCard>
-            <h3
-              style={{
-                fontSize: "18px",
-                fontWeight: 600,
-                marginBottom: "20px",
-              }}
-            >
-              Actions
-            </h3>
-            <div
-              style={{ display: "flex", flexDirection: "column", gap: "8px" }}
-            >
-              <StyledButton variant="secondary">
+        {/* Right Column - Takes 1/3 of the space */}
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold mb-5">Actions</h3>
+            <div className="flex flex-col gap-2">
+              <button className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 bg-white text-gray-700 rounded-md hover:bg-gray-50 transition-colors">
                 <Mail size={16} />
                 Send Mail
-              </StyledButton>
-              <StyledButton variant="success">
+              </button>
+              <button className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors">
                 <Check size={16} />
                 Approve
-              </StyledButton>
-              <StyledButton variant="danger">
+              </button>
+              <button className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">
                 <X size={16} />
                 Reject
-              </StyledButton>
+              </button>
             </div>
-          </StyledCard>
+          </div>
 
-          <StyledCard style={{ marginTop: "24px" }}>
-            <h3
-              style={{
-                fontSize: "18px",
-                fontWeight: 600,
-                marginBottom: "20px",
-              }}
-            >
-              Chat
-            </h3>
-            <StyledScrollArea>
-              <ScrollViewport>
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "16px",
-                  }}
-                >
-                  {messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems:
-                          msg.sender === "Current User"
-                            ? "flex-end"
-                            : "flex-start",
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                          marginBottom: "4px",
-                        }}
-                      >
-                        <span style={{ fontSize: "14px", fontWeight: 500 }}>
-                          {msg.sender}
-                        </span>
-                        <span style={{ fontSize: "12px", color: "#6b7280" }}>
-                          {msg.timestamp}
-                        </span>
-                      </div>
-                      <div
-                        style={{
-                          maxWidth: "80%",
-                          padding: "12px",
-                          borderRadius: "8px",
-                          background:
-                            msg.sender === "Current User"
-                              ? "#eff6ff"
-                              : "#f3f4f6",
-                          color:
-                            msg.sender === "Current User"
-                              ? "#1e40af"
-                              : "#374151",
-                        }}
-                      >
-                        <span style={{ fontSize: "14px" }}>{msg.message}</span>
-                      </div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold mb-5">Chat</h3>
+            <div className="h-96 overflow-y-auto mb-4 pr-2">
+              <div className="flex flex-col gap-4">
+                {messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`flex flex-col ${
+                      msg.sender === "Current User"
+                        ? "items-end"
+                        : "items-start"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-medium">{msg.sender}</span>
+                      <span className="text-xs text-gray-500">
+                        {msg.timestamp}
+                      </span>
                     </div>
-                  ))}
-                </div>
-              </ScrollViewport>
-              <ScrollBar orientation="vertical">
-                <ScrollThumb />
-              </ScrollBar>
-            </StyledScrollArea>
-
-            <Separator.Root
-              style={{
-                height: "1px",
-                backgroundColor: "#e5e7eb",
-                margin: "16px 0",
-              }}
-            />
-
-            <div style={{ display: "flex", gap: "8px" }}>
-              <StyledInput
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                placeholder="Type a message..."
-              />
-              <StyledButton
-                variant="primary"
-                onClick={handleSendMessage}
-                style={{ padding: "10px", width: "auto" }}
-              >
-                <Send size={16} />
-              </StyledButton>
+                    <div
+                      className={`max-w-[80%] p-3 rounded-lg ${
+                        msg.sender === "Current User"
+                          ? "bg-blue-100 text-blue-900"
+                          : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      <span className="text-sm">{msg.message}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </StyledCard>
+
+            <div className="border-t border-gray-200 pt-4">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+                  placeholder="Type a message..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <button
+                  onClick={handleSendMessage}
+                  className="inline-flex items-center justify-center p-2.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  <Send size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
