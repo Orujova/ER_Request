@@ -173,13 +173,6 @@ function RequestDetail() {
             <ArrowRight size={16} />
             Go to Action
           </button>
-          <button className="inline-flex items-center gap-2 px-3 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-md transition-colors">
-            <Mail size={16} />
-            Export
-          </button>
-          <button className="inline-flex items-center gap-2 px-3 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-md transition-colors">
-            Print
-          </button>
         </div>
       </div>
 
@@ -315,19 +308,10 @@ function RequestDetail() {
         {/* Right Column - Takes 1/3 of the space */}
         <div className="space-y-6">
           <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-5">Actions</h3>
             <div className="flex flex-col gap-2">
               <button className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 bg-white text-gray-700 rounded-md hover:bg-gray-50 transition-colors">
                 <Mail size={16} />
                 Send Mail
-              </button>
-              <button className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors">
-                <Check size={16} />
-                Approve
-              </button>
-              <button className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">
-                <X size={16} />
-                Reject
               </button>
             </div>
           </div>

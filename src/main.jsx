@@ -6,7 +6,7 @@ import { PublicClientApplication, EventType } from "@azure/msal-browser";
 import { MsalProvider } from "@azure/msal-react";
 import { msalConfig } from "../authConfig";
 import { verifyTokenWithBackend } from "./utils/authHandler";
-import store from "./store";
+import store from "./redux/slices/store";
 import App from "./App";
 import "./App.css";
 

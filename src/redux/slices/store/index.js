@@ -1,9 +1,11 @@
+// src/redux/store.js
 import { configureStore } from "@reduxjs/toolkit";
-import requestReducer from "../features/request/requestSlice";
+
+import ReReducer from "../../../features/request/requestSlice";
 
 export const store = configureStore({
   reducer: {
-    request: requestReducer,
+    request: ReReducer,
   },
 });
 
