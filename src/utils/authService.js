@@ -8,7 +8,7 @@ import {
 
 /**
  * Attaches a given access token to a Microsoft Graph API call
- * @param accessToken - Bearer access token
+ * @param accessToken
  */
 
 let isFetchingGraph = false;

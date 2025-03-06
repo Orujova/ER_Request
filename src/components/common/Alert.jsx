@@ -1,7 +1,28 @@
+import React, { useState, useEffect } from "react";
 import { AlertCircle, CheckCircle } from "lucide-react";
 
-const Alert = ({ variant, message, onDismiss }) => {
-  if (!message) return null;
+const Alert = ({
+  variant,
+  message,
+  onDismiss,
+  autoDismiss = true,
+  duration = 3000,
+}) => {
+  const [visible, setVisible] = useState(true);
+
+  // Handle auto-dismissal
+  useEffect(() => {
+    if (autoDismiss && visible && message) {
+      const timer = setTimeout(() => {
+        setVisible(false);
+        if (onDismiss) onDismiss();
+      }, duration);
+
+      return () => clearTimeout(timer);
+    }
+  }, [autoDismiss, duration, message, onDismiss, visible]);
+
+  if (!message || !visible) return null;
 
   const variants = {
     error: {
@@ -20,15 +41,21 @@ const Alert = ({ variant, message, onDismiss }) => {
 
   const style = variants[variant];
 
+  // Handle manual dismissal
+  const handleDismiss = () => {
+    setVisible(false);
+    if (onDismiss) onDismiss();
+  };
+
   return (
     <div
       className={`mb-5 px-4 py-3 rounded-md ${style.bg} ${style.border} ${style.text} flex items-start gap-2`}
     >
       {style.icon}
       <div className="text-sm flex-1">{message}</div>
-      {onDismiss && (
+      {(onDismiss || autoDismiss) && (
         <button
-          onClick={onDismiss}
+          onClick={handleDismiss}
           className="text-gray-500 hover:text-gray-700"
           aria-label="Dismiss"
         >

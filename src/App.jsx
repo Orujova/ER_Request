@@ -17,7 +17,7 @@ import Navbar from "./components/layout/Navbar";
 import LoginPage from "./Pages/LoginPage";
 import ProfilePage from "./Pages/ProfilePage";
 import { AuthGuard } from "./components/common/AuthGuard";
-
+import ToastContainer from "./toast/ToastContainer";
 // Auth redirect component
 const AuthRedirect = ({ children, requireAuth = true }) => {
   const isAuthenticated = useIsAuthenticated();
@@ -39,6 +39,7 @@ function App() {
       <Layout>
         <Navbar />
         <MainContainer>
+          <ToastContainer />
           <Routes>
             {/* Public Routes */}
             <Route

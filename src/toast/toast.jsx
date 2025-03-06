@@ -1,7 +1,9 @@
-// src/utils/toast.js
+// src/utils/toast.jsx
+import React from "react";
 import { toast } from "sonner";
 import { Info, AlertCircle, XCircle, CheckCircle } from "lucide-react";
 import "./toast.css";
+
 const ToastIcon = ({ icon: Icon }) => (
   <div className="toast-icon">
     <Icon size={20} strokeWidth={2} />
