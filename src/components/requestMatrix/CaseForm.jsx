@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowLeft, Save, X } from "lucide-react";
+import { ArrowLeft, Save, X, FileText } from "lucide-react";
 import { themeColors } from "../../styles/theme";
 
 const CaseForm = ({
@@ -26,20 +26,27 @@ const CaseForm = ({
 
   return (
     <div
-      className="max-w-xl mx-auto rounded-lg p-8 space-y-6"
+      className="max-w-xl mx-auto rounded-xl p-0 overflow-hidden transition-all duration-300"
       style={{
         backgroundColor: themeColors.background,
-        boxShadow: themeColors.cardShadow,
+        boxShadow: `0 6px 24px ${themeColors.shadowLight}`,
         border: `1px solid ${themeColors.border}`,
       }}
     >
-      <div className="flex items-center mb-6">
+      {/* Header */}
+      <div
+        className="p-6 flex items-center"
+        style={{
+          background: `linear-gradient(to right, ${themeColors.primaryLight}10, ${themeColors.secondaryLight}25)`,
+          borderBottom: `1px solid ${themeColors.border}`,
+        }}
+      >
         <button
           onClick={onCancel}
-          className="mr-4 p-2 rounded-full transition-colors duration-150 hover:bg-gray-100"
+          className="mr-4 p-2 rounded-full transition-all duration-200 hover:bg-white hover:bg-opacity-50"
         >
           <ArrowLeft
-            size={24}
+            size={22}
             strokeWidth={2}
             className="text-gray-600 hover:text-gray-800"
           />
@@ -54,43 +61,74 @@ const CaseForm = ({
         </div>
       </div>
 
-      <div className="space-y-6">
-        <div>
-          <label
-            htmlFor="caseName"
-            className="block text-sm font-medium mb-2"
-            style={{ color: themeColors.text }}
-          >
-            Case Name
-          </label>
-          <input
-            id="caseName"
-            name={caseData.hasOwnProperty("caseName") ? "caseName" : "CaseName"}
-            type="text"
-            placeholder="Enter case name"
-            value={caseData.caseName || caseData.CaseName || ""}
-            onChange={handleInputChange}
-            className="w-full rounded-md px-4 py-3 focus:outline-none transition-all duration-200"
+      {/* Form content */}
+      <div className="p-8 space-y-6">
+        {/* Icon and field */}
+        <div className="flex items-start">
+          <div
+            className="p-2 rounded-lg mr-4 mt-2 hidden sm:flex"
             style={{
-              border: `1px solid ${themeColors.border}`,
-              backgroundColor: themeColors.background,
-              color: themeColors.text,
+              backgroundColor: `${themeColors.primaryLight}15`,
+              color: themeColors.primary,
             }}
-            onFocus={(e) => {
-              e.target.style.boxShadow = `0 0 0 3px ${themeColors.primaryLight}30`;
-              e.target.style.borderColor = themeColors.primaryLight;
-            }}
-            onBlur={(e) => {
-              e.target.style.boxShadow = "none";
-              e.target.style.borderColor = themeColors.border;
-            }}
-          />
+          >
+            <FileText size={22} strokeWidth={1.5} />
+          </div>
+
+          <div className="flex-1">
+            <label
+              htmlFor="caseName"
+              className="block text-sm font-medium mb-2"
+              style={{ color: themeColors.text }}
+            >
+              Case Name
+            </label>
+            <input
+              id="caseName"
+              name={
+                caseData.hasOwnProperty("caseName") ? "caseName" : "CaseName"
+              }
+              type="text"
+              placeholder="Enter case name"
+              value={caseData.caseName || caseData.CaseName || ""}
+              onChange={handleInputChange}
+              className="w-full rounded-lg px-4 py-3 focus:outline-none transition-all duration-200"
+              style={{
+                border: `1px solid ${themeColors.border}`,
+                backgroundColor: themeColors.background,
+                color: themeColors.text,
+              }}
+              onFocus={(e) => {
+                e.target.style.boxShadow = `0 0 0 3px ${themeColors.primaryLight}30`;
+                e.target.style.borderColor = themeColors.primaryLight;
+              }}
+              onBlur={(e) => {
+                e.target.style.boxShadow = "none";
+                e.target.style.borderColor = themeColors.border;
+              }}
+            />
+            <p
+              className="mt-2 text-xs"
+              style={{ color: themeColors.textLight }}
+            >
+              Enter a descriptive name for this case
+            </p>
+          </div>
         </div>
 
-        <div className="pt-4 flex justify-end space-x-4">
+        {/* Bottom actions */}
+        <div
+          className="pt-6 flex justify-end space-x-4 mt-8"
+          style={{
+            borderTop: `1px solid ${themeColors.border}`,
+          }}
+        >
           <button
             onClick={onCancel}
-            className="px-5 py-2 rounded-md transition-colors duration-150 flex items-center space-x-2 hover:bg-gray-100"
+            className="px-5 py-2.5 rounded-lg transition-all duration-200 flex items-center space-x-2 hover:bg-gray-100"
+            style={{
+              border: `1px solid ${themeColors.border}`,
+            }}
           >
             <X size={18} strokeWidth={2} />
             <span>Cancel</span>
@@ -98,23 +136,30 @@ const CaseForm = ({
           <button
             onClick={onSubmit}
             disabled={!isFormValid}
-            className="px-5 py-2 rounded-md transition-all duration-200 flex items-center space-x-2"
+            className="px-5 py-2.5 rounded-lg transition-all duration-200 flex items-center space-x-2"
             style={{
               backgroundColor: isFormValid
                 ? themeColors.primary
                 : `${themeColors.primary}80`,
               color: themeColors.background,
               opacity: !isFormValid ? 0.7 : 1,
+              boxShadow: isFormValid
+                ? `0 2px 6px ${themeColors.primaryDark}40`
+                : "none",
             }}
             onMouseOver={(e) => {
               if (isFormValid) {
                 e.currentTarget.style.backgroundColor =
                   themeColors.primaryHover;
+                e.currentTarget.style.transform = "translateY(-1px)";
+                e.currentTarget.style.boxShadow = `0 4px 8px ${themeColors.primaryDark}40`;
               }
             }}
             onMouseOut={(e) => {
               if (isFormValid) {
                 e.currentTarget.style.backgroundColor = themeColors.primary;
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = `0 2px 6px ${themeColors.primaryDark}40`;
               }
             }}
           >

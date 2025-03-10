@@ -11,7 +11,7 @@ import {
   LoadingOverlay,
 } from "../components/requestMatrix/LoadingScreen";
 
-const CaseManagementSystem = () => {
+const RequestMatrix = () => {
   // Authentication
   const { jwtToken } = getStoredTokens();
 
@@ -288,9 +288,12 @@ const CaseManagementSystem = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/Case/${caseId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/Case`, {
         method: "DELETE",
         headers: getRequestHeaders(),
+        body: JSON.stringify({
+          Id: caseId,
+        }),
       });
 
       if (!response.ok) throw new Error("Failed to delete case");
@@ -324,9 +327,12 @@ const CaseManagementSystem = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/SubCase/${subCaseId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/SubCase`, {
         method: "DELETE",
         headers: getRequestHeaders(),
+        body: JSON.stringify({
+          Id: subCaseId,
+        }),
       });
 
       if (!response.ok) throw new Error("Failed to delete subcase");
@@ -462,4 +468,4 @@ const CaseManagementSystem = () => {
   );
 };
 
-export default CaseManagementSystem;
+export default RequestMatrix;

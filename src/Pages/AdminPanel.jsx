@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Loader2, Link } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { API_BASE_URL } from "../../apiConfig";
 import { getStoredTokens } from "../utils/authHandler";
 import Alert from "../components/common/Alert";
-import SearchableSelect from "../components/common/SearchableSelect";
+import SearchableProjectDropdown from "../components/common/SearchableProjectDropdown";
 
 const { jwtToken } = getStoredTokens();
 
@@ -15,10 +15,10 @@ const AdminPanel = () => {
   const [erMembers, setErMembers] = useState([]);
 
   // Form states
-  const [selectedProject, setSelectedProject] = useState("");
-  const [selectedEmployee, setSelectedEmployee] = useState("");
-  const [selectedAreaManager, setSelectedAreaManager] = useState("");
-  const [selectedErMember, setSelectedErMember] = useState("");
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [selectedAreaManager, setSelectedAreaManager] = useState(null);
+  const [selectedErMember, setSelectedErMember] = useState(null);
 
   // UI states
   const [loading, setLoading] = useState(false);
@@ -102,8 +102,8 @@ const AdminPanel = () => {
 
       setSuccess("Area Manager assigned successfully");
       await fetchAllData();
-      setSelectedProject("");
-      setSelectedEmployee("");
+      setSelectedProject(null);
+      setSelectedEmployee(null);
 
       // Auto-dismiss success message after 3 seconds
       setTimeout(() => setSuccess(""), 3000);
@@ -154,8 +154,8 @@ const AdminPanel = () => {
 
       setSuccess("ER Member updated successfully");
       await fetchAllData();
-      setSelectedAreaManager("");
-      setSelectedErMember("");
+      setSelectedAreaManager(null);
+      setSelectedErMember(null);
 
       // Auto-dismiss success message after 3 seconds
       setTimeout(() => setSuccess(""), 3000);
@@ -167,25 +167,42 @@ const AdminPanel = () => {
   };
 
   // Prepare options for select components
-  const projectOptions = projects.map((project) => ({
-    id: project.Id,
-    name: project.ProjectName || "Unnamed Project",
-  }));
+  const projectOptions = projects.map(
+    (project) => project.ProjectName || "Unnamed Project"
+  );
 
-  const employeeOptions = employees.map((employee) => ({
-    id: employee.Id,
-    name: employee.FullName || "Unnamed Employee",
-  }));
+  const employeeOptions = employees.map(
+    (employee) => employee.FullName || "Unnamed Employee"
+  );
 
-  const managerOptions = areaManagers.map((manager) => ({
-    id: manager.EmployeeId,
-    name: manager.FullName || "Unnamed Manager",
-  }));
+  const managerOptions = areaManagers.map(
+    (manager) => manager.FullName || "Unnamed Manager"
+  );
 
-  const erMemberOptions = erMembers.map((member) => ({
-    id: member.Id,
-    name: member.FullName || "Unnamed Member",
-  }));
+  const erMemberOptions = erMembers.map(
+    (member) => member.FullName || "Unnamed Member"
+  );
+
+  // Function to get ID from name (for SearchableProjectDropdown)
+  const getProjectIdByName = (name) => {
+    const project = projects.find((p) => p.ProjectName === name);
+    return project ? String(project.Id) : null;
+  };
+
+  const getEmployeeIdByName = (name) => {
+    const employee = employees.find((e) => e.FullName === name);
+    return employee ? String(employee.Id) : null;
+  };
+
+  const getManagerIdByName = (name) => {
+    const manager = areaManagers.find((m) => m.FullName === name);
+    return manager ? String(manager.EmployeeId) : null;
+  };
+
+  const getErMemberIdByName = (name) => {
+    const member = erMembers.find((m) => m.FullName === name);
+    return member ? String(member.Id) : null;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
@@ -225,7 +242,7 @@ const AdminPanel = () => {
                     }`}
                   aria-current={activeTab === "link" ? "page" : undefined}
                 >
-                  Assing ER Member
+                  Assign ER Member
                 </button>
               </div>
             </div>
@@ -249,21 +266,41 @@ const AdminPanel = () => {
                 className="space-y-6"
               >
                 <div className="bg-gray-50 p-5 rounded-md space-y-5 md:space-y-0 md:grid md:grid-cols-2 md:gap-5">
-                  <SearchableSelect
+                  <SearchableProjectDropdown
                     label="Select Project"
-                    value={selectedProject}
-                    onChange={setSelectedProject}
-                    options={projectOptions}
                     placeholder="Choose a project"
-                    disabled={loading}
+                    options={projectOptions}
+                    value={
+                      selectedProject
+                        ? projects.find(
+                            (p) => p.Id === parseInt(selectedProject)
+                          )?.ProjectName
+                        : null
+                    }
+                    onChange={(projectName) => {
+                      setSelectedProject(
+                        projectName ? getProjectIdByName(projectName) : null
+                      );
+                    }}
+                    nullable={true}
                   />
-                  <SearchableSelect
+                  <SearchableProjectDropdown
                     label="Select Employee"
-                    value={selectedEmployee}
-                    onChange={setSelectedEmployee}
-                    options={employeeOptions}
                     placeholder="Choose an employee"
-                    disabled={loading}
+                    options={employeeOptions}
+                    value={
+                      selectedEmployee
+                        ? employees.find(
+                            (e) => e.Id === parseInt(selectedEmployee)
+                          )?.FullName
+                        : null
+                    }
+                    onChange={(employeeName) => {
+                      setSelectedEmployee(
+                        employeeName ? getEmployeeIdByName(employeeName) : null
+                      );
+                    }}
+                    nullable={true}
                   />
                 </div>
 
@@ -289,21 +326,41 @@ const AdminPanel = () => {
             {activeTab === "link" && (
               <form onSubmit={handleErMemberLink} className="space-y-6">
                 <div className="bg-gray-50 p-5 rounded-md space-y-5 md:space-y-0 md:grid md:grid-cols-2 md:gap-5">
-                  <SearchableSelect
+                  <SearchableProjectDropdown
                     label="Select Area Manager"
-                    value={selectedAreaManager}
-                    onChange={setSelectedAreaManager}
-                    options={managerOptions}
                     placeholder="Choose an area manager"
-                    disabled={loading}
+                    options={managerOptions}
+                    value={
+                      selectedAreaManager
+                        ? areaManagers.find(
+                            (m) => String(m.EmployeeId) === selectedAreaManager
+                          )?.FullName
+                        : null
+                    }
+                    onChange={(managerName) => {
+                      setSelectedAreaManager(
+                        managerName ? getManagerIdByName(managerName) : null
+                      );
+                    }}
+                    nullable={true}
                   />
-                  <SearchableSelect
+                  <SearchableProjectDropdown
                     label="Select ER Member"
-                    value={selectedErMember}
-                    onChange={setSelectedErMember}
-                    options={erMemberOptions}
                     placeholder="Choose an ER member"
-                    disabled={loading}
+                    options={erMemberOptions}
+                    value={
+                      selectedErMember
+                        ? erMembers.find(
+                            (m) => String(m.Id) === selectedErMember
+                          )?.FullName
+                        : null
+                    }
+                    onChange={(memberName) => {
+                      setSelectedErMember(
+                        memberName ? getErMemberIdByName(memberName) : null
+                      );
+                    }}
+                    nullable={true}
                   />
                 </div>
 

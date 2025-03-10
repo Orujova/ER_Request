@@ -9,39 +9,25 @@ import {
   deleteMessage,
 } from "./requestSlice";
 import {
-  Send,
   Paperclip,
   Link2,
   Mail,
   ArrowRight,
-  Edit2,
-  Trash2,
   Users,
-  AtSign,
-  Check,
-  X,
   AlertTriangle,
   FileText,
-  Calendar,
   User,
-  MoreHorizontal,
   ExternalLink,
-  Loader,
   Clock,
-  CheckCircle2,
-  Copy,
-  MessageCircle,
   ChevronRight,
-  HelpCircle,
   BadgeAlert,
   UserRound,
-  Building2,
-  CircleUser,
   MailOpen,
 } from "lucide-react";
 import { API_BASE_URL } from "../../../apiConfig";
 import { getStoredTokens, getUserId } from "../../utils/authHandler";
 import { themeColors } from "../../styles/theme";
+import { ChatPanel } from "../../components/Chat"; // Import our chat component
 
 // Helper function to convert ERRequestStatus enum to readable text
 const getStatusText = (statusCode) => {
@@ -102,25 +88,14 @@ function RequestDetail() {
   const messages = useSelector((state) => state.request.messages);
 
   // State management
-  const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("case");
   const [childRequests, setChildRequests] = useState([]);
   const [erMembers, setErMembers] = useState([]);
-  const [showMentionDropdown, setShowMentionDropdown] = useState(false);
-  const [filteredMembers, setFilteredMembers] = useState([]);
-  const [mentionQuery, setMentionQuery] = useState("");
-  const [editingMessageId, setEditingMessageId] = useState(null);
-  const [editMessageText, setEditMessageText] = useState("");
-  const [sendingMessage, setSendingMessage] = useState(false);
-  const [messageError, setMessageError] = useState(null);
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
 
   // Refs
-  const messageEndRef = useRef(null);
-  const mentionInputRef = useRef(null);
-  const messageContainerRef = useRef(null);
   const actionMenuRef = useRef(null);
 
   // Get current user ID
@@ -262,12 +237,13 @@ function RequestDetail() {
       }
 
       const data = await response.json();
+      const messages = data[0].ERRequestMessages;
 
-      if (data && data.length > 0) {
-        const transformedMessages = data.map((msg) => ({
+      if (messages && messages.length > 0) {
+        const transformedMessages = messages.map((msg) => ({
           id: msg.Id,
-          senderId: msg.SenderId,
-          sender: msg.SenderName,
+          senderId: msg.AppuserId,
+          sender: msg.SenderFullName,
           message: msg.MessageContent,
           timestamp: new Date(msg.CreatedDate).toLocaleString(),
           isRead: msg.IsRead,
@@ -386,27 +362,19 @@ function RequestDetail() {
   };
 
   // Send a new message
-  const handleSendMessage = async () => {
-    if (!newMessage.trim()) return;
-
+  const handleSendMessage = async (messageText) => {
     try {
-      setSendingMessage(true);
-      setMessageError(null);
-
       const { token } = getStoredTokens();
       const userId = getUserId();
-      console.log(userId);
 
       if (!userId) {
-        setMessageError("User ID not found");
-        setSendingMessage(false);
-        return;
+        throw new Error("User ID not found");
       }
 
       const formData = new FormData();
       formData.append("ERRequestId", id);
       formData.append("SenderId", userId);
-      formData.append("MessageContent", newMessage);
+      formData.append("MessageContent", messageText);
 
       const response = await fetch(
         `${API_BASE_URL}/api/ERRequestMessage/AddERRequestMessage`,
@@ -418,7 +386,7 @@ function RequestDetail() {
           body: formData,
         }
       );
-      console.log(formData);
+
       if (!response.ok) {
         throw new Error(`Error sending message: ${response.status}`);
       }
@@ -432,7 +400,7 @@ function RequestDetail() {
             id: result.Data.Id || Date.now(),
             senderId: parseInt(userId),
             sender: result.Data.SenderName || "Current User",
-            message: newMessage,
+            message: messageText,
             timestamp: new Date().toLocaleString(),
             isRead: true,
             isEdited: false,
@@ -445,7 +413,7 @@ function RequestDetail() {
             id: Date.now(),
             senderId: parseInt(userId),
             sender: "Current User",
-            message: newMessage,
+            message: messageText,
             timestamp: new Date().toLocaleString(),
             isRead: true,
             isEdited: false,
@@ -453,45 +421,30 @@ function RequestDetail() {
         );
       }
 
-      setNewMessage("");
-      setShowMentionDropdown(false);
-
       // Refresh messages to get the correct data from the server
       await fetchMessages(id);
 
-      // Scroll to bottom
-      if (messageEndRef.current) {
-        messageEndRef.current.scrollIntoView({ behavior: "smooth" });
-      }
+      return result;
     } catch (err) {
-      setMessageError(err.message);
       console.error("Error sending message:", err);
-    } finally {
-      setSendingMessage(false);
+      throw err;
     }
   };
 
   // Edit an existing message
-  const handleEditMessage = async () => {
-    if (!editMessageText.trim() || !editingMessageId) return;
-
+  const handleEditMessage = async (messageId, newContent) => {
     try {
-      setSendingMessage(true);
-      setMessageError(null);
-
       const { token } = getStoredTokens();
       const userId = getUserId();
 
       if (!userId) {
-        setMessageError("User ID not found");
-        setSendingMessage(false);
-        return;
+        throw new Error("User ID not found");
       }
 
       const updateData = {
-        MessageId: editingMessageId,
+        MessageId: messageId,
         UserId: parseInt(userId),
-        MessageContent: editMessageText,
+        MessageContent: newContent,
       };
 
       const response = await fetch(
@@ -513,37 +466,30 @@ function RequestDetail() {
       // Optimistic update in UI
       dispatch(
         updateMessage({
-          id: editingMessageId,
-          message: editMessageText,
+          id: messageId,
+          message: newContent,
           isEdited: true,
         })
       );
 
-      setEditingMessageId(null);
-      setEditMessageText("");
-
       // Refresh messages to get the correct data from the server
       await fetchMessages(id);
+
+      return response;
     } catch (err) {
-      setMessageError(err.message);
-    } finally {
-      setSendingMessage(false);
+      console.error("Error editing message:", err);
+      throw err;
     }
   };
 
   // Delete a message
   const handleDeleteMessage = async (messageId) => {
     try {
-      setSendingMessage(true);
-      setMessageError(null);
-
       const { token } = getStoredTokens();
       const userId = getUserId();
 
       if (!userId) {
-        setMessageError("User ID not found");
-        setSendingMessage(false);
-        return;
+        throw new Error("User ID not found");
       }
 
       const deleteData = {
@@ -569,51 +515,11 @@ function RequestDetail() {
 
       // Refresh messages after deletion
       await fetchMessages(id);
+
+      return response;
     } catch (err) {
-      setMessageError(err.message);
-    } finally {
-      setSendingMessage(false);
-    }
-  };
-
-  // Handle @mention functionality
-  const handleMessageChange = (e) => {
-    const value = e.target.value;
-    setNewMessage(value);
-
-    // Check for @ symbol to trigger mention dropdown
-    const lastAtSymbolIndex = value.lastIndexOf("@");
-    if (lastAtSymbolIndex !== -1) {
-      const query = value.substring(lastAtSymbolIndex + 1).toLowerCase();
-      setMentionQuery(query);
-
-      if (query.length >= 0) {
-        const filtered = erMembers.filter((member) =>
-          member.FullName.toLowerCase().includes(query)
-        );
-        setFilteredMembers(filtered);
-        setShowMentionDropdown(filtered.length > 0);
-      } else {
-        setFilteredMembers(erMembers);
-        setShowMentionDropdown(erMembers.length > 0);
-      }
-    } else {
-      setShowMentionDropdown(false);
-    }
-  };
-
-  // Select a member from dropdown
-  const handleMemberSelect = (member) => {
-    const lastAtSymbolIndex = newMessage.lastIndexOf("@");
-    if (lastAtSymbolIndex !== -1) {
-      const beforeMention = newMessage.substring(0, lastAtSymbolIndex);
-      setNewMessage(`${beforeMention}@${member.FullName} `);
-    }
-    setShowMentionDropdown(false);
-
-    // Focus back on the input
-    if (mentionInputRef.current) {
-      mentionInputRef.current.focus();
+      console.error("Error deleting message:", err);
+      throw err;
     }
   };
 
@@ -626,17 +532,26 @@ function RequestDetail() {
     navigate(`/request/${id}/action`);
   };
 
-  // Scroll to the bottom of the messages when new ones arrive
-  useEffect(() => {
-    if (messageEndRef.current) {
-      messageEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages]);
-
   // Get status colors
   const statusColors = request
     ? getStatusColors(request.status)
     : getStatusColors("Pending");
+
+  // Render the Chat Panel in the right column
+  const renderChatPanel = () => {
+    if (!request) return null;
+
+    return (
+      <ChatPanel
+        messages={messages}
+        currentUserId={currentUserId}
+        handleSendMessage={handleSendMessage}
+        handleEditMessage={handleEditMessage}
+        handleDeleteMessage={handleDeleteMessage}
+        erMembers={erMembers}
+      />
+    );
+  };
 
   // Render loading state
   if (loading) {
@@ -1035,7 +950,6 @@ function RequestDetail() {
             </div>
           </div>
 
-          {/* Tab Content */}
           <div
             className="rounded-b-xl mb-6 overflow-hidden"
             style={{
@@ -1923,346 +1837,7 @@ function RequestDetail() {
         {/* Right Column - Takes 1/3 of the space */}
         <div className="space-y-6">
           {/* Chat Panel */}
-          <div
-            className="rounded-xl overflow-hidden flex flex-col h-[calc(100vh-22rem)]"
-            style={{
-              backgroundColor: themeColors.background,
-              boxShadow: themeColors.cardShadow,
-              border: `1px solid ${themeColors.border}`,
-            }}
-          >
-            <div
-              className="px-5 py-4 border-b flex items-center justify-between"
-              style={{
-                backgroundColor: themeColors.secondary,
-                borderColor: themeColors.border,
-              }}
-            >
-              <h3
-                className="font-semibold flex items-center gap-2"
-                style={{ color: themeColors.text }}
-              >
-                <MessageCircle
-                  className="w-4 h-4"
-                  style={{ color: themeColors.primary }}
-                />
-                <span>Chat</span>
-                {messages.length > 0 && (
-                  <span
-                    className="px-2 py-0.5 text-xs rounded-full"
-                    style={{
-                      backgroundColor: themeColors.primary + "20",
-                      color: themeColors.primary,
-                    }}
-                  >
-                    {messages.length}
-                  </span>
-                )}
-              </h3>
-              <div>
-                <button
-                  className="p-1 rounded-md transition-colors"
-                  style={{ color: themeColors.textLight }}
-                >
-                  <MoreHorizontal className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            <div
-              className="flex-1 overflow-y-auto p-5"
-              ref={messageContainerRef}
-              style={{ backgroundColor: themeColors.background }}
-            >
-              {messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center">
-                  <div
-                    className="w-12 h-12 rounded-full flex items-center justify-center mb-3"
-                    style={{
-                      backgroundColor: themeColors.primary + "20",
-                      color: themeColors.primary,
-                    }}
-                  >
-                    <MessageCircle className="w-5 h-5" />
-                  </div>
-                  <p style={{ color: themeColors.text }}>No messages yet</p>
-                  <p
-                    className="text-sm mt-1"
-                    style={{ color: themeColors.textLight }}
-                  >
-                    Start the conversation
-                  </p>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-5">
-                  {messages.map((msg) => (
-                    <div
-                      key={`msg-${msg.id}`}
-                      className={`flex flex-col ${
-                        msg.senderId === parseInt(currentUserId)
-                          ? "items-end"
-                          : "items-start"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <div
-                          className="w-6 h-6 rounded-full flex items-center justify-center text-xs"
-                          style={{
-                            backgroundColor:
-                              msg.senderId === parseInt(currentUserId)
-                                ? themeColors.primary + "20"
-                                : themeColors.secondary,
-                            color:
-                              msg.senderId === parseInt(currentUserId)
-                                ? themeColors.primary
-                                : themeColors.textLight,
-                          }}
-                        >
-                          {msg.sender ? msg.sender.charAt(0) : "?"}
-                        </div>
-                        <span
-                          className="text-sm font-medium"
-                          style={{ color: themeColors.text }}
-                        >
-                          {msg.sender}
-                        </span>
-                        <span
-                          className="text-xs"
-                          style={{ color: themeColors.textLight }}
-                        >
-                          {typeof msg.timestamp === "string"
-                            ? msg.timestamp
-                            : msg.timestamp.toLocaleString()}
-                        </span>
-                        {msg.isEdited && (
-                          <span
-                            className="text-xs"
-                            style={{ color: themeColors.textLight }}
-                          >
-                            (edited)
-                          </span>
-                        )}
-                      </div>
-
-                      {editingMessageId === msg.id ? (
-                        <div className="w-full max-w-md">
-                          <div className="flex">
-                            <input
-                              type="text"
-                              value={editMessageText}
-                              onChange={(e) =>
-                                setEditMessageText(e.target.value)
-                              }
-                              className="w-full px-3 py-2 rounded-l-md"
-                              style={{
-                                backgroundColor: themeColors.background,
-                                color: themeColors.text,
-                                border: `1px solid ${themeColors.border}`,
-                                borderRight: "none",
-                                outline: "none",
-                              }}
-                              autoFocus
-                              onKeyPress={(e) =>
-                                e.key === "Enter" && handleEditMessage()
-                              }
-                            />
-                            <button
-                              onClick={handleEditMessage}
-                              className="px-3 py-2 rounded-r-md transition-colors"
-                              style={{
-                                backgroundColor: themeColors.primary,
-                                color: themeColors.background,
-                              }}
-                            >
-                              <Check className="w-4 h-4" />
-                            </button>
-                          </div>
-                          <div className="flex gap-2 mt-2">
-                            <button
-                              onClick={() => {
-                                setEditingMessageId(null);
-                                setEditMessageText("");
-                              }}
-                              className="text-xs"
-                              style={{ color: themeColors.textLight }}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="relative group">
-                          <div
-                            className="max-w-md p-3 rounded-lg"
-                            style={{
-                              backgroundColor:
-                                msg.senderId === parseInt(currentUserId)
-                                  ? themeColors.primary + "15"
-                                  : themeColors.secondary,
-                              color: themeColors.text,
-                            }}
-                          >
-                            <span className="text-sm whitespace-pre-wrap break-words">
-                              {msg.message}
-                            </span>
-                          </div>
-
-                          {msg.senderId === parseInt(currentUserId) && (
-                            <div className="absolute top-0 right-0 -mt-2 -mr-2 hidden group-hover:flex gap-1">
-                              <button
-                                onClick={() => {
-                                  setEditingMessageId(msg.id);
-                                  setEditMessageText(msg.message);
-                                }}
-                                className="p-1.5 rounded-full shadow transition-colors"
-                                style={{
-                                  backgroundColor: themeColors.background,
-                                  color: themeColors.text,
-                                }}
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteMessage(msg.id)}
-                                className="p-1.5 rounded-full shadow transition-colors"
-                                style={{
-                                  backgroundColor: themeColors.background,
-                                  color: themeColors.error,
-                                }}
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  <div ref={messageEndRef} />
-                </div>
-              )}
-            </div>
-
-            {/* Message error display */}
-            {messageError && (
-              <div
-                className="px-4 py-2 border-t text-sm flex items-center justify-between"
-                style={{
-                  backgroundColor: themeColors.error + "15",
-                  borderColor: themeColors.error + "30",
-                  color: themeColors.error,
-                }}
-              >
-                <span>{messageError}</span>
-                <button
-                  className="text-inherit hover:opacity-75"
-                  onClick={() => setMessageError(null)}
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-
-            {/* Message input */}
-            <div
-              className="border-t p-4"
-              style={{ borderColor: themeColors.border }}
-            >
-              <div className="relative">
-                <input
-                  type="text"
-                  ref={mentionInputRef}
-                  value={newMessage}
-                  onChange={handleMessageChange}
-                  onKeyPress={(e) =>
-                    e.key === "Enter" && !sendingMessage && handleSendMessage()
-                  }
-                  placeholder="Type a message... Use @ to mention"
-                  className="w-full pl-10 pr-10 py-2.5 rounded-md transition-colors"
-                  style={{
-                    backgroundColor: themeColors.background,
-                    color: themeColors.text,
-                    border: `1px solid ${themeColors.border}`,
-                  }}
-                  disabled={sendingMessage}
-                />
-                <button
-                  className="absolute left-2 top-1/2 transform -translate-y-1/2 disabled:opacity-50"
-                  style={{ color: themeColors.textLight }}
-                  onClick={() => {
-                    if (!sendingMessage) {
-                      setNewMessage(newMessage + "@");
-                      setFilteredMembers(erMembers);
-                      setShowMentionDropdown(true);
-                      if (mentionInputRef.current) {
-                        mentionInputRef.current.focus();
-                      }
-                    }
-                  }}
-                  disabled={sendingMessage}
-                >
-                  <AtSign className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={handleSendMessage}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 disabled:opacity-50 transition-colors"
-                  style={{
-                    color: newMessage.trim()
-                      ? themeColors.primary
-                      : themeColors.textLight,
-                  }}
-                  disabled={!newMessage.trim() || sendingMessage}
-                >
-                  {sendingMessage ? (
-                    <Loader
-                      className="w-5 h-5 animate-spin"
-                      style={{ color: themeColors.primary }}
-                    />
-                  ) : (
-                    <Send className="w-5 h-5" />
-                  )}
-                </button>
-
-                {/* @mention dropdown */}
-                {showMentionDropdown && (
-                  <div
-                    className="absolute bottom-full left-0 w-full mb-1 rounded-md shadow-lg z-10 max-h-48 overflow-y-auto"
-                    style={{
-                      backgroundColor: themeColors.background,
-                      border: `1px solid ${themeColors.border}`,
-                    }}
-                  >
-                    {filteredMembers.length > 0 ? (
-                      filteredMembers.map((member) => (
-                        <button
-                          key={`member-${member.Id}`}
-                          className="w-full text-left px-4 py-2 flex items-center gap-2 transition-colors"
-                          style={{
-                            color: themeColors.text,
-                            hoverColor: themeColors.secondary,
-                          }}
-                          onClick={() => handleMemberSelect(member)}
-                        >
-                          <CircleUser
-                            className="w-4 h-4"
-                            style={{ color: themeColors.primary }}
-                          />
-                          <span>{member.FullName}</span>
-                        </button>
-                      ))
-                    ) : (
-                      <div
-                        className="px-4 py-2"
-                        style={{ color: themeColors.textLight }}
-                      >
-                        No matching members
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          {renderChatPanel()}
         </div>
       </div>
     </div>

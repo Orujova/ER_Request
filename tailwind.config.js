@@ -6,7 +6,7 @@ module.exports = {
     extend: {
       maxWidth: {
         // Adding the custom max-width to tailwind config
-        layout: "1340px",
+        layout: "1440px",
       },
       container: {
         center: true,

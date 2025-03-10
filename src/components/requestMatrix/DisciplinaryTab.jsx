@@ -1039,7 +1039,7 @@ const DisciplinaryTab = () => {
     );
   };
 
-  return <div className="max-w-5xl mx-auto">{renderView()}</div>;
+  return <div className="max-w-7xl mx-auto">{renderView()}</div>;
 };
 
 export default DisciplinaryTab;

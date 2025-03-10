@@ -13,19 +13,13 @@ const SubCaseForm = ({
 
   return (
     <div
-      className="mb-6 p-4 rounded-lg border transition-all duration-200"
+      className="rounded-lg  transition-all duration-200"
       style={{
         backgroundColor: themeColors.background,
         boxShadow: `0 2px 8px ${themeColors.shadowLight}`,
         borderColor: themeColors.border,
       }}
     >
-      <h4
-        className="font-medium text-sm mb-3"
-        style={{ color: themeColors.text }}
-      >
-        Add New SubCase
-      </h4>
       <div className="flex flex-col space-y-3">
         <textarea
           placeholder="Enter subcase description..."

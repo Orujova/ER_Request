@@ -172,8 +172,17 @@ const StatusUpdater = ({ request, handleStatusUpdate, statusLoading }) => {
   useEffect(() => {
     if (!statusLoading && isModalOpen) {
       setIsModalOpen(false);
+      setActionToConfirm(null); // Reset the action to confirm
     }
   }, [statusLoading]);
+
+  // Handle status changes
+  useEffect(() => {
+    // This will run whenever the request status changes
+    if (request?.status) {
+      // Any additional logic needed when status changes
+    }
+  }, [request?.status]);
 
   if (!request) {
     return (
@@ -237,6 +246,35 @@ const StatusUpdater = ({ request, handleStatusUpdate, statusLoading }) => {
         getStatusNumber(request?.status) > 3 ||
         getStatusNumber(request?.status) < 2 ||
         statusLoading,
+    },
+    {
+      statusCode: 4,
+      label: "Complete",
+      description: "Mark as fully completed",
+      icon: <Check size={16} />,
+      iconBg: "bg-emerald-100 text-emerald-600",
+      hoverStyles:
+        "hover:bg-emerald-50 hover:border-emerald-200 focus:ring-2 focus:ring-emerald-100",
+      chevronColor: "text-emerald-500",
+      buttonClass:
+        "bg-gradient-to-r from-emerald-500 to-green-500 text-white hover:from-emerald-600 hover:to-green-600",
+      disabled:
+        request?.status === "Completed" ||
+        getStatusNumber(request?.status) < 3 ||
+        statusLoading,
+    },
+    {
+      statusCode: 5,
+      label: "Cancel",
+      description: "Cancel this request",
+      icon: <X size={16} />,
+      iconBg: "bg-red-100 text-red-600",
+      hoverStyles:
+        "hover:bg-red-50 hover:border-red-200 focus:ring-2 focus:ring-red-100",
+      chevronColor: "text-red-500",
+      buttonClass:
+        "bg-gradient-to-r from-red-500 to-rose-500 text-white hover:from-red-600 hover:to-rose-600",
+      disabled: statusLoading,
     },
   ];
 
@@ -315,6 +353,8 @@ const StatusUpdater = ({ request, handleStatusUpdate, statusLoading }) => {
             className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
               action.disabled
                 ? "opacity-60 cursor-not-allowed bg-gray-50 border-gray-200"
+                : action.statusCode === 4 || action.statusCode === 5
+                ? action.buttonClass
                 : action.hoverStyles + " border-border"
             }`}
             onClick={() => initiateStatusUpdate(action.statusCode)}
@@ -322,13 +362,33 @@ const StatusUpdater = ({ request, handleStatusUpdate, statusLoading }) => {
           >
             <div className="flex items-center">
               <div
-                className={`flex items-center justify-center h-8 w-8 rounded-full ${action.iconBg} mr-3`}
+                className={`flex items-center justify-center h-8 w-8 rounded-full ${
+                  action.statusCode === 4 || action.statusCode === 5
+                    ? "bg-white bg-opacity-20"
+                    : action.iconBg
+                } mr-3`}
               >
                 {action.icon}
               </div>
               <div className="text-left">
-                <div className="font-medium">{action.label}</div>
-                <div className="text-xs text-textLight">
+                <div
+                  className={`font-medium ${
+                    (action.statusCode === 4 || action.statusCode === 5) &&
+                    !action.disabled
+                      ? "text-white"
+                      : ""
+                  }`}
+                >
+                  {action.label}
+                </div>
+                <div
+                  className={`text-xs ${
+                    (action.statusCode === 4 || action.statusCode === 5) &&
+                    !action.disabled
+                      ? "text-white text-opacity-90"
+                      : "text-textLight"
+                  }`}
+                >
                   {action.description}
                 </div>
               </div>
@@ -336,53 +396,18 @@ const StatusUpdater = ({ request, handleStatusUpdate, statusLoading }) => {
             {statusLoading && action.statusCode === actionToConfirm ? (
               <Loader size={16} className="animate-spin mr-1 text-gray-500" />
             ) : (
-              <ChevronRight size={16} className={action.chevronColor} />
+              <ChevronRight
+                size={16}
+                className={
+                  (action.statusCode === 4 || action.statusCode === 5) &&
+                  !action.disabled
+                    ? "text-white"
+                    : action.chevronColor
+                }
+              />
             )}
           </button>
         ))}
-      </div>
-
-      {/* Final Actions */}
-      <div className="grid grid-cols-2 gap-3 mt-6">
-        <button
-          className={`flex items-center justify-center gap-2 p-3 rounded-lg shadow-sm hover:shadow transition-all ${
-            request?.status === "Completed" ||
-            getStatusNumber(request?.status) < 3 ||
-            statusLoading
-              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-              : "bg-gradient-to-r from-emerald-500 to-green-500 text-white hover:from-emerald-600 hover:to-green-600"
-          }`}
-          onClick={() => initiateStatusUpdate(4)}
-          disabled={
-            statusLoading ||
-            request?.status === "Completed" ||
-            getStatusNumber(request?.status) < 3
-          }
-        >
-          {statusLoading && actionToConfirm === 4 ? (
-            <Loader size={18} className="animate-spin" />
-          ) : (
-            <Check size={18} />
-          )}
-          <span className="font-medium">Complete</span>
-        </button>
-
-        <button
-          className={`flex items-center justify-center gap-2 p-3 rounded-lg shadow-sm hover:shadow transition-all ${
-            statusLoading
-              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-              : "bg-gradient-to-r from-red-500 to-rose-500 text-white hover:from-red-600 hover:to-rose-600"
-          }`}
-          onClick={() => initiateStatusUpdate(5)}
-          disabled={statusLoading}
-        >
-          {statusLoading && actionToConfirm === 5 ? (
-            <Loader size={18} className="animate-spin" />
-          ) : (
-            <X size={18} />
-          )}
-          <span className="font-medium">Cancel</span>
-        </button>
       </div>
 
       {/* Confirmation Modal using Portal */}

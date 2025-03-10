@@ -39,141 +39,175 @@ function RequestAction() {
   const [shouldRefresh, setShouldRefresh] = useState(false);
   const [activeTab, setActiveTab] = useState("updateRequest"); // "updateRequest" or "copyEmployees"
 
-  // Fetch necessary data
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const { token } = getStoredTokens();
-
-        // Fetch ER Members
-        const erMembersResponse = await fetch(
-          `${API_BASE_URL}/api/AdminApplicationUser/GetAllERMemberUser`,
-          {
-            headers: {
-              accept: "*/*",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (!erMembersResponse.ok) {
-          throw new Error(
-            `Error fetching ER members: ${erMembersResponse.status}`
-          );
-        }
-
-        const erMembersData = await erMembersResponse.json();
-        setErMembers(erMembersData[0]?.AppUsers || []);
-
-        // Fetch Disciplinary Violations
-        const violationsResponse = await fetch(
-          `${API_BASE_URL}/GetAllDisciplinaryViolation`,
-          {
-            headers: {
-              accept: "*/*",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (!violationsResponse.ok) {
-          throw new Error(
-            `Error fetching violations: ${violationsResponse.status}`
-          );
-        }
-
-        const violationsData = await violationsResponse.json();
-        setDisciplinaryViolations(
-          violationsData[0]?.DisciplinaryViolations || []
-        );
-
-        // Fetch Disciplinary Action Results
-        const actionResultsResponse = await fetch(
-          `${API_BASE_URL}/GetAllDisciplinaryActionResult`,
-          {
-            headers: {
-              accept: "*/*",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (!actionResultsResponse.ok) {
-          throw new Error(
-            `Error fetching action results: ${actionResultsResponse.status}`
-          );
-        }
-
-        const actionResultsData = await actionResultsResponse.json();
-        setDisciplinaryActionResults(
-          actionResultsData[0]?.DisciplinaryActionResults || []
-        );
-
-        // Fetch Cases
-        const casesResponse = await fetch(`${API_BASE_URL}/api/Case`, {
+  // Create a function to fetch the current request data
+  const fetchCurrentRequest = useCallback(async () => {
+    try {
+      const { token } = getStoredTokens();
+      const requestResponse = await fetch(
+        `${API_BASE_URL}/api/ERRequest/${id}`,
+        {
           headers: {
             accept: "*/*",
             Authorization: `Bearer ${token}`,
           },
-        });
-
-        if (!casesResponse.ok) {
-          throw new Error(`Error fetching cases: ${casesResponse.status}`);
         }
+      );
 
-        const casesData = await casesResponse.json();
-        setCases(casesData[0]?.Cases || []);
-
-        // Fetch SubCases
-        const subCasesResponse = await fetch(`${API_BASE_URL}/api/SubCase`, {
-          headers: {
-            accept: "*/*",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!subCasesResponse.ok) {
-          throw new Error(
-            `Error fetching subcases: ${subCasesResponse.status}`
-          );
-        }
-
-        const subCasesData = await subCasesResponse.json();
-        setAllSubCases(subCasesData[0]?.SubCases || []);
-
-        // Fetch existing child requests
-        const childRequestsResponse = await fetch(
-          `${API_BASE_URL}/api/ERRequest/GetAllChildRequest?ParentId=${id}`,
-          {
-            headers: {
-              accept: "*/*",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (childRequestsResponse.ok) {
-          const childRequestsData = await childRequestsResponse.json();
-          setExistingChildRequests(childRequestsData[0]?.ERRequests || []);
-        }
-
-        setLoading(false);
-      } catch (err) {
-        setError(err.message);
-        setLoading(false);
+      if (!requestResponse.ok) {
+        throw new Error(`Error fetching request: ${requestResponse.status}`);
       }
-    };
 
-    fetchData();
-  }, [id, request, shouldRefresh]);
+      const requestData = await requestResponse.json();
+      // Update the Redux store with the latest request data
+      dispatch({
+        type: "SET_CURRENT_REQUEST",
+        payload: requestData[0]?.ERRequests?.[0] || null,
+      });
+      return requestData[0]?.ERRequests?.[0];
+    } catch (err) {
+      console.error("Error fetching current request:", err);
+      return null;
+    }
+  }, [id, dispatch, API_BASE_URL]);
+
+  // Fetch necessary data
+  const fetchAllData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { token } = getStoredTokens();
+
+      // First, fetch the current request to ensure we have the latest data
+      await fetchCurrentRequest();
+
+      // Fetch ER Members
+      const erMembersResponse = await fetch(
+        `${API_BASE_URL}/api/AdminApplicationUser/GetAllERMemberUser`,
+        {
+          headers: {
+            accept: "*/*",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!erMembersResponse.ok) {
+        throw new Error(
+          `Error fetching ER members: ${erMembersResponse.status}`
+        );
+      }
+
+      const erMembersData = await erMembersResponse.json();
+      setErMembers(erMembersData[0]?.AppUsers || []);
+
+      // Fetch Disciplinary Violations
+      const violationsResponse = await fetch(
+        `${API_BASE_URL}/GetAllDisciplinaryViolation`,
+        {
+          headers: {
+            accept: "*/*",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!violationsResponse.ok) {
+        throw new Error(
+          `Error fetching violations: ${violationsResponse.status}`
+        );
+      }
+
+      const violationsData = await violationsResponse.json();
+      setDisciplinaryViolations(
+        violationsData[0]?.DisciplinaryViolations || []
+      );
+
+      // Fetch Disciplinary Action Results
+      const actionResultsResponse = await fetch(
+        `${API_BASE_URL}/GetAllDisciplinaryActionResult`,
+        {
+          headers: {
+            accept: "*/*",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!actionResultsResponse.ok) {
+        throw new Error(
+          `Error fetching action results: ${actionResultsResponse.status}`
+        );
+      }
+
+      const actionResultsData = await actionResultsResponse.json();
+      setDisciplinaryActionResults(
+        actionResultsData[0]?.DisciplinaryActionResults || []
+      );
+
+      // Fetch Cases
+      const casesResponse = await fetch(`${API_BASE_URL}/api/Case`, {
+        headers: {
+          accept: "*/*",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!casesResponse.ok) {
+        throw new Error(`Error fetching cases: ${casesResponse.status}`);
+      }
+
+      const casesData = await casesResponse.json();
+      setCases(casesData[0]?.Cases || []);
+
+      // Fetch SubCases
+      const subCasesResponse = await fetch(`${API_BASE_URL}/api/SubCase`, {
+        headers: {
+          accept: "*/*",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!subCasesResponse.ok) {
+        throw new Error(`Error fetching subcases: ${subCasesResponse.status}`);
+      }
+
+      const subCasesData = await subCasesResponse.json();
+      setAllSubCases(subCasesData[0]?.SubCases || []);
+
+      // Fetch existing child requests
+      const childRequestsResponse = await fetch(
+        `${API_BASE_URL}/api/ERRequest/GetAllChildRequest?ParentId=${id}`,
+        {
+          headers: {
+            accept: "*/*",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (childRequestsResponse.ok) {
+        const childRequestsData = await childRequestsResponse.json();
+        setExistingChildRequests(childRequestsData[0]?.ERRequests || []);
+      }
+
+      setLoading(false);
+    } catch (err) {
+      setError(err.message);
+      setLoading(false);
+    }
+  }, [id, API_BASE_URL, fetchCurrentRequest]);
+
+  // Fetch data on component mount and when shouldRefresh changes
+  useEffect(() => {
+    fetchAllData();
+  }, [fetchAllData]);
 
   // Refresh data when shouldRefresh changes
   useEffect(() => {
     if (shouldRefresh) {
+      fetchAllData();
       setShouldRefresh(false);
     }
-  }, [shouldRefresh]);
+  }, [shouldRefresh, fetchAllData]);
 
   // Handle ER member change
   const handleErMemberChange = async (newErMemberId) => {
@@ -182,7 +216,6 @@ function RequestAction() {
       setSelectedErMember(newErMemberId);
 
       const { token } = getStoredTokens();
-
       const response = await fetch(
         `${API_BASE_URL}/api/ERRequest/UpdateERRequestERMember`,
         {
@@ -202,6 +235,9 @@ function RequestAction() {
         throw new Error(`Error updating ER member: ${response.status}`);
       }
 
+      // Fetch updated request data
+      await fetchCurrentRequest();
+
       setSuccess("ER member updated successfully.");
       showToast("ER member updated successfully.", "success");
       setLoading(false);
@@ -216,6 +252,8 @@ function RequestAction() {
     try {
       setStatusLoading(true);
       const { token } = getStoredTokens();
+
+      console.log(`Updating status to: ${newStatus}`);
 
       const response = await fetch(
         `${API_BASE_URL}/api/ERRequest/UpdateERRequestStatus`,
@@ -236,10 +274,22 @@ function RequestAction() {
         throw new Error(`Error updating status: ${response.status}`);
       }
 
+      console.log("Status update successful, fetching updated data...");
+
+      // Force reload the entire page to ensure all data is refreshed
+      // This is a fallback approach when the standard approach isn't working
+      window.location.reload();
+
+      // Alternative approach: fetch updated data and update state
+      /* 
+      await fetchCurrentRequest();
       setSuccess("Status updated successfully.");
       showToast("Status updated successfully.", "success");
+      setShouldRefresh(true);
       setStatusLoading(false);
+      */
     } catch (err) {
+      console.error("Error updating status:", err);
       setError(err.message);
       setStatusLoading(false);
     }
@@ -402,6 +452,9 @@ function RequestAction() {
 
             {/* Status Update Card */}
             <StatusUpdater
+              key={`status-updater-${
+                request?.status || "loading"
+              }-${Date.now()}`}
               request={request}
               handleStatusUpdate={handleStatusUpdate}
               statusLoading={statusLoading}

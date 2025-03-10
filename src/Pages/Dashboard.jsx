@@ -1,13 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../../apiConfig";
-import { getStoredTokens } from "../utils/authHandler";
+import { getStoredTokens, getUserId } from "../utils/authHandler";
 import {
   EyeIcon,
-  UserCheckIcon,
   CheckCircleIcon,
   ClipboardIcon,
-  FileTextIcon,
   CalendarIcon,
   FilterIcon,
   ChevronLeftIcon,
@@ -16,7 +14,7 @@ import {
   ClockIcon,
   AlertTriangleIcon,
   XIcon,
-  HomeIcon,
+  ArrowUpDownIcon,
 } from "lucide-react";
 
 const Dashboard = () => {
@@ -43,26 +41,210 @@ const Dashboard = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [activeFilters, setActiveFilters] = useState({
     erMember: "",
-    project: "",
-    employee: "",
-    case: "",
-    subcase: "",
+    erMemberId: "",
+    projectId: "",
+    projectSearch: "",
+    employeeId: "",
+    employeeSearch: "",
+    caseId: "",
+    subCaseId: "",
     status: "",
+    startDate: "",
+    endDate: "",
   });
+
+  // Dropdown visibility state
+  const [showProjectDropdown, setShowProjectDropdown] = useState(false);
+  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
+
+  // Sorting state
+  const [orderBy, setOrderBy] = useState("createddate_desc");
+
+  // Reference data
+  const [caseOptions, setCaseOptions] = useState([]);
+  const [subCaseOptions, setSubCaseOptions] = useState([]);
+  const [projectOptions, setProjectOptions] = useState([]);
+  const [employeeOptions, setEmployeeOptions] = useState([]);
+  const [erMemberOptions, setErMemberOptions] = useState([]);
+  const [filteredSubCaseOptions, setFilteredSubCaseOptions] = useState([]);
+  const [filteredProjectOptions, setFilteredProjectOptions] = useState([]);
+  const [filteredEmployeeOptions, setFilteredEmployeeOptions] = useState([]);
 
   const navigate = useNavigate();
 
-  // Fetch data from the API with pagination
+  // Fetch reference data (Cases, SubCases, Projects, Employees, ER Members)
+  useEffect(() => {
+    const fetchReferenceData = async () => {
+      const { jwtToken } = getStoredTokens();
+
+      try {
+        // Fetch Cases
+        const casesResponse = await fetch(`${API_BASE_URL}/api/Case`, {
+          headers: { Authorization: `Bearer ${jwtToken}` },
+        });
+        if (casesResponse.ok) {
+          const casesData = await casesResponse.json();
+          setCaseOptions(casesData[0].Cases || []);
+        }
+
+        // Fetch SubCases
+        const subCasesResponse = await fetch(`${API_BASE_URL}/api/SubCase`, {
+          headers: { Authorization: `Bearer ${jwtToken}` },
+        });
+        if (subCasesResponse.ok) {
+          const subCasesData = await subCasesResponse.json();
+          setSubCaseOptions(subCasesData[0].SubCases || []);
+        }
+
+        // Fetch Projects
+        const projectsResponse = await fetch(`${API_BASE_URL}/api/Project`, {
+          headers: { Authorization: `Bearer ${jwtToken}` },
+        });
+        if (projectsResponse.ok) {
+          const projectsData = await projectsResponse.json();
+          const projects = projectsData[0].Projects || [];
+          setProjectOptions(projects);
+          setFilteredProjectOptions(projects);
+        }
+
+        // Fetch Employees
+        const employeesResponse = await fetch(`${API_BASE_URL}/api/Employee`, {
+          headers: { Authorization: `Bearer ${jwtToken}` },
+        });
+        if (employeesResponse.ok) {
+          const employeesData = await employeesResponse.json();
+          const employees = employeesData[0].Employees || [];
+          setEmployeeOptions(employees);
+          setFilteredEmployeeOptions(employees);
+        }
+
+        // Fetch ER Members
+        const erMembersResponse = await fetch(
+          `${API_BASE_URL}/api/AdminApplicationUser/GetAllERMemberUser`,
+          {
+            headers: { Authorization: `Bearer ${jwtToken}` },
+          }
+        );
+        if (erMembersResponse.ok) {
+          const erMembersData = await erMembersResponse.json();
+          setErMemberOptions(erMembersData[0].AppUsers || []);
+        }
+      } catch (err) {
+        console.error("Error fetching reference data:", err);
+      }
+    };
+
+    fetchReferenceData();
+  }, []);
+
+  // Filter SubCases when Case selection changes
+  useEffect(() => {
+    if (activeFilters.caseId) {
+      const filtered = subCaseOptions.filter(
+        (subCase) => subCase.CaseId === parseInt(activeFilters.caseId)
+      );
+      setFilteredSubCaseOptions(filtered);
+    } else {
+      setFilteredSubCaseOptions(subCaseOptions);
+    }
+  }, [activeFilters.caseId, subCaseOptions]);
+
+  // Filter Projects based on search text
+  useEffect(() => {
+    if (activeFilters.projectSearch) {
+      const search = activeFilters.projectSearch.toLowerCase();
+      const filtered = projectOptions.filter(
+        (project) =>
+          project.ProjectCode.toLowerCase().includes(search) ||
+          (project.ProjectName &&
+            project.ProjectName.toLowerCase().includes(search))
+      );
+      setFilteredProjectOptions(filtered);
+      setShowProjectDropdown(filtered.length > 0);
+    } else {
+      setFilteredProjectOptions(projectOptions);
+      setShowProjectDropdown(false);
+    }
+  }, [activeFilters.projectSearch, projectOptions]);
+
+  // Filter Employees based on search text
+  useEffect(() => {
+    if (activeFilters.employeeSearch) {
+      const search = activeFilters.employeeSearch.toLowerCase();
+      const filtered = employeeOptions.filter(
+        (employee) =>
+          employee.FullName.toLowerCase().includes(search) ||
+          (employee.Badge && employee.Badge.toLowerCase().includes(search))
+      );
+      setFilteredEmployeeOptions(filtered);
+      setShowEmployeeDropdown(filtered.length > 0);
+    } else {
+      setFilteredEmployeeOptions(employeeOptions);
+      setShowEmployeeDropdown(false);
+    }
+  }, [activeFilters.employeeSearch, employeeOptions]);
+
+  // Add click away listener to close dropdowns
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setShowProjectDropdown(false);
+      setShowEmployeeDropdown(false);
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Fetch data from the API with pagination and filters
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         const { jwtToken } = getStoredTokens();
+        const userId = getUserId();
 
-        // Add pagination parameters to API request
+        // Build URL with pagination and all filter parameters
         const url = new URL(`${API_BASE_URL}/api/ERRequest`);
         url.searchParams.append("Page", currentPage);
         url.searchParams.append("ShowMore.Take", itemsPerPage);
+
+        // Add userId
+        if (userId) {
+          url.searchParams.append("UserId", userId);
+        }
+
+        // Add filters
+        if (activeFilters.erMember) {
+          url.searchParams.append("ERMember", activeFilters.erMember);
+        }
+        if (activeFilters.projectId) {
+          url.searchParams.append("ProjectId", activeFilters.projectId);
+        }
+        if (activeFilters.employeeId) {
+          url.searchParams.append("EmployeeId", activeFilters.employeeId);
+        }
+        if (activeFilters.caseId) {
+          url.searchParams.append("CaseId", activeFilters.caseId);
+        }
+        if (activeFilters.subCaseId) {
+          url.searchParams.append("SubCaseId", activeFilters.subCaseId);
+        }
+        if (activeFilters.status !== "") {
+          url.searchParams.append("ERRequestStatus", activeFilters.status);
+        }
+        if (activeFilters.startDate) {
+          url.searchParams.append("StartedDate", activeFilters.startDate);
+        }
+        if (activeFilters.endDate) {
+          url.searchParams.append("EndDate", activeFilters.endDate);
+        }
+
+        // Add ordering
+        if (orderBy) {
+          url.searchParams.append("OrderBy", orderBy);
+        }
 
         const response = await fetch(url.toString(), {
           method: "GET",
@@ -79,7 +261,7 @@ const Dashboard = () => {
         const data = await response.json();
 
         // Handle nested array structure if it exists
-        const requestsData = Array.isArray(data) ? data[0] : data;
+        const requestsData = Array.isArray(data) ? data[0] : {};
         const erRequests = requestsData.ERRequests || [];
         const totalCount = requestsData.TotalERRequestCount || 0;
 
@@ -124,7 +306,7 @@ const Dashboard = () => {
     };
 
     fetchData();
-  }, [currentPage, itemsPerPage]);
+  }, [currentPage, itemsPerPage, activeFilters, orderBy]);
 
   // Filter functions
   const handleFilterChange = (key, value) => {
@@ -132,22 +314,87 @@ const Dashboard = () => {
       ...prev,
       [key]: value,
     }));
+
+    // Reset to first page when filter changes
+    setCurrentPage(1);
+
+    // Special handling for certain filters
+    if (key === "caseId") {
+      setActiveFilters((prev) => ({ ...prev, subCaseId: "" }));
+    }
+
+    // When ER Member dropdown changes, update text filter
+    if (key === "erMemberId" && value) {
+      const selectedMember = erMemberOptions.find(
+        (member) => member.Id === parseInt(value)
+      );
+      if (selectedMember) {
+        setActiveFilters((prev) => ({
+          ...prev,
+          erMember: selectedMember.FullName,
+        }));
+      }
+    }
+
+    // Clear project ID when search is emptied
+    if (key === "projectSearch" && !value) {
+      setActiveFilters((prev) => ({ ...prev, projectId: "" }));
+    }
+
+    // Clear employee ID when search is emptied
+    if (key === "employeeSearch" && !value) {
+      setActiveFilters((prev) => ({ ...prev, employeeId: "" }));
+    }
+  };
+
+  // Handle project selection
+  const handleProjectSelect = (project) => {
+    handleFilterChange("projectId", project.Id.toString());
+    handleFilterChange(
+      "projectSearch",
+      `${project.ProjectCode} - ${project.ProjectName || ""}`
+    );
+    setShowProjectDropdown(false);
+  };
+
+  // Handle employee selection
+  const handleEmployeeSelect = (employee) => {
+    handleFilterChange("employeeId", employee.Id.toString());
+    handleFilterChange(
+      "employeeSearch",
+      `${employee.FullName} (${employee.Badge || "No Badge"})`
+    );
+    setShowEmployeeDropdown(false);
   };
 
   const clearFilters = () => {
     setActiveFilters({
       erMember: "",
-      project: "",
-      employee: "",
-      case: "",
-      subcase: "",
+      erMemberId: "",
+      projectId: "",
+      projectSearch: "",
+      employeeId: "",
+      employeeSearch: "",
+      caseId: "",
+      subCaseId: "",
       status: "",
+      startDate: "",
+      endDate: "",
     });
+    setCurrentPage(1);
+    setShowProjectDropdown(false);
+    setShowEmployeeDropdown(false);
+  };
+
+  // Handle sort change
+  const handleSortChange = (value) => {
+    setOrderBy(value);
+    setCurrentPage(1);
   };
 
   // Filter and search
   const filteredRequests = requests.filter((request) => {
-    // First apply search term if it exists
+    // Apply search term if it exists
     if (searchTerm) {
       const searchFields = [
         request.erMember,
@@ -169,27 +416,7 @@ const Dashboard = () => {
       if (!matchesSearch) return false;
     }
 
-    // Then apply filters
-    return Object.keys(activeFilters).every((key) => {
-      if (!activeFilters[key]) return true;
-
-      // Handle status separately
-      if (key === "status") {
-        return getStatusDisplay(request.statusCode)
-          .toLowerCase()
-          .includes(activeFilters[key].toLowerCase());
-      }
-
-      // Handle other fields
-      const requestValue = request[key];
-      return (
-        requestValue &&
-        requestValue
-          .toString()
-          .toLowerCase()
-          .includes(activeFilters[key].toLowerCase())
-      );
-    });
+    return true; // Server-side filtering is applied
   });
 
   // Handle pagination changes
@@ -388,25 +615,28 @@ const Dashboard = () => {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3">
-                {/* Search bar */}
+                {/* Sort dropdown */}
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <SearchIcon className="h-4 w-4 text-gray-400" />
+                  <select
+                    value={orderBy}
+                    onChange={(e) => handleSortChange(e.target.value)}
+                    className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md text-sm
+                      focus:outline-none focus:ring-1 focus:ring-[#0D9BBF] focus:border-[#0D9BBF] appearance-none"
+                  >
+                    <option value="createddate_desc">Date (Newest)</option>
+                    <option value="createddate">Date (Oldest)</option>
+                    <option value="ermember">ER Member (A-Z)</option>
+                    <option value="ermember_desc">ER Member (Z-A)</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    <ArrowUpDownIcon className="h-4 w-4 text-gray-400" />
                   </div>
-                  <input
-                    type="text"
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm placeholder-gray-400
-                      focus:outline-none focus:ring-1 focus:ring-[#0D9BBF] focus:border-[#0D9BBF]"
-                    placeholder="Search reviews..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
                 </div>
 
                 {/* Filter button */}
                 <button
                   onClick={() => setShowFilters(!showFilters)}
-                  className="inline-flex items-center justify-center px-4 py-2 border hover:bg-[#f5fcfd]  border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white  focus:outline-none focus:ring-0"
+                  className="inline-flex items-center justify-center px-4 py-2 border hover:bg-[#f5fcfd] border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white focus:outline-none focus:ring-0"
                 >
                   <FilterIcon className="h-4 w-4 text-gray-500 mr-2" />
                   {showFilters ? "Hide Filters" : "Show Filters"}
@@ -421,101 +651,165 @@ const Dashboard = () => {
                   <h3 className="text-sm font-medium text-gray-700">Filters</h3>
                   <button
                     onClick={clearFilters}
-                    className="text-sm text-[#0D9BBF] hover:text-[#0B89A9]"
+                    className="text-sm text-[#06b6d4] hover:text-[#0B89A9]"
                   >
                     Clear all
                   </button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* ER Member Filter - Now with dropdown */}
                   <div>
                     <label
-                      htmlFor="erMember"
+                      htmlFor="erMemberId"
                       className="block text-xs font-medium text-gray-700 mb-1"
                     >
                       ER Member
                     </label>
-                    <input
-                      type="text"
-                      id="erMember"
-                      className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#0D9BBF] focus:border-[#0D9BBF]"
-                      value={activeFilters.erMember}
+                    <select
+                      id="erMemberId"
+                      className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#06b6d4] focus:border-[#06b6d4]"
+                      value={activeFilters.erMemberId}
                       onChange={(e) =>
-                        handleFilterChange("erMember", e.target.value)
+                        handleFilterChange("erMemberId", e.target.value)
                       }
-                      placeholder="Filter by ER Member"
-                    />
+                    >
+                      <option value="">All ER Members</option>
+                      {erMemberOptions.map((member) => (
+                        <option key={member.Id} value={member.Id}>
+                          {member.FullName}
+                        </option>
+                      ))}
+                    </select>
                   </div>
+
+                  {/* Project Filter - With searchable dropdown */}
                   <div>
                     <label
-                      htmlFor="project"
+                      htmlFor="projectSearch"
                       className="block text-xs font-medium text-gray-700 mb-1"
                     >
                       Project
                     </label>
-                    <input
-                      type="text"
-                      id="project"
-                      className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#0D9BBF] focus:border-[#0D9BBF]"
-                      value={activeFilters.project}
-                      onChange={(e) =>
-                        handleFilterChange("project", e.target.value)
-                      }
-                      placeholder="Filter by Project"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        id="projectSearch"
+                        className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#06b6d4] focus:border-[#06b6d4]"
+                        value={activeFilters.projectSearch}
+                        onChange={(e) =>
+                          handleFilterChange("projectSearch", e.target.value)
+                        }
+                        onFocus={() => setShowProjectDropdown(true)}
+                        placeholder="Search or select project..."
+                      />
+                      {showProjectDropdown &&
+                        filteredProjectOptions.length > 0 && (
+                          <div
+                            className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {filteredProjectOptions.map((project) => (
+                              <div
+                                key={project.Id}
+                                className="px-4 py-2 text-sm cursor-pointer hover:bg-gray-100"
+                                onClick={() => handleProjectSelect(project)}
+                              >
+                                {project.ProjectCode} -{" "}
+                                {project.ProjectName || ""}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                    </div>
                   </div>
+
+                  {/* Employee Filter - With searchable dropdown */}
                   <div>
                     <label
-                      htmlFor="employee"
+                      htmlFor="employeeSearch"
                       className="block text-xs font-medium text-gray-700 mb-1"
                     >
                       Employee
                     </label>
-                    <input
-                      type="text"
-                      id="employee"
-                      className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#0D9BBF] focus:border-[#0D9BBF]"
-                      value={activeFilters.employee}
-                      onChange={(e) =>
-                        handleFilterChange("employee", e.target.value)
-                      }
-                      placeholder="Filter by Employee"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        id="employeeSearch"
+                        className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#06b6d4] focus:border-[#06b6d4]"
+                        value={activeFilters.employeeSearch}
+                        onChange={(e) =>
+                          handleFilterChange("employeeSearch", e.target.value)
+                        }
+                        onFocus={() => setShowEmployeeDropdown(true)}
+                        placeholder="Search or select employee..."
+                      />
+                      {showEmployeeDropdown &&
+                        filteredEmployeeOptions.length > 0 && (
+                          <div
+                            className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {filteredEmployeeOptions.map((employee) => (
+                              <div
+                                key={employee.Id}
+                                className="px-4 py-2 text-sm cursor-pointer hover:bg-gray-100"
+                                onClick={() => handleEmployeeSelect(employee)}
+                              >
+                                {employee.FullName} (
+                                {employee.Badge || "No Badge"})
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                    </div>
                   </div>
+
                   <div>
                     <label
-                      htmlFor="case"
+                      htmlFor="caseId"
                       className="block text-xs font-medium text-gray-700 mb-1"
                     >
                       Case
                     </label>
-                    <input
-                      type="text"
-                      id="case"
-                      className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#0D9BBF] focus:border-[#0D9BBF]"
-                      value={activeFilters.case}
+                    <select
+                      id="caseId"
+                      className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#06b6d4] focus:border-[#06b6d4]"
+                      value={activeFilters.caseId}
                       onChange={(e) =>
-                        handleFilterChange("case", e.target.value)
+                        handleFilterChange("caseId", e.target.value)
                       }
-                      placeholder="Filter by Case"
-                    />
+                    >
+                      <option value="">All Cases</option>
+                      {caseOptions.map((caseItem) => (
+                        <option key={caseItem.Id} value={caseItem.Id}>
+                          {caseItem.CaseName}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label
-                      htmlFor="subcase"
+                      htmlFor="subCaseId"
                       className="block text-xs font-medium text-gray-700 mb-1"
                     >
                       Subcase
                     </label>
-                    <input
-                      type="text"
-                      id="subcase"
-                      className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#0D9BBF] focus:border-[#0D9BBF]"
-                      value={activeFilters.subcase}
+                    <select
+                      id="subCaseId"
+                      className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#06b6d4] focus:border-[#06b6d4]"
+                      value={activeFilters.subCaseId}
                       onChange={(e) =>
-                        handleFilterChange("subcase", e.target.value)
+                        handleFilterChange("subCaseId", e.target.value)
                       }
-                      placeholder="Filter by Subcase"
-                    />
+                      disabled={!activeFilters.caseId}
+                    >
+                      <option value="">All Subcases</option>
+                      {filteredSubCaseOptions.map((subCase) => (
+                        <option key={subCase.Id} value={subCase.Id}>
+                          {subCase.Description}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label
@@ -524,15 +818,55 @@ const Dashboard = () => {
                     >
                       Status
                     </label>
-                    <input
-                      type="text"
+                    <select
                       id="status"
-                      className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#0D9BBF] focus:border-[#0D9BBF]"
+                      className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#06b6d4] focus:border-[#06b6d4]"
                       value={activeFilters.status}
                       onChange={(e) =>
                         handleFilterChange("status", e.target.value)
                       }
-                      placeholder="Filter by Status"
+                    >
+                      <option value="">All Statuses</option>
+                      <option value="0">Pending</option>
+                      <option value="1">Under Review</option>
+                      <option value="2">Decision Made</option>
+                      <option value="3">Order Created</option>
+                      <option value="4">Completed</option>
+                      <option value="5">Canceled</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="startDate"
+                      className="block text-xs font-medium text-gray-700 mb-1"
+                    >
+                      Start Date
+                    </label>
+                    <input
+                      type="date"
+                      id="startDate"
+                      className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#06b6d4] focus:border-[#06b6d4]"
+                      value={activeFilters.startDate}
+                      onChange={(e) =>
+                        handleFilterChange("startDate", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="endDate"
+                      className="block text-xs font-medium text-gray-700 mb-1"
+                    >
+                      End Date
+                    </label>
+                    <input
+                      type="date"
+                      id="endDate"
+                      className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#06b6d4] focus:border-[#06b6d4]"
+                      value={activeFilters.endDate}
+                      onChange={(e) =>
+                        handleFilterChange("endDate", e.target.value)
+                      }
                     />
                   </div>
                 </div>
@@ -707,13 +1041,14 @@ const Dashboard = () => {
 
             {/* Pagination Controls */}
             {!loading && !error && filteredRequests.length > 0 && (
-              <div className="flex flex-col sm:flex-row justify-between items-center bg-gray-50 px-4 py-3 border-t border-gray-200 sm:px-6 rounded-b-lg ">
+              <div className="flex flex-col sm:flex-row justify-between items-center bg-gray-50 px-4 py-3 border-t border-gray-200 sm:px-6 rounded-b-lg">
                 <div className="flex items-center space-x-4 mb-4 sm:mb-0">
                   <span className="text-sm text-gray-700">
                     Total Records:{" "}
                     <span className="font-medium">{totalItems}</span>
                   </span>
                 </div>
+
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => handlePageChange(currentPage - 1)}

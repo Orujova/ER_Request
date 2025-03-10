@@ -1,13 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-
 import AzureUsers from "../components/AzureUserSelector";
 import { API_BASE_URL } from "../../apiConfig";
-
 import { X, FileUp } from "lucide-react";
 import { getStoredTokens } from "../utils/authHandler";
-
-import SearchableDropdown from "../components/form/SearchableDropdown";
-import SearchableProjectDropdown from "../components/form/SearchableProjectDropdown";
+import SearchableDropdown from "../components/common/SearchableDropdown";
+import SearchableProjectDropdown from "../components/common/SearchableProjectDropdown";
 
 // Constants
 const ERRequestType = {
@@ -49,6 +46,31 @@ const RequestForm = () => {
   const [employees, setEmployees] = useState([]);
   const [projects, setProjects] = useState([]);
 
+  // Update project from employee when employee changes
+  useEffect(() => {
+    if (activeTab === "employee" && selectedEmployee?.Project?.Id) {
+      setFormData((prev) => ({
+        ...prev,
+        projectId: selectedEmployee.Project.Id,
+      }));
+    }
+  }, [selectedEmployee, activeTab]);
+
+  // Reset project when switching tabs
+  useEffect(() => {
+    if (activeTab === "employee" && selectedEmployee?.Project?.Id) {
+      setFormData((prev) => ({
+        ...prev,
+        projectId: selectedEmployee.Project.Id,
+      }));
+    } else if (activeTab === "general") {
+      setFormData((prev) => ({
+        ...prev,
+        projectId: null,
+      }));
+    }
+  }, [activeTab, selectedEmployee]);
+
   const isFormValid = () => {
     if (!requestType || !subCase) {
       return false;
@@ -72,15 +94,6 @@ const RequestForm = () => {
     }
     if (!hasAttachments) {
       return false;
-    }
-
-    // URL validation for hyperlink if one is provided
-    if (hasHyperlink) {
-      try {
-        new URL(formData.hyperlink);
-      } catch (e) {
-        return false; // Invalid URL format
-      }
     }
 
     return true;
@@ -214,7 +227,7 @@ const RequestForm = () => {
 
       // Submit request using FormData
       const response = await fetch(
-        "https://192.168.148.89:7252/api/ERRequest/AddERRequest",
+        `${API_BASE_URL}/api/ERRequest/AddERRequest`,
         {
           method: "POST",
           headers: {
@@ -370,12 +383,14 @@ const RequestForm = () => {
         }
         break;
       case "project":
-        setFormData((prev) => ({
-          ...prev,
-          projectId: value
-            ? projects.find((p) => p.ProjectName === value)?.Id
-            : null,
-        }));
+        if (activeTab === "general") {
+          setFormData((prev) => ({
+            ...prev,
+            projectId: value
+              ? projects.find((p) => p.ProjectName === value)?.Id
+              : null,
+          }));
+        }
         break;
     }
   };
@@ -421,6 +436,13 @@ const RequestForm = () => {
       ...prev,
       attachments: prev.attachments.filter((_, i) => i !== index),
     }));
+  };
+
+  // Get project name from ID
+  const getProjectNameById = (projectId) => {
+    if (!projectId) return "";
+    const project = projects.find((p) => p.Id === projectId);
+    return project ? project.ProjectName : "";
   };
 
   // Component rendering
@@ -561,20 +583,40 @@ const RequestForm = () => {
                     readOnly
                   />
                 </div>
+
+                {/* Project field - auto-populated for employee requests */}
+                <div className="mb-4">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Project
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-100 text-gray-700"
+                    value={
+                      getProjectNameById(formData.projectId) ||
+                      selectedEmployee?.Project?.ProjectCode ||
+                      ""
+                    }
+                    readOnly
+                  />
+                </div>
               </>
             )}
 
-            <SearchableProjectDropdown
-              label="Project"
-              placeholder="Select Project"
-              options={getProjectOptions()}
-              value={
-                projects.find((p) => p.Id === formData.projectId)
-                  ?.ProjectName || ""
-              }
-              onChange={(value) => handleSelect("project", value)}
-              nullable={true}
-            />
+            {/* Project field - selectable for general requests */}
+            {activeTab === "general" && (
+              <SearchableProjectDropdown
+                label="Project"
+                placeholder="Select Project"
+                options={getProjectOptions()}
+                value={
+                  projects.find((p) => p.Id === formData.projectId)
+                    ?.ProjectName || ""
+                }
+                onChange={(value) => handleSelect("project", value)}
+                nullable={true}
+              />
+            )}
           </div>
         </div>
 
@@ -583,11 +625,25 @@ const RequestForm = () => {
           <h3 className="text-xl font-semibold text-gray-800 mb-6 flex items-center relative pl-4 before:content-[''] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-6 before:bg-sky-600 before:rounded">
             Mail
           </h3>
-
+          <div className="mb-5 relative overflow-hidden">
+            <div className="pl-6 py-4 pr-4 bg-gradient-to-r from-blue-50 via-blue-50 to-transparent rounded-lg border border-blue-100">
+              <div className="flex items-start gap-3">
+                <div>
+                  <p className="text-gray-700 text-sm leading-relaxed">
+                    Siz bu bölmədə intizam pozuntusunu ətraflı şəkildə
+                    açıqlamalı və əlaqədər şəxsləri CC bölmədə təyin
+                    etməlisiniz. Bu bölmədə məktubun ünvanlanacağı müvafiq ER
+                    üzvü avtomatik təyin olunur.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
           <div className="mb-4">
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               CC
             </label>
+
             <AzureUsers
               onSelect={handleAzureUserSelect}
               selectedUsers={selectedCCUsers}
@@ -619,10 +675,23 @@ const RequestForm = () => {
             Hyperlink
           </h3>
 
+          <div className="mb-5 relative overflow-hidden">
+            <div className="pl-6 py-4 pr-4 bg-gradient-to-r from-blue-50 via-blue-50 to-transparent rounded-lg border border-blue-100">
+              <div className="flex items-start gap-3">
+                <div>
+                  <p className="text-gray-700 text-sm leading-relaxed">
+                    İntizam pozuntusu ilə əlaqəli video materialların linkini bu
+                    bölmədə yerləşdirə bilərsiniz.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
           <div className="mb-4">
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Hyperlink
             </label>
+
             <input
               type="url"
               className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 transition-colors"
