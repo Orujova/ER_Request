@@ -2,10 +2,22 @@ import React, { useState, useEffect } from "react";
 import { themeColors } from "../../styles/theme";
 import { API_BASE_URL } from "../../../apiConfig";
 import { getStoredTokens } from "../../utils/authHandler";
+import {
+  Plus,
+  Search,
+  BookOpen,
+  Tag,
+  AlertTriangle,
+  Edit3,
+  Trash2,
+  X,
+} from "lucide-react";
 import DisciplinaryActionForm from "./DisciplinaryActionForm";
 import DisciplinaryViolationForm from "./DisciplinaryViolationForm";
 import DisciplinaryResultForm from "./DisciplinaryResultForm";
 import EmptyState from "./EmptyState";
+import DeleteConfirmationModal from "../common/DeleteConfirmationModal";
+import { showToast } from "../../toast/toast";
 
 const DisciplinaryTab = () => {
   // Authentication
@@ -24,6 +36,11 @@ const DisciplinaryTab = () => {
   const [success, setSuccess] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeSubTab, setActiveSubTab] = useState("actions");
+
+  // Delete modal states
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const [deleteType, setDeleteType] = useState(""); // 'action', 'result', or 'violation'
 
   // API headers
   const getRequestHeaders = () => {
@@ -331,16 +348,26 @@ const DisciplinaryTab = () => {
     }
   };
 
+  // Handler for showing delete confirmation modal
+  const handleShowDeleteModal = (item, type) => {
+    setItemToDelete(item);
+    setDeleteType(type);
+    setIsDeleteModalOpen(true);
+  };
+
+  // Handler for confirming deletion
+  const handleConfirmDelete = async (id) => {
+    if (deleteType === "action") {
+      await deleteDisciplinaryAction(id);
+    } else if (deleteType === "result") {
+      await deleteDisciplinaryResult(id);
+    } else if (deleteType === "violation") {
+      await deleteDisciplinaryViolation(id);
+    }
+  };
+
   // API: Delete disciplinary action
   const deleteDisciplinaryAction = async (actionId) => {
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this disciplinary action?"
-      )
-    ) {
-      return;
-    }
-
     setLoading(true);
     try {
       const response = await fetch(`${API_BASE_URL}/DeleteDisciplinaryAction`, {
@@ -365,14 +392,6 @@ const DisciplinaryTab = () => {
 
   // API: Delete disciplinary result
   const deleteDisciplinaryResult = async (resultId) => {
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this disciplinary result?"
-      )
-    ) {
-      return;
-    }
-
     setLoading(true);
     try {
       const response = await fetch(
@@ -400,14 +419,6 @@ const DisciplinaryTab = () => {
 
   // API: Delete disciplinary violation
   const deleteDisciplinaryViolation = async (violationId) => {
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this disciplinary violation?"
-      )
-    ) {
-      return;
-    }
-
     setLoading(true);
     try {
       const response = await fetch(
@@ -557,39 +568,57 @@ const DisciplinaryTab = () => {
   // Sub-tab navigation
   const renderSubTabNav = () => {
     const tabs = [
-      { id: "actions", label: "Disciplinary Actions" },
-      { id: "results", label: "Action Results" },
-      { id: "violations", label: "Policy Violations" },
+      { id: "actions", label: "Disciplinary Actions", icon: BookOpen },
+      { id: "results", label: "Action Results", icon: Tag },
+      { id: "violations", label: "Policy Violations", icon: AlertTriangle },
     ];
 
     return (
-      <div className="border-b border-gray-200 mb-6">
-        <nav className="flex -mb-px" aria-label="Tabs">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveSubTab(tab.id)}
-              className={`py-2 px-4 text-sm font-medium border-b-2 transition-colors duration-200 focus:outline-none ${
-                activeSubTab === tab.id ? "border-b-2" : "border-transparent"
-              }`}
-              style={{
-                color:
-                  activeSubTab === tab.id
-                    ? themeColors.primary
-                    : themeColors.textLight,
-                borderColor:
-                  activeSubTab === tab.id ? themeColors.primary : "transparent",
-                backgroundColor:
-                  activeSubTab === tab.id
-                    ? `${themeColors.primaryLight}10`
-                    : "transparent",
-              }}
-              aria-current={activeSubTab === tab.id ? "page" : undefined}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
+      <div
+        className="relative mb-8 p-1.5 rounded-xl"
+        style={{
+          background: `linear-gradient(to right, ${themeColors.primaryLight}15, ${themeColors.secondaryLight}25)`,
+          boxShadow: `0 2px 10px ${themeColors.shadowLight}`,
+          border: `1px solid ${themeColors.border}`,
+        }}
+      >
+        <div className="flex">
+          {tabs.map((tab) => {
+            const isActive = activeSubTab === tab.id;
+            const Icon = tab.icon;
+
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveSubTab(tab.id)}
+                className={`relative flex items-center justify-center py-3 px-6 font-medium text-sm rounded-lg transition-all duration-300 ${
+                  isActive ? "shadow-md" : "hover:bg-white hover:bg-opacity-30"
+                }`}
+                style={{
+                  color: isActive ? themeColors.primary : themeColors.textLight,
+                  backgroundColor: isActive ? "white" : "transparent",
+                  flex: 1,
+                  zIndex: isActive ? 1 : 0,
+                  transform: isActive ? "translateY(-2px)" : "none",
+                }}
+              >
+                <Icon
+                  size={18}
+                  strokeWidth={isActive ? 2 : 1.5}
+                  className="mr-2"
+                />
+                <span>{tab.label}</span>
+
+                {isActive && (
+                  <span
+                    className="absolute bottom-0 left-1/2 w-1.5 h-1.5 rounded-full transform -translate-x-1/2 translate-y-0.5"
+                    style={{ backgroundColor: themeColors.primary }}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
     );
   };
@@ -599,7 +628,9 @@ const DisciplinaryTab = () => {
     if (filteredActions.length === 0) {
       return (
         <EmptyState
-          icon="document"
+          icon={() => (
+            <BookOpen size={64} strokeWidth={1.5} className="text-gray-400" />
+          )}
           title="No Disciplinary Actions Found"
           message={
             searchTerm
@@ -618,31 +649,38 @@ const DisciplinaryTab = () => {
     }
 
     return (
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 rounded-lg overflow-hidden">
-          <thead className="bg-gray-50">
+      <div
+        className="overflow-hidden rounded-lg shadow-sm"
+        style={{ border: `1px solid ${themeColors.border}` }}
+      >
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead style={{ backgroundColor: `${themeColors.secondaryLight}` }}>
             <tr>
               <th
                 scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
+                style={{ color: themeColors.textLight }}
               >
                 ID
               </th>
               <th
                 scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
+                style={{ color: themeColors.textLight }}
               >
                 Name
               </th>
               <th
                 scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
+                style={{ color: themeColors.textLight }}
               >
                 Result
               </th>
               <th
                 scope="col"
-                className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider"
+                style={{ color: themeColors.textLight }}
               >
                 Actions
               </th>
@@ -653,17 +691,30 @@ const DisciplinaryTab = () => {
               <tr
                 key={action.Id}
                 className="hover:bg-gray-50 transition-colors duration-150"
+                style={{ backgroundColor: themeColors.background }}
               >
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td
+                  className="px-6 py-4 whitespace-nowrap text-sm"
+                  style={{ color: themeColors.textLight }}
+                >
                   {action.Id}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">
+                  <div
+                    className="text-sm font-medium"
+                    style={{ color: themeColors.text }}
+                  >
                     {action.Name}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                  <span
+                    className="px-2.5 py-1 inline-flex text-xs leading-5 font-medium rounded-full"
+                    style={{
+                      backgroundColor: "#e6f4f7",
+                      color: "#0891b2",
+                    }}
+                  >
                     {getResultNameById(action.DisciplinaryActionResultId)}
                   </span>
                 </td>
@@ -673,15 +724,17 @@ const DisciplinaryTab = () => {
                       setSelectedAction(action);
                       setActiveView("editAction");
                     }}
-                    className="text-indigo-600 hover:text-indigo-900 mr-4"
+                    style={{ color: themeColors.primary }}
                   >
-                    Edit
+                    <Edit3 size={16} className="inline mr-1" />
                   </button>
                   <button
-                    onClick={() => deleteDisciplinaryAction(action.Id)}
-                    className="text-red-600 hover:text-red-900"
+                    onClick={() => handleShowDeleteModal(action, "action")}
                   >
-                    Delete
+                    <Trash2
+                      size={16}
+                      className="inline ml-1  text-red-600 hover:bg-red-50"
+                    />
                   </button>
                 </td>
               </tr>
@@ -697,7 +750,9 @@ const DisciplinaryTab = () => {
     if (filteredResults.length === 0) {
       return (
         <EmptyState
-          icon="document"
+          icon={() => (
+            <Tag size={64} strokeWidth={1.5} className="text-gray-400" />
+          )}
           title="No Action Results Found"
           message={
             searchTerm
@@ -716,25 +771,31 @@ const DisciplinaryTab = () => {
     }
 
     return (
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 rounded-lg overflow-hidden">
-          <thead className="bg-gray-50">
+      <div
+        className="overflow-hidden rounded-lg shadow-sm"
+        style={{ border: `1px solid ${themeColors.border}` }}
+      >
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead style={{ backgroundColor: `${themeColors.secondaryLight}` }}>
             <tr>
               <th
                 scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
+                style={{ color: themeColors.textLight }}
               >
                 ID
               </th>
               <th
                 scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
+                style={{ color: themeColors.textLight }}
               >
                 Name
               </th>
               <th
                 scope="col"
-                className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider"
+                style={{ color: themeColors.textLight }}
               >
                 Actions
               </th>
@@ -745,30 +806,39 @@ const DisciplinaryTab = () => {
               <tr
                 key={result.Id}
                 className="hover:bg-gray-50 transition-colors duration-150"
+                style={{ backgroundColor: themeColors.background }}
               >
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td
+                  className="px-6 py-4 whitespace-nowrap text-sm"
+                  style={{ color: themeColors.textLight }}
+                >
                   {result.Id}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">
+                  <div
+                    className="text-sm font-medium"
+                    style={{ color: themeColors.text }}
+                  >
                     {result.Name}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <button
                     onClick={() => {
-                      setSelectedResult(result);
+                      setSelectedAction(result);
                       setActiveView("editResult");
                     }}
-                    className="text-indigo-600 hover:text-indigo-900 mr-4"
+                    style={{ color: themeColors.primary }}
                   >
-                    Edit
+                    <Edit3 size={16} className="inline mr-1" />
                   </button>
                   <button
-                    onClick={() => deleteDisciplinaryResult(result.Id)}
-                    className="text-red-600 hover:text-red-900"
+                    onClick={() => handleShowDeleteModal(result, "result")}
                   >
-                    Delete
+                    <Trash2
+                      size={16}
+                      className="inline ml-1  text-red-600 hover:bg-red-50"
+                    />
                   </button>
                 </td>
               </tr>
@@ -784,7 +854,13 @@ const DisciplinaryTab = () => {
     if (filteredViolations.length === 0) {
       return (
         <EmptyState
-          icon="document"
+          icon={() => (
+            <AlertTriangle
+              size={64}
+              strokeWidth={1.5}
+              className="text-gray-400"
+            />
+          )}
           title="No Policy Violations Found"
           message={
             searchTerm
@@ -803,25 +879,31 @@ const DisciplinaryTab = () => {
     }
 
     return (
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 rounded-lg overflow-hidden">
-          <thead className="bg-gray-50">
+      <div
+        className="overflow-hidden rounded-lg shadow-sm"
+        style={{ border: `1px solid ${themeColors.border}` }}
+      >
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead style={{ backgroundColor: `${themeColors.secondaryLight}` }}>
             <tr>
               <th
                 scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
+                style={{ color: themeColors.textLight }}
               >
                 ID
               </th>
               <th
                 scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
+                style={{ color: themeColors.textLight }}
               >
                 Name
               </th>
               <th
                 scope="col"
-                className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider"
+                style={{ color: themeColors.textLight }}
               >
                 Actions
               </th>
@@ -832,12 +914,19 @@ const DisciplinaryTab = () => {
               <tr
                 key={violation.Id}
                 className="hover:bg-gray-50 transition-colors duration-150"
+                style={{ backgroundColor: themeColors.background }}
               >
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td
+                  className="px-6 py-4 whitespace-nowrap text-sm"
+                  style={{ color: themeColors.textLight }}
+                >
                   {violation.Id}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">
+                  <div
+                    className="text-sm font-medium"
+                    style={{ color: themeColors.text }}
+                  >
                     {violation.Name}
                   </div>
                 </td>
@@ -847,15 +936,19 @@ const DisciplinaryTab = () => {
                       setSelectedViolation(violation);
                       setActiveView("editViolation");
                     }}
-                    className="text-indigo-600 hover:text-indigo-900 mr-4"
+                    style={{ color: themeColors.primary }}
                   >
-                    Edit
+                    <Edit3 size={16} className="inline mr-1" />
                   </button>
                   <button
-                    onClick={() => deleteDisciplinaryViolation(violation.Id)}
-                    className="text-red-600 hover:text-red-900"
+                    onClick={() =>
+                      handleShowDeleteModal(violation, "violation")
+                    }
                   >
-                    Delete
+                    <Trash2
+                      size={16}
+                      className="inline ml-1  text-red-600 hover:bg-red-50"
+                    />
                   </button>
                 </td>
               </tr>
@@ -884,106 +977,66 @@ const DisciplinaryTab = () => {
   const renderDashboard = () => {
     return (
       <>
-        <div className="flex justify-between items-center mb-6">
-          <h2
-            className="text-2xl font-bold"
-            style={{ color: themeColors.text }}
-          >
-            Disciplinary Management
-          </h2>
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h2
+              className="text-2xl font-bold"
+              style={{ color: themeColors.text }}
+            >
+              Disciplinary Management
+            </h2>
+            <p
+              className="text-sm mt-1"
+              style={{ color: themeColors.textLight }}
+            >
+              {activeSubTab === "actions"
+                ? `${filteredActions.length} disciplinary actions`
+                : activeSubTab === "results"
+                ? `${filteredResults.length} action results`
+                : `${filteredViolations.length} policy violations`}
+            </p>
+          </div>
+
           {activeSubTab === "actions" && (
             <button
               onClick={() => setActiveView("createAction")}
-              className="px-4 py-2 rounded-md flex items-center transition-all duration-200"
+              className="px-4 py-2.5 rounded-lg flex items-center space-x-2 transition-all duration-200"
               style={{
                 background: `linear-gradient(to right, ${themeColors.gradientStart}, ${themeColors.gradientEnd})`,
                 color: themeColors.background,
-                boxShadow: `0 2px 4px ${themeColors.primaryDark}40`,
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.boxShadow = `0 2px 4px ${themeColors.primaryDark}40`;
-                e.currentTarget.style.transform = "translateY(0)";
+                boxShadow: `0 2px 8px ${themeColors.primaryDark}30`,
               }}
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 mr-2"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              Add Disciplinary Action
+              <Plus size={20} strokeWidth={2.5} />
+              <span className="font-medium">Add Disciplinary Action</span>
             </button>
           )}
           {activeSubTab === "results" && (
             <button
               onClick={() => setActiveView("createResult")}
-              className="px-4 py-2 rounded-md flex items-center transition-all duration-200"
+              className="px-4 py-2.5 rounded-lg flex items-center space-x-2 transition-all duration-200"
               style={{
                 background: `linear-gradient(to right, ${themeColors.gradientStart}, ${themeColors.gradientEnd})`,
                 color: themeColors.background,
-                boxShadow: `0 2px 4px ${themeColors.primaryDark}40`,
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.boxShadow = `0 3px 6px ${themeColors.primaryDark}60`;
-                e.currentTarget.style.transform = "translateY(-1px)";
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.boxShadow = `0 2px 4px ${themeColors.primaryDark}40`;
-                e.currentTarget.style.transform = "translateY(0)";
+                boxShadow: `0 2px 8px ${themeColors.primaryDark}30`,
               }}
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 mr-2"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              Add Action Result
+              <Plus size={20} strokeWidth={2.5} />
+              <span className="font-medium">Add Action Result</span>
             </button>
           )}
           {activeSubTab === "violations" && (
             <button
               onClick={() => setActiveView("createViolation")}
-              className="px-4 py-2 rounded-md flex items-center transition-all duration-200"
+              className="px-4 py-2.5 rounded-lg flex items-center space-x-2 transition-all duration-200"
               style={{
                 background: `linear-gradient(to right, ${themeColors.gradientStart}, ${themeColors.gradientEnd})`,
                 color: themeColors.background,
-                boxShadow: `0 2px 4px ${themeColors.primaryDark}40`,
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.boxShadow = `0 3px 6px ${themeColors.primaryDark}60`;
-                e.currentTarget.style.transform = "translateY(-1px)";
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.boxShadow = `0 2px 4px ${themeColors.primaryDark}40`;
-                e.currentTarget.style.transform = "translateY(0)";
+                boxShadow: `0 2px 8px ${themeColors.primaryDark}30`,
               }}
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 mr-2"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              Add Policy Violation
+              <Plus size={20} strokeWidth={2.5} />
+              <span className="font-medium">Add Policy Violation</span>
             </button>
           )}
         </div>
@@ -992,27 +1045,14 @@ const DisciplinaryTab = () => {
         <div className="mb-6">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg
-                className="h-5 w-5"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-                aria-hidden="true"
-                style={{ color: themeColors.textLight }}
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-                  clipRule="evenodd"
-                />
-              </svg>
+              <Search size={20} strokeWidth={2} className="text-gray-400" />
             </div>
             <input
               type="text"
               placeholder="Search by name or ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-full rounded-md py-2.5 px-4 focus:outline-none transition-all duration-200"
+              className="pl-10 w-full rounded-lg py-2.5 px-4 focus:outline-none transition-all duration-200"
               style={{
                 border: `1px solid ${themeColors.border}`,
                 backgroundColor: themeColors.background,
@@ -1027,19 +1067,79 @@ const DisciplinaryTab = () => {
                 e.target.style.borderColor = themeColors.border;
               }}
             />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              >
+                <X
+                  size={18}
+                  strokeWidth={2}
+                  className="text-gray-400 hover:text-gray-600"
+                />
+              </button>
+            )}
           </div>
         </div>
 
+        {/* Loading indicator */}
+        {loading && (
+          <div className="text-center py-6">
+            <div
+              className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-current border-opacity-25 border-t-transparent"
+              style={{ color: themeColors.primary }}
+            ></div>
+            <p
+              className="mt-2 text-sm"
+              style={{ color: themeColors.textLight }}
+            >
+              Loading...
+            </p>
+          </div>
+        )}
+
         {/* Sub tabs navigation */}
-        {renderSubTabNav()}
+        {!loading && renderSubTabNav()}
 
         {/* Content based on active sub tab */}
-        {renderActiveSubTabContent()}
+        {!loading && renderActiveSubTabContent()}
       </>
     );
   };
 
-  return <div className="max-w-7xl mx-auto">{renderView()}</div>;
+  return (
+    <div
+      className="max-w-7xl mx-auto p-6 rounded-xl"
+      style={{
+        backgroundColor: `${themeColors.secondaryLight}20`,
+      }}
+    >
+      {renderView()}
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title={`Delete ${
+          deleteType === "action"
+            ? "Disciplinary Action"
+            : deleteType === "result"
+            ? "Action Result"
+            : "Policy Violation"
+        }`}
+        message={
+          deleteType === "action"
+            ? `Are you sure you want to delete this disciplinary action? This action cannot be undone.`
+            : deleteType === "result"
+            ? `Are you sure you want to delete this action result? This may affect associated disciplinary actions and cannot be undone.`
+            : `Are you sure you want to delete this policy violation? This action cannot be undone.`
+        }
+        itemToDelete={itemToDelete}
+        itemType={deleteType}
+      />
+    </div>
+  );
 };
 
 export default DisciplinaryTab;
