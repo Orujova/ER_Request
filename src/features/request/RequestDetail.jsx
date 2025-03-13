@@ -7,7 +7,7 @@ import {
   setMessages,
   updateMessage,
   deleteMessage,
-} from "./requestSlice";
+} from "../../redux/slices/requestSlice";
 import {
   Paperclip,
   Link2,

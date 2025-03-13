@@ -5,6 +5,7 @@ import { X, FileUp } from "lucide-react";
 import { getStoredTokens } from "../utils/authHandler";
 import SearchableDropdown from "../components/common/SearchableDropdown";
 import SearchableProjectDropdown from "../components/common/SearchableProjectDropdown";
+// import { showToast } from "../../toast/toast";
 
 // Constants
 const ERRequestType = {
@@ -70,34 +71,6 @@ const RequestForm = () => {
       }));
     }
   }, [activeTab, selectedEmployee]);
-
-  const isFormValid = () => {
-    if (!requestType || !subCase) {
-      return false;
-    }
-
-    if (activeTab === "employee" && !selectedEmployee) {
-      return false;
-    }
-
-    if (!formData.mailBody.trim()) {
-      return false;
-    }
-
-    // Validate that at least one of hyperlink or attachment is provided
-    const hasHyperlink = formData.hyperlink.trim() !== "";
-    const hasAttachments = formData.attachments.length > 0;
-
-    // Require either a hyperlink or at least one attachment
-    if (!hasHyperlink) {
-      return false;
-    }
-    if (!hasAttachments) {
-      return false;
-    }
-
-    return true;
-  };
 
   // Fetch data
   useEffect(() => {
@@ -181,7 +154,31 @@ const RequestForm = () => {
     }));
   };
 
-  // Form submission with file upload support
+  const isFormValid = () => {
+    if (!requestType || !subCase) {
+      return false;
+    }
+
+    if (activeTab === "employee" && !selectedEmployee) {
+      return false;
+    }
+
+    if (!formData.mailBody.trim()) {
+      return false;
+    }
+
+    // Validate that at least one of hyperlink or attachment is provided
+    const hasHyperlink = formData.hyperlink.trim() !== "";
+    const hasAttachments = formData.attachments.length > 0;
+
+    // Require either a hyperlink or at least one attachment
+    if (!hasHyperlink && !hasAttachments) {
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -189,11 +186,17 @@ const RequestForm = () => {
 
     try {
       const { jwtToken } = getStoredTokens();
-
-      // For file uploads, we need to use FormData
       const formDataObj = new FormData();
 
-      // Append all form fields as strings
+      const isEmployeeRequest = activeTab === "employee";
+      formDataObj.append(
+        "RequestType",
+        isEmployeeRequest
+          ? ERRequestType.EmployeeRequest
+          : ERRequestType.GeneralRequest
+      );
+
+      // Append case and subcase IDs
       formDataObj.append(
         "CaseId",
         cases.find((c) => c.CaseName === requestType)?.Id || "0"
@@ -202,17 +205,26 @@ const RequestForm = () => {
         "SubCaseId",
         subCases.find((sc) => sc.Description === subCase)?.Id || "0"
       );
-      formDataObj.append("ProjectId", formData.projectId || "0");
-      formDataObj.append("EmployeeId", selectedEmployee?.Id || "0");
+
+      if (isEmployeeRequest) {
+        // Employee request - include employee data
+        formDataObj.append("EmployeeId", selectedEmployee?.Id || "0");
+        formDataObj.append("ProjectId", selectedEmployee?.Project?.Id || "0");
+      } else {
+        formDataObj.append("EmployeeId", "");
+
+        if (formData.projectId) {
+          formDataObj.append("ProjectId", formData.projectId);
+        } else {
+          formDataObj.append("ProjectId", "");
+          // Alternative: Don't append ProjectId at all if not selected
+        }
+      }
+
+      // Common fields for both request types
       formDataObj.append("ERHyperLink", formData.hyperlink || "");
       formDataObj.append("MailCcAddresses", formData.ccAddresses || "");
       formDataObj.append("MailBody", formData.mailBody || "");
-      formDataObj.append(
-        "RequestType",
-        activeTab === "employee"
-          ? ERRequestType.EmployeeRequest.toString()
-          : ERRequestType.GeneralRequest.toString()
-      );
 
       // Handle file attachments
       if (formData.attachments && formData.attachments.length > 0) {
@@ -222,53 +234,52 @@ const RequestForm = () => {
           }
         });
       } else {
+        // Empty attachments - try sending as empty string
         formDataObj.append("Attachments", "");
       }
 
-      // Submit request using FormData
+      // Submit request
       const response = await fetch(
         `${API_BASE_URL}/api/ERRequest/AddERRequest`,
         {
           method: "POST",
           headers: {
             Authorization: `Bearer ${jwtToken}`,
-            // Do NOT set Content-Type when using FormData - browser will set it with boundary
           },
           body: formDataObj,
         }
       );
 
-      // Parse the response
+      // Parse and log the response
       const responseText = await response.text();
+      console.log("API Response:", responseText);
 
-      // Try to parse as JSON
       let responseData;
       try {
         responseData = JSON.parse(responseText);
+        console.log("Parsed Response:", responseData);
       } catch (e) {
+        console.error("Failed to parse response:", e);
         responseData = { message: responseText };
       }
 
-      if (!response.ok) {
+      if (!response.ok || (responseData && responseData.IsSuccess === false)) {
         throw new Error(
-          responseData.title || responseData.message || "Submission failed"
+          responseData.Message || responseData.message || "Submission failed"
         );
       }
 
       // Handle successful submission
       alert("Request submitted successfully");
-
-      // Reset form
       resetForm();
     } catch (err) {
-      console.error("Submission failed", err);
+      console.error("Submission failed:", err);
       setError(err.message || "Submission failed");
     } finally {
       setLoading(false);
     }
   };
 
-  // Reset form to initial state
   const resetForm = () => {
     setRequestType("");
     setSubCase("");
@@ -456,7 +467,6 @@ const RequestForm = () => {
         Create New Request
       </h2>
 
-      {/* Tabs */}
       <div className="grid grid-cols-2 gap-4 p-3 mb-8 bg-gray-50 rounded-xl">
         <button
           type="button"
@@ -483,7 +493,6 @@ const RequestForm = () => {
       </div>
 
       <form onSubmit={handleSubmit}>
-        {/* Request Information */}
         <div className="mb-8 p-6 bg-gray-50 rounded-xl border border-gray-200">
           <h3 className="text-xl font-semibold text-gray-800 mb-6 flex items-center relative pl-4 before:content-[''] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-6 before:bg-sky-600 before:rounded">
             Sorğu Məlumatları
@@ -519,7 +528,6 @@ const RequestForm = () => {
           </div>
         </div>
 
-        {/* Employee Related Information */}
         <div className="mb-8 p-6 bg-gray-50 rounded-xl border border-gray-200">
           <h3 className="text-xl font-semibold text-gray-800 mb-6 flex items-center relative pl-4 before:content-[''] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-6 before:bg-sky-600 before:rounded">
             Employee Related Information
@@ -584,7 +592,6 @@ const RequestForm = () => {
                   />
                 </div>
 
-                {/* Project field - auto-populated for employee requests */}
                 <div className="mb-4">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Project
@@ -603,7 +610,6 @@ const RequestForm = () => {
               </>
             )}
 
-            {/* Project field - selectable for general requests */}
             {activeTab === "general" && (
               <SearchableProjectDropdown
                 label="Project"
