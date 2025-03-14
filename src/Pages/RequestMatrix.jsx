@@ -4,7 +4,6 @@ import { themeColors } from "../styles/theme";
 import { getStoredTokens } from "../utils/authHandler";
 import CaseTab from "../components/requestMatrix/CaseTab";
 import DisciplinaryTab from "../components/requestMatrix/DisciplinaryTab";
-import Notifications from "../components/requestMatrix/Notifications";
 import TabNavigation from "../components/requestMatrix/TabNavigation";
 import {
   LoadingScreen,
@@ -22,25 +21,12 @@ const RequestMatrix = () => {
   const [subCases, setSubCases] = useState([]);
   const [dataInitialized, setDataInitialized] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   // Selected items state
   const [selectedCase, setSelectedCase] = useState(null);
   const [selectedSubCase, setSelectedSubCase] = useState(null);
   const [expandedCases, setExpandedCases] = useState({});
-
-  // Toast notification
-  const showNotification = (message, isError = false) => {
-    if (isError) {
-      setError(message);
-      setTimeout(() => setError(null), 5000);
-    } else {
-      setSuccess(message);
-      setTimeout(() => setSuccess(null), 3000);
-    }
-  };
 
   // API request headers with authentication
   const getRequestHeaders = () => {
@@ -62,7 +48,7 @@ const RequestMatrix = () => {
       setCases(data[0].Cases);
       return data[0].Cases;
     } catch (err) {
-      showNotification(err.message, true);
+      showToast(err.message, "error");
       return [];
     } finally {
       setLoading(false);
@@ -89,7 +75,7 @@ const RequestMatrix = () => {
 
       return data[0].SubCases;
     } catch (err) {
-      showNotification(err.message, true);
+      showToast(err.message, "error");
       return [];
     } finally {
       setLoading(false);
@@ -99,7 +85,7 @@ const RequestMatrix = () => {
   // API: Create new case
   const createCase = async (newCase) => {
     if (!newCase.caseName.trim()) {
-      showNotification("Case name cannot be empty", true);
+      showToast("Case name cannot be empty", "error");
       return null;
     }
 
@@ -125,10 +111,13 @@ const RequestMatrix = () => {
         [createdCase.Id]: true,
       }));
 
-      showNotification(`Case "${createdCase.CaseName}" created successfully`);
+      showToast(
+        `Case "${createdCase.CaseName}" created successfully`,
+        "success"
+      );
       return createdCase;
     } catch (err) {
-      showNotification(err.message, true);
+      showToast(err.message, "error");
       return null;
     } finally {
       setLoading(false);
@@ -138,7 +127,12 @@ const RequestMatrix = () => {
   // API: Create new subcase
   const createSubCase = async (newSubCase) => {
     if (!newSubCase.description.trim()) {
-      showNotification("Description cannot be empty", true);
+      showToast(
+        newSubCase.caseId
+          ? "Description cannot be empty"
+          : "Please select a case first",
+        "error"
+      );
       return null;
     }
 
@@ -150,6 +144,9 @@ const RequestMatrix = () => {
         body: JSON.stringify({
           Description: newSubCase.description,
           CaseId: newSubCase.caseId,
+          IsPresentationRequired: newSubCase.IsPresentationRequired || false,
+          IsActRequired: newSubCase.IsActRequired || false,
+          IsExplanationRequired: newSubCase.IsExplanationRequired || false,
         }),
       });
 
@@ -158,14 +155,28 @@ const RequestMatrix = () => {
 
       // Update subcases list
       setSubCases((prevSubCases) => [...prevSubCases, createdSubCase]);
-      showNotification("SubCase created successfully");
+
+      // Show success message with info about required documents
+      const requiredDocs = [];
+      if (createdSubCase.IsPresentationRequired)
+        requiredDocs.push("Presentation");
+      if (createdSubCase.IsActRequired) requiredDocs.push("Act");
+      if (createdSubCase.IsExplanationRequired)
+        requiredDocs.push("Explanation");
+
+      const message =
+        requiredDocs.length > 0
+          ? `SubCase created successfully. Required: ${requiredDocs.join(", ")}`
+          : "SubCase created successfully";
+
+      showToast(message, "success");
 
       // Refresh data
       await fetchAllSubCases();
 
       return createdSubCase;
     } catch (err) {
-      showNotification(err.message, true);
+      showToast(err.message, "error");
       return null;
     } finally {
       setLoading(false);
@@ -175,12 +186,12 @@ const RequestMatrix = () => {
   // API: Update case
   const updateCase = async (caseData) => {
     if (!caseData || !caseData.Id) {
-      showNotification("Invalid case data", true);
+      showToast("Invalid case data", "error");
       return;
     }
 
     if (!caseData.CaseName.trim()) {
-      showNotification("Case name cannot be empty", true);
+      showToast("Case name cannot be empty", "error");
       return;
     }
 
@@ -197,20 +208,17 @@ const RequestMatrix = () => {
 
       if (!response.ok) throw new Error("Failed to update case");
 
-      // Update local state
-      setCases((prevCases) =>
-        prevCases.map((c) =>
-          c.Id === caseData.Id ? { ...c, CaseName: caseData.CaseName } : c
-        )
-      );
+      // Refetch all cases to ensure data consistency
+      await fetchCases();
 
+      // Update the selected case if it was the one being edited
       if (selectedCase?.Id === caseData.Id) {
         setSelectedCase({ ...selectedCase, CaseName: caseData.CaseName });
       }
 
-      showNotification(`Case "${caseData.CaseName}" updated successfully`);
+      showToast(`Case "${caseData.CaseName}" updated successfully`, "success");
     } catch (err) {
-      showNotification(err.message, true);
+      showToast(err.message, "error");
     } finally {
       setLoading(false);
     }
@@ -219,12 +227,12 @@ const RequestMatrix = () => {
   // API: Update subcase
   const updateSubCase = async (subcaseData) => {
     if (!subcaseData || !subcaseData.Id) {
-      showNotification("Invalid subcase data", true);
+      showToast("Invalid subcase data", "error");
       return;
     }
 
     if (!subcaseData.Description.trim()) {
-      showNotification("Description cannot be empty", true);
+      showToast("Description cannot be empty", "error");
       return;
     }
 
@@ -237,6 +245,9 @@ const RequestMatrix = () => {
           Id: subcaseData.Id,
           Description: subcaseData.Description,
           CaseId: subcaseData.CaseId,
+          IsPresentationRequired: subcaseData.IsPresentationRequired || false,
+          IsActRequired: subcaseData.IsActRequired || false,
+          IsExplanationRequired: subcaseData.IsExplanationRequired || false,
         }),
       });
 
@@ -250,18 +261,21 @@ const RequestMatrix = () => {
                 ...sc,
                 Description: subcaseData.Description,
                 CaseId: subcaseData.CaseId,
+                IsPresentationRequired: subcaseData.IsPresentationRequired,
+                IsActRequired: subcaseData.IsActRequired,
+                IsExplanationRequired: subcaseData.IsExplanationRequired,
               }
             : sc
         )
       );
 
       setSelectedSubCase(null);
-      showNotification("SubCase updated successfully");
+      showToast("SubCase updated successfully", "success");
 
       // Refresh data
       await fetchAllSubCases();
     } catch (err) {
-      showNotification(err.message, true);
+      showToast(err.message, "error");
     } finally {
       setLoading(false);
     }
@@ -299,8 +313,10 @@ const RequestMatrix = () => {
 
       if (!response.ok) throw new Error("Failed to delete case");
 
-      // Update local state
-      setCases((prevCases) => prevCases.filter((c) => c.Id !== caseId));
+      // Clear selection if it was the deleted case
+      if (selectedCase?.Id === caseId) {
+        setSelectedCase(null);
+      }
 
       // Remove from expanded cases state
       setExpandedCases((prev) => {
@@ -309,13 +325,12 @@ const RequestMatrix = () => {
         return newState;
       });
 
-      if (selectedCase?.Id === caseId) {
-        setSelectedCase(null);
-      }
+      // Refetch all cases to ensure data consistency
+      await fetchCases();
 
-      showNotification("Case deleted successfully");
+      showToast("Case deleted successfully", "success");
     } catch (err) {
-      showNotification(err.message, true);
+      showToast(err.message, "error");
     } finally {
       setLoading(false);
     }
@@ -338,26 +353,20 @@ const RequestMatrix = () => {
 
       if (!response.ok) throw new Error("Failed to delete subcase");
 
-      // Update subcases list
-      setSubCases((prevSubCases) =>
-        prevSubCases.filter((sc) => sc.Id !== subCaseId)
-      );
-
+      // Clear selection if it was the deleted subcase
       if (selectedSubCase?.Id === subCaseId) {
         setSelectedSubCase(null);
       }
 
       if (showMessages) {
-        showNotification("SubCase deleted successfully");
+        showToast("SubCase deleted successfully", "success");
       }
 
-      // Refresh data
-      if (showMessages) {
-        await fetchAllSubCases();
-      }
+      // Always refetch all subcases to ensure data consistency
+      await fetchAllSubCases();
     } catch (err) {
       if (showMessages) {
-        showNotification(err.message, true);
+        showToast(err.message, "error");
       }
     } finally {
       setLoading(false);
@@ -390,9 +399,9 @@ const RequestMatrix = () => {
         setDataInitialized(true);
       } catch (err) {
         console.error("Error loading initial data:", err);
-        showNotification(
+        showToast(
           "Failed to load initial data. Please refresh the page.",
-          true
+          "error"
         );
         // Still mark as initialized to prevent render errors
         setDataInitialized(true);
@@ -409,7 +418,7 @@ const RequestMatrix = () => {
 
   return (
     <div
-      className="min-h-screen "
+      className="min-h-screen"
       style={{ backgroundColor: themeColors.secondary }}
     >
       <div className="max-w-7xl mx-auto">
@@ -430,14 +439,14 @@ const RequestMatrix = () => {
           </div>
         </header>
 
-        {/* Notifications */}
-        <Notifications error={error} success={success} setError={setError} />
+        {/* Toast Manager will be mounted in the application entry point */}
+        {/* <showToast.ToastManager /> */}
 
         {/* Tab Navigation */}
         <TabNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
 
         {/* Loading overlay */}
-        {loading && !success && !error && <LoadingOverlay />}
+        {loading && <LoadingOverlay />}
 
         {/* Main content */}
         <div className="mt-6">

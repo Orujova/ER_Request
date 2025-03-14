@@ -49,6 +49,21 @@ const CaseCard = ({
     }
   };
 
+  // Handler for creating a new subcase
+  const handleCreateSubCase = async () => {
+    const result = await onCreateSubCase();
+    if (result) {
+      // Reset the form after successful creation
+      setNewSubCase({
+        description: "",
+        caseId: caseItem.Id,
+        IsPresentationRequired: false,
+        IsActRequired: false,
+        IsExplanationRequired: false,
+      });
+    }
+  };
+
   return (
     <>
       <div
@@ -81,7 +96,9 @@ const CaseCard = ({
               <ChevronRight
                 size={22}
                 strokeWidth={2.5}
-                className={`${isExpanded ? "rotate-90" : ""}`}
+                className={`transition-transform duration-300 ${
+                  isExpanded ? "rotate-90" : ""
+                }`}
               />
             </div>
             <div className="flex flex-col md:flex-row md:items-center">
@@ -177,7 +194,7 @@ const CaseCard = ({
                 caseId={caseItem.Id}
                 newSubCase={newSubCase}
                 setNewSubCase={setNewSubCase}
-                onCreateSubCase={onCreateSubCase}
+                onCreateSubCase={handleCreateSubCase}
               />
             </div>
 
@@ -230,7 +247,7 @@ const CaseCard = ({
       <DeleteConfirmationModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
-        onConfirm={handleConfirmDelete}
+        onConfirm={() => handleConfirmDelete(itemToDelete?.Id)}
         title={`Delete ${deleteType === "case" ? "Case" : "Subcase"}`}
         message={
           deleteType === "case"
