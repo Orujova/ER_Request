@@ -1,5 +1,5 @@
 // src/components/layout/Navbar.jsx
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom"; // Add useLocation import
 import { useState, useEffect } from "react";
 import {
   Flex,
@@ -38,16 +38,19 @@ function Navbar() {
   const { instance, accounts, inProgress } = useMsal();
   const [userData, setUserData] = useState(null);
   const [notificationCount, setNotificationCount] = useState(3);
-  const [currentPath, setCurrentPath] = useState("/");
+
+  // Use useLocation to track the current path
+  const location = useLocation();
+  const [currentPath, setCurrentPath] = useState(location.pathname);
 
   const activeAccount = instance.getActiveAccount();
   const currentAccount = activeAccount || accounts[0];
   const username = currentAccount?.username || currentAccount?.name || "";
 
-  // Set current path for active state
+  // Update current path whenever location changes
   useEffect(() => {
-    setCurrentPath(window.location.pathname);
-  }, []);
+    setCurrentPath(location.pathname);
+  }, [location]);
 
   // Fetch user data when authenticated
   useEffect(() => {
@@ -153,6 +156,7 @@ function Navbar() {
                 to="/create-request"
                 icon={PlusCircle}
                 variant="primary"
+                isActive={currentPath === "/create-request"}
               >
                 New Request
               </NavButton>

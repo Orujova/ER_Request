@@ -11,6 +11,7 @@ export const verifyTokenWithBackend = async (msalAccessToken) => {
   try {
     // First store the MSAL token
     storeMsalToken(msalAccessToken);
+    console.log(msalAccessToken);
 
     const response = await fetch(
       `${API_BASE_URL}/api/AdminApplicationUser/verify-token`,

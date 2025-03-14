@@ -14,33 +14,47 @@ export const requestSlice = createSlice({
     setRequest: (state, action) => {
       state.currentRequest = action.payload;
     },
-    addMessage: (state, action) => {
-      state.messages.push(action.payload);
-    },
     setMessages: (state, action) => {
       state.messages = action.payload;
     },
+    addMessage: (state, action) => {
+      state.messages.push(action.payload);
+    },
     updateMessage: (state, action) => {
       const { id, message, isEdited } = action.payload;
-      const messageIndex = state.messages.findIndex((msg) => msg.id === id);
-      if (messageIndex !== -1) {
-        state.messages[messageIndex].message = message;
-        state.messages[messageIndex].isEdited = isEdited;
+      const index = state.messages.findIndex((msg) => msg.id === id);
+      if (index !== -1) {
+        state.messages[index].message = message;
+        state.messages[index].isEdited = isEdited;
       }
     },
     deleteMessage: (state, action) => {
-      const messageId = action.payload;
-      state.messages = state.messages.filter((msg) => msg.id !== messageId);
+      state.messages = state.messages.filter(
+        (msg) => msg.id !== action.payload
+      );
+    },
+    setLoading: (state, action) => {
+      state.loading = action.payload;
+    },
+    setError: (state, action) => {
+      state.error = action.payload;
+    },
+    clearRequest: (state) => {
+      state.currentRequest = null;
+      state.messages = [];
     },
   },
 });
 
 export const {
   setRequest,
-  addMessage,
   setMessages,
+  addMessage,
   updateMessage,
   deleteMessage,
+  setLoading,
+  setError,
+  clearRequest,
 } = requestSlice.actions;
 
 export default requestSlice.reducer;

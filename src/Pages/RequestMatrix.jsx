@@ -5,10 +5,7 @@ import { getStoredTokens } from "../utils/authHandler";
 import CaseTab from "../components/requestMatrix/CaseTab";
 import DisciplinaryTab from "../components/requestMatrix/DisciplinaryTab";
 import TabNavigation from "../components/requestMatrix/TabNavigation";
-import {
-  LoadingScreen,
-  LoadingOverlay,
-} from "../components/requestMatrix/LoadingScreen";
+import Loading from "../components/common/LoadingScreen";
 import { showToast } from "../toast/toast";
 
 const RequestMatrix = () => {
@@ -413,7 +410,7 @@ const RequestMatrix = () => {
 
   // If data isn't initialized yet, show a loading screen
   if (!dataInitialized) {
-    return <LoadingScreen />;
+    return <Loading />;
   }
 
   return (
@@ -444,9 +441,6 @@ const RequestMatrix = () => {
 
         {/* Tab Navigation */}
         <TabNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
-
-        {/* Loading overlay */}
-        {loading && <LoadingOverlay />}
 
         {/* Main content */}
         <div className="mt-6">

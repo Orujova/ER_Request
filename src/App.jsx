@@ -8,7 +8,7 @@ import { useIsAuthenticated } from "@azure/msal-react";
 import Dashboard from "./Pages/Dashboard";
 import RequestForm from "./Pages/RequestForm";
 import RequestDetail from "./features/request/RequestDetail";
-import ActionPage from "./features/request/ActionPage";
+import ActionPage from "./Pages/ActionPage";
 import AdminPanel from "./Pages/AdminPanel";
 import RequestMatrix from "./Pages/RequestMatrix";
 import Layout from "./components/layout/Layout";
