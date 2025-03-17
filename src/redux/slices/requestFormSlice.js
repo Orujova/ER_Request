@@ -18,16 +18,12 @@ export const fetchDependencies = createAsyncThunk(
 
       const fetchOptions = {
         headers: {
+          "ngrok-skip-browser-warning": "narmin",
           Authorization: `Bearer ${jwtToken}`,
           Accept: "application/json",
         },
       };
 
-      // Add logging for debugging
-      console.log("Starting to fetch dependencies");
-
-      // Fetch Cases
-      console.log("Fetching cases...");
       const casesResponse = await fetch(
         `${API_BASE_URL}/api/Case`,
         fetchOptions
@@ -39,7 +35,6 @@ export const fetchDependencies = createAsyncThunk(
       }
 
       const casesData = await casesResponse.json();
-      console.log("Cases raw response:", casesData);
 
       // Safely extract cases data with fallbacks
       let fetchedCases = [];
@@ -54,10 +49,6 @@ export const fetchDependencies = createAsyncThunk(
         fetchedCases = casesData;
       }
 
-      console.log("Processed cases:", fetchedCases.length);
-
-      // Fetch SubCases
-      console.log("Fetching subcases...");
       const subCasesResponse = await fetch(
         `${API_BASE_URL}/api/SubCase`,
         fetchOptions
@@ -72,7 +63,6 @@ export const fetchDependencies = createAsyncThunk(
       }
 
       const subCasesData = await subCasesResponse.json();
-      console.log("SubCases raw response:", subCasesData);
 
       // Safely extract subcases data with fallbacks
       let fetchedSubCases = [];
@@ -87,10 +77,6 @@ export const fetchDependencies = createAsyncThunk(
         fetchedSubCases = subCasesData;
       }
 
-      console.log("Processed subcases:", fetchedSubCases.length);
-
-      // Fetch Employees
-      console.log("Fetching employees...");
       const employeesResponse = await fetch(
         `${API_BASE_URL}/api/Employee`,
         fetchOptions
@@ -107,7 +93,6 @@ export const fetchDependencies = createAsyncThunk(
       }
 
       const employeesData = await employeesResponse.json();
-      console.log("Employees raw response:", employeesData);
 
       // Safely extract employees data with fallbacks
       let fetchedEmployees = [];
@@ -122,10 +107,6 @@ export const fetchDependencies = createAsyncThunk(
         fetchedEmployees = employeesData;
       }
 
-      console.log("Processed employees:", fetchedEmployees.length);
-
-      // Fetch Projects
-      console.log("Fetching projects...");
       const projectsResponse = await fetch(
         `${API_BASE_URL}/api/Project`,
         fetchOptions
@@ -140,7 +121,6 @@ export const fetchDependencies = createAsyncThunk(
       }
 
       const projectsData = await projectsResponse.json();
-      console.log("Projects raw response:", projectsData);
 
       // Safely extract projects data with fallbacks
       let fetchedProjects = [];
@@ -155,21 +135,12 @@ export const fetchDependencies = createAsyncThunk(
         fetchedProjects = projectsData;
       }
 
-      console.log("Processed projects:", fetchedProjects.length);
-
       const result = {
         cases: fetchedCases,
         subCases: fetchedSubCases,
         employees: fetchedEmployees,
         projects: fetchedProjects,
       };
-
-      console.log("All dependencies fetched successfully:", {
-        casesCount: fetchedCases.length,
-        subCasesCount: fetchedSubCases.length,
-        employeesCount: fetchedEmployees.length,
-        projectsCount: fetchedProjects.length,
-      });
 
       return result;
     } catch (error) {
@@ -188,8 +159,6 @@ export const submitRequest = createAsyncThunk(
       const userId = getUserId() || "0";
       const formDataObj = new FormData();
 
-      console.log("Starting submission process with form data:", formDataState);
-
       // Add access token
       formDataObj.append("AccessToken", msalToken || "");
 
@@ -204,17 +173,11 @@ export const submitRequest = createAsyncThunk(
       const requestType = formDataState.requestType?.trim();
       const subCase = formDataState.subCase?.trim();
 
-      console.log(`Trimmed request type: "${requestType}"`);
-      console.log(`Trimmed subcase: "${subCase}"`);
-
       // Find case and subcase by trimmed values
       const selectedCase = cases.find((c) => c.CaseName.trim() === requestType);
       const selectedSubCase = subCases.find(
         (sc) => sc.Description.trim() === subCase
       );
-
-      console.log("Selected case:", selectedCase);
-      console.log("Selected subcase:", selectedSubCase);
 
       formDataObj.append("CaseId", selectedCase?.Id || "0");
       formDataObj.append("SubCaseId", selectedSubCase?.Id || "0");
@@ -256,23 +219,13 @@ export const submitRequest = createAsyncThunk(
         });
       }
 
-      // Handle file attachments - separated by type
-      // Get files from the global window object where we stored them
       const files = window.submissionFiles || [];
-      console.log("Files ready for submission:", files.length);
 
       // Group files by their types
       const actFiles = files.filter((f) => f.type === "act");
       const presentationFiles = files.filter((f) => f.type === "presentation");
       const explanationFiles = files.filter((f) => f.type === "explanation");
       const generalFiles = files.filter((f) => f.type === "other");
-
-      console.log("Files by category:", {
-        act: actFiles.length,
-        presentation: presentationFiles.length,
-        explanation: explanationFiles.length,
-        general: generalFiles.length,
-      });
 
       // Add act files to FormData with proper array name
       if (actFiles.length > 0) {
@@ -337,13 +290,12 @@ export const submitRequest = createAsyncThunk(
         );
       }
 
-      // Submit request
-      console.log("Submitting form to API...");
       const response = await fetch(
         `${API_BASE_URL}/api/ERRequest/AddERRequest`,
         {
           method: "POST",
           headers: {
+            "ngrok-skip-browser-warning": "narmin",
             Authorization: `Bearer ${jwtToken}`,
           },
           body: formDataObj,
@@ -352,7 +304,6 @@ export const submitRequest = createAsyncThunk(
 
       // Parse the response
       const responseText = await response.text();
-      console.log("API Response text:", responseText);
 
       let responseData;
       try {
@@ -404,7 +355,6 @@ const requestFormSlice = createSlice({
       .addCase(fetchDependencies.pending, (state) => {
         state.loading = true;
         state.error = null;
-        console.log("Starting to fetch dependencies...");
       })
       .addCase(fetchDependencies.fulfilled, (state, action) => {
         state.loading = false;
@@ -413,13 +363,6 @@ const requestFormSlice = createSlice({
         state.subCases = action.payload.subCases || [];
         state.employees = action.payload.employees || [];
         state.projects = action.payload.projects || [];
-
-        console.log("Dependencies loaded into state:", {
-          cases: state.cases.length,
-          subCases: state.subCases.length,
-          employees: state.employees.length,
-          projects: state.projects.length,
-        });
       })
       .addCase(fetchDependencies.rejected, (state, action) => {
         state.loading = false;

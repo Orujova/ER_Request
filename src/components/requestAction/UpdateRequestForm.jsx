@@ -14,6 +14,7 @@ import {
 import { getStoredTokens } from "../../utils/authHandler";
 import { themeColors } from "../../styles/theme";
 import { showToast } from "../../toast/toast";
+
 const UpdateRequestForm = ({
   id,
   request,
@@ -52,6 +53,7 @@ const UpdateRequestForm = ({
 
       const response = await fetch(`${API_BASE_URL}/api/ERRequest/${id}`, {
         headers: {
+          "ngrok-skip-browser-warning": "narmin",
           accept: "*/*",
           Authorization: `Bearer ${token}`,
         },
@@ -64,33 +66,38 @@ const UpdateRequestForm = ({
       const data = await response.json();
       console.log("API Response:", data); // Logging to debug
 
+      // Extract the actual request data if it's nested
+      const requestData = data[0]?.ERRequests?.[0] || data;
+
       // Handle the case where IsEligible is null
       const isEligibleValue =
-        data.IsEligible === null ? true : Boolean(data.IsEligible);
+        requestData.IsEligible === null
+          ? true
+          : Boolean(requestData.IsEligible);
 
       // Format the date properly (YYYY-MM-DD)
-      let formattedContractEndDate = data.ContractEndDate || "";
-      if (data.ContractEndDate) {
-        const date = new Date(data.ContractEndDate);
+      let formattedContractEndDate = requestData.ContractEndDate || "";
+      if (requestData.ContractEndDate) {
+        const date = new Date(requestData.ContractEndDate);
         formattedContractEndDate = date.toISOString().split("T")[0];
       }
 
       const newFormData = {
         Id: parseInt(id),
-        DisciplinaryActionId: data.DisciplinaryActionId
-          ? data.DisciplinaryActionId.toString()
+        DisciplinaryActionId: requestData.DisciplinaryActionId
+          ? requestData.DisciplinaryActionId.toString()
           : "",
-        DisciplinaryActionResultId: data.DisciplinaryActionResultId
-          ? data.DisciplinaryActionResultId.toString()
+        DisciplinaryActionResultId: requestData.DisciplinaryActionResultId
+          ? requestData.DisciplinaryActionResultId.toString()
           : "",
-        DisciplinaryViolationId: data.DisciplinaryViolationId
-          ? data.DisciplinaryViolationId.toString()
+        DisciplinaryViolationId: requestData.DisciplinaryViolationId
+          ? requestData.DisciplinaryViolationId.toString()
           : "",
-        Note: data.Note || "",
-        Reason: data.Reason || "",
+        Note: requestData.Note || "",
+        Reason: requestData.Reason || "",
         IsEligible: isEligibleValue,
         ContractEndDate: formattedContractEndDate,
-        OrderNumber: data.OrderNumber || "",
+        OrderNumber: requestData.OrderNumber || "",
       };
 
       setFormData(newFormData);
@@ -99,8 +106,10 @@ const UpdateRequestForm = ({
       setFetchingData(false);
 
       // If the action result ID exists, we should fetch corresponding actions
-      if (data.DisciplinaryActionResultId) {
-        fetchDisciplinaryActions(data.DisciplinaryActionResultId.toString());
+      if (requestData.DisciplinaryActionResultId) {
+        fetchDisciplinaryActions(
+          requestData.DisciplinaryActionResultId.toString()
+        );
       }
     } catch (err) {
       console.error("Error fetching request details:", err);
@@ -122,15 +131,28 @@ const UpdateRequestForm = ({
 
       const newFormData = {
         Id: parseInt(id),
-        DisciplinaryActionId: request.disciplinaryActionId
-          ? request.disciplinaryActionId.toString()
-          : "",
-        DisciplinaryActionResultId: request.disciplinaryActionResultId
-          ? request.disciplinaryActionResultId.toString()
-          : "",
-        DisciplinaryViolationId: request.disciplinaryViolationId
-          ? request.disciplinaryViolationId.toString()
-          : "",
+        DisciplinaryActionId:
+          request.disciplinaryAction?.id || request.disciplinaryActionId
+            ? (
+                request.disciplinaryAction?.id || request.disciplinaryActionId
+              ).toString()
+            : "",
+        DisciplinaryActionResultId:
+          request.disciplinaryAction?.resultId ||
+          request.disciplinaryActionResultId
+            ? (
+                request.disciplinaryAction?.resultId ||
+                request.disciplinaryActionResultId
+              ).toString()
+            : "",
+        DisciplinaryViolationId:
+          request.disciplinaryAction?.violationId ||
+          request.disciplinaryViolationId
+            ? (
+                request.disciplinaryAction?.violationId ||
+                request.disciplinaryViolationId
+              ).toString()
+            : "",
         Note: request.note || "",
         Reason: request.reason || "",
         IsEligible: isEligibleValue,
@@ -162,6 +184,7 @@ const UpdateRequestForm = ({
         `${API_BASE_URL}/GetDisciplinaryActions?DisciplinaryActionResultId=${actionResultId}`,
         {
           headers: {
+            "ngrok-skip-browser-warning": "narmin",
             accept: "*/*",
             Authorization: `Bearer ${token}`,
           },
@@ -175,7 +198,7 @@ const UpdateRequestForm = ({
       }
 
       const data = await response.json();
-      setLocalDisciplinaryActions(data || []);
+      setLocalDisciplinaryActions(data[0]?.DisciplinaryActions || data || []);
       setLoading(false);
     } catch (err) {
       console.error("Error fetching disciplinary actions:", err);
@@ -248,16 +271,6 @@ const UpdateRequestForm = ({
 
     if (!formData.Reason.trim()) {
       errors.Reason = "Reason is required";
-    }
-
-    if (isEligible) {
-      if (!formData.ContractEndDate) {
-        errors.ContractEndDate = "Contract end date is required when eligible";
-      }
-
-      if (!formData.OrderNumber.trim()) {
-        errors.OrderNumber = "Order number is required when eligible";
-      }
     }
 
     setFormErrors(errors);
@@ -344,6 +357,7 @@ const UpdateRequestForm = ({
         {
           method: "PUT",
           headers: {
+            "ngrok-skip-browser-warning": "narmin",
             accept: "*/*",
             Authorization: `Bearer ${token}`,
           },
@@ -613,155 +627,124 @@ const UpdateRequestForm = ({
           />
         </div>
 
-        {/* Eligibility Radio Buttons */}
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-textLight mb-3">
-            Eligibility Status
-          </label>
-          <div className="flex gap-6">
-            <div className="flex items-center">
-              <input
-                id="eligibleOption"
-                name="eligibilityOption"
-                type="radio"
-                value="eligible"
-                className="h-4 w-4 text-primary focus:ring-0 focus:outline-none border-border"
-                checked={isEligible}
-                onChange={handleChange}
-                required
-                disabled={loading || fetchingData}
-              />
-              <label
-                htmlFor="eligibleOption"
-                className="ml-2 block text-sm text-text"
-              >
-                <span className="flex items-center">
-                  <CheckSquare size={16} className="mr-1 text-success" />
-                  Eligible
-                </span>
-              </label>
-            </div>
-            <div className="flex items-center">
-              <input
-                id="notEligibleOption"
-                name="eligibilityOption"
-                type="radio"
-                value="notEligible"
-                className="h-4 w-4 text-error focus:ring-0 focus:outline-none border-border"
-                checked={!isEligible}
-                onChange={handleChange}
-                required
-                disabled={loading || fetchingData}
-              />
-              <label
-                htmlFor="notEligibleOption"
-                className="ml-2 block text-sm text-text"
-              >
-                <span className="flex items-center">
-                  <XSquare size={16} className="mr-1 text-error" />
-                  Not Eligible
-                </span>
-              </label>
-            </div>
-            <div className="relative ml-1">
-              <HelpCircle
-                size={16}
-                className="text-textLight cursor-pointer"
-                onMouseEnter={() => setShowTooltip("eligibility")}
-                onMouseLeave={() => setShowTooltip("")}
-              />
-              {showTooltip === "eligibility" && (
-                <div className="absolute z-10 w-64 p-3 bg-gray-800 text-white text-xs rounded-lg shadow-lg -mt-2 left-6">
-                  When marked as eligible, contract end date and order number
-                  are required. If not eligible, these fields are not needed.
-                </div>
-              )}
+        {/* Rehiring Eligibility Section - Always visible and styled with a card */}
+        <div className="md:col-span-2 p-4 bg-gray-50 rounded-lg border border-gray-200 mt-2">
+          <h3 className="text-md font-medium mb-4 text-gray-700 flex items-center">
+            <CheckSquare size={16} className="mr-2 text-primary" />
+            Rehiring Eligibility
+          </h3>
+
+          {/* Eligibility Radio Buttons */}
+          <div className="mb-4">
+            <div className="flex gap-6">
+              <div className="flex items-center">
+                <input
+                  id="eligibleOption"
+                  name="eligibilityOption"
+                  type="radio"
+                  value="eligible"
+                  className="h-4 w-4 text-primary focus:ring-0 focus:outline-none border-border"
+                  checked={isEligible}
+                  onChange={handleChange}
+                  required
+                  disabled={loading || fetchingData}
+                />
+                <label
+                  htmlFor="eligibleOption"
+                  className="ml-2 block text-sm text-text"
+                >
+                  <span className="flex items-center">
+                    <CheckSquare size={16} className="mr-1 text-success" />
+                    Eligible
+                  </span>
+                </label>
+              </div>
+              <div className="flex items-center">
+                <input
+                  id="notEligibleOption"
+                  name="eligibilityOption"
+                  type="radio"
+                  value="notEligible"
+                  className="h-4 w-4 text-error focus:ring-0 focus:outline-none border-border"
+                  checked={!isEligible}
+                  onChange={handleChange}
+                  required
+                  disabled={loading || fetchingData}
+                />
+                <label
+                  htmlFor="notEligibleOption"
+                  className="ml-2 block text-sm text-text"
+                >
+                  <span className="flex items-center">
+                    <XSquare size={16} className="mr-1 text-error" />
+                    Not Eligible
+                  </span>
+                </label>
+              </div>
+              <div className="relative ml-1">
+                <HelpCircle
+                  size={16}
+                  className="text-textLight cursor-pointer"
+                  onMouseEnter={() => setShowTooltip("eligibility")}
+                  onMouseLeave={() => setShowTooltip("")}
+                />
+                {showTooltip === "eligibility" && (
+                  <div className="absolute z-10 w-64 p-3 bg-gray-800 text-white text-xs rounded-lg shadow-lg -mt-2 left-6">
+                    This determines if the employee is eligible for rehiring
+                    after the disciplinary action.
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        {isEligible && (
-          <>
+          {/* Contract End Date - Always visible */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-textLight mb-2">
                 Contract End Date
-                {formErrors.ContractEndDate && (
-                  <span className="text-red-500 ml-1">*</span>
-                )}
+                <span className="text-xs text-gray-500 ml-2">(Optional)</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                  <Calendar
-                    size={16}
-                    className={
-                      formErrors.ContractEndDate
-                        ? "text-red-500"
-                        : "text-textLight"
-                    }
-                  />
+                  <Calendar size={16} className="text-textLight" />
                 </div>
                 <input
                   type="date"
                   name="ContractEndDate"
-                  className={`block w-full rounded-lg border ${
-                    formErrors.ContractEndDate
-                      ? "border-red-300 focus:border-red-500"
-                      : "border-border focus:border-primary"
-                  } bg-background pl-10 pr-4 py-3 text-sm transition-all
-                  focus:ring-0 focus:outline-none hover:border-borderHover shadow-sm`}
+                  className="block w-full rounded-lg border border-border bg-background pl-10 pr-4 py-3 text-sm transition-all
+                  focus:border-primary focus:ring-0 focus:outline-none hover:border-borderHover shadow-sm"
                   value={formData.ContractEndDate}
                   onChange={handleChange}
-                  required={isEligible}
                   disabled={loading || fetchingData}
                 />
-                {formErrors.ContractEndDate && (
-                  <p className="mt-1 text-xs text-red-500">
-                    {formErrors.ContractEndDate}
-                  </p>
-                )}
               </div>
             </div>
 
+            {/* Order Number - Always visible */}
             <div>
               <label className="block text-sm font-medium text-textLight mb-2">
                 Order Number
-                {formErrors.OrderNumber && (
-                  <span className="text-red-500 ml-1">*</span>
-                )}
+                <span className="text-xs text-gray-500 ml-2">(Optional)</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                  <FileText
-                    size={16}
-                    className={
-                      formErrors.OrderNumber ? "text-red-500" : "text-textLight"
-                    }
-                  />
+                  <FileText size={16} className="text-textLight" />
                 </div>
                 <input
                   type="text"
                   name="OrderNumber"
-                  className={`block w-full rounded-lg border ${
-                    formErrors.OrderNumber
-                      ? "border-red-300 focus:border-red-500"
-                      : "border-border focus:border-primary"
-                  } bg-background pl-10 pr-4 py-3 text-sm transition-all
-                  focus:ring-0 focus:outline-none hover:border-borderHover shadow-sm`}
+                  className="block w-full rounded-lg border border-border bg-background pl-10 pr-4 py-3 text-sm transition-all
+                  focus:border-primary focus:ring-0 focus:outline-none hover:border-borderHover shadow-sm"
                   placeholder="Enter order number..."
                   value={formData.OrderNumber}
                   onChange={handleChange}
-                  required={isEligible}
                   disabled={loading || fetchingData}
                 />
-                {formErrors.OrderNumber && (
-                  <p className="mt-1 text-xs text-red-500">
-                    {formErrors.OrderNumber}
-                  </p>
-                )}
               </div>
             </div>
-          </>
-        )}
+          </div>
+        </div>
       </div>
 
       <div className="mt-6 flex justify-end gap-3">

@@ -88,6 +88,7 @@ const AdminPanel = () => {
         {
           method: "POST",
           headers: {
+            "ngrok-skip-browser-warning": "narmin",
             Authorization: `Bearer ${jwtToken}`,
             "Content-Type": "application/json",
           },
@@ -139,6 +140,7 @@ const AdminPanel = () => {
         {
           method: "PUT",
           headers: {
+            "ngrok-skip-browser-warning": "narmin",
             Authorization: `Bearer ${jwtToken}`,
             "Content-Type": "application/json",
           },

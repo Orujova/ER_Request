@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   FileText,
   Search,
@@ -28,9 +27,8 @@ const CopyEmployees = ({
   setSuccess,
   setError,
   refreshChildRequests,
+  showToast,
 }) => {
-  const navigate = useNavigate();
-
   // State
   const [employees, setEmployees] = useState([]);
   const [childRequests, setChildRequests] = useState([]);
@@ -43,7 +41,7 @@ const CopyEmployees = ({
   const [isSearching, setIsSearching] = useState(false);
   const [hoverChildId, setHoverChildId] = useState(null);
   const [formErrors, setFormErrors] = useState({});
-  const [expandedSection, setExpandedSection] = useState(null);
+  const [expandedSection, setExpandedSection] = useState("new"); // Default to show new employees section
 
   // Handle case change
   const handleCaseChange = (e) => {
@@ -91,6 +89,7 @@ const CopyEmployees = ({
           `${API_BASE_URL}/api/Employee?searchTerm=${searchTerm}`,
           {
             headers: {
+              "ngrok-skip-browser-warning": "narmin",
               accept: "*/*",
               Authorization: `Bearer ${token}`,
             },
@@ -207,6 +206,7 @@ const CopyEmployees = ({
         {
           method: "POST",
           headers: {
+            "ngrok-skip-browser-warning": "narmin",
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
@@ -219,7 +219,9 @@ const CopyEmployees = ({
       }
 
       setSuccess("Child requests created successfully.");
-      showToast("Child requests created successfully.", "success");
+      if (showToast) {
+        showToast("Child requests created successfully.", "success");
+      }
       setChildRequests([]);
       setEmployees([]);
       setSearchTerm("");
@@ -237,7 +239,7 @@ const CopyEmployees = ({
   };
 
   const navigateToChildDetail = (childId) => {
-    navigate(`/request/${childId}`);
+    window.location.href = `/request/${childId}`;
   };
 
   const toggleSection = (section) => {

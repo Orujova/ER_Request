@@ -53,10 +53,6 @@ const Header = ({ id, request, navigateToDetail }) => {
             <ArrowLeft size={16} />
             Back to Request
           </button>
-          <button className="inline-flex items-center gap-2 px-4 py-2 text-sm text-primary hover:text-primaryHover bg-primaryLight bg-opacity-10 border border-primaryLight rounded-lg hover:bg-opacity-20 transition-all">
-            <Mail size={16} />
-            Export
-          </button>
         </div>
       </div>
     </div>

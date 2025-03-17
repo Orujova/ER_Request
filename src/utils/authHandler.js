@@ -18,6 +18,7 @@ export const verifyTokenWithBackend = async (msalAccessToken) => {
       {
         method: "POST",
         headers: {
+          "ngrok-skip-browser-warning": "narmin",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({

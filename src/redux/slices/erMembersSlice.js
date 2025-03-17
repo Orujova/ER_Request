@@ -11,7 +11,10 @@ export const fetchERMembers = createAsyncThunk(
       const response = await fetch(
         `${API_BASE_URL}/api/AdminApplicationUser/GetAllERMemberUser`,
         {
-          headers: { Authorization: `Bearer ${jwtToken}` },
+          headers: {
+            "ngrok-skip-browser-warning": "narmin",
+            Authorization: `Bearer ${jwtToken}`,
+          },
         }
       );
 

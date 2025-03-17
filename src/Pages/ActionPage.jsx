@@ -1,5 +1,4 @@
-// File: RequestAction.jsx
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { Loader } from "lucide-react";
@@ -37,7 +36,8 @@ function RequestAction() {
   const [success, setSuccess] = useState(null);
   const [statusLoading, setStatusLoading] = useState(false);
   const [shouldRefresh, setShouldRefresh] = useState(false);
-  const [activeTab, setActiveTab] = useState("updateRequest"); // "updateRequest" or "copyEmployees"
+  const [activeTab, setActiveTab] = useState("updateRequest");
+  const [localRequest, setLocalRequest] = useState(null);
 
   // Create a function to fetch the current request data
   const fetchCurrentRequest = useCallback(async () => {
@@ -47,6 +47,7 @@ function RequestAction() {
         `${API_BASE_URL}/api/ERRequest/${id}`,
         {
           headers: {
+            "ngrok-skip-browser-warning": "narmin",
             accept: "*/*",
             Authorization: `Bearer ${token}`,
           },
@@ -58,12 +59,92 @@ function RequestAction() {
       }
 
       const requestData = await requestResponse.json();
-      // Update the Redux store with the latest request data
-      dispatch({
-        type: "SET_CURRENT_REQUEST",
-        payload: requestData[0]?.ERRequests?.[0] || null,
-      });
-      return requestData[0]?.ERRequests?.[0];
+
+      // Extract the request data
+      const requestItem = requestData;
+
+      if (requestItem) {
+        // Transform API data to match our component structure
+        const transformedRequest = {
+          id: requestItem.Id,
+          caseId: requestItem.CaseId,
+          case: requestItem.CaseName,
+          caseName: requestItem.CaseName,
+          subCaseId: requestItem.SubCaseId,
+          subCase: requestItem.SubCaseDescription,
+          subCaseDescription: requestItem.SubCaseDescription,
+          status: requestItem.ERRequestStatus,
+          employeeId: requestItem.EmployeeId,
+          employeeName: requestItem.EmployeeName,
+          employeeFullName: requestItem.EmployeeName,
+          employeeBadge: requestItem.EmployeeBadge || "",
+          projectName: requestItem.ProjectName,
+          projectId: requestItem.ProjectId,
+          projectCode: requestItem.ProjectCode,
+          positionName: requestItem.PositionName || "",
+          positionId: requestItem.PositionId || null,
+          sectionName: requestItem.SectionName || "",
+          sectionId: requestItem.SectionId || null,
+          subSectionName: requestItem.SubSectionName || "",
+          subSectionId: requestItem.SubSectionId || null,
+          erMember: requestItem.ERMember,
+          erMemberId: requestItem.ERMemberUserId || requestItem.AppuserId,
+          createdDate: requestItem.CreatedDate,
+          parentId: requestItem.ParentId,
+          requestType: requestItem.RequestType,
+          orderNumber: requestItem.OrderNumber,
+          note: requestItem.Note,
+          reason: requestItem.Reason,
+          disciplinaryActionId: requestItem.DisciplinaryActionId,
+          disciplinaryActionName: requestItem.DisciplinaryActionName,
+          disciplinaryActionResultId: requestItem.DisciplinaryActionResultId,
+          disciplinaryActionResultName:
+            requestItem.DisciplinaryActionResultName,
+          disciplinaryViolationId: requestItem.DisciplinaryViolationId,
+          disciplinaryViolationName: requestItem.DisciplinaryViolationName,
+          isEligible: requestItem.IsEligible,
+          contractEndDate: requestItem.ContractEndDate,
+          // Structure the data to be compatible with both formats
+          employeeInfo: {
+            id: requestItem.EmployeeId,
+            name: requestItem.EmployeeName,
+            badge: requestItem.EmployeeBadge || "",
+            project: requestItem.ProjectName,
+            projectId: requestItem.ProjectId,
+            projectCode: requestItem.ProjectCode,
+            position: requestItem.PositionName || "",
+            positionId: requestItem.PositionId,
+            section: requestItem.SectionName || "",
+            sectionId: requestItem.SectionId,
+          },
+          disciplinaryAction: {
+            id: requestItem.DisciplinaryActionId,
+            name: requestItem.DisciplinaryActionName,
+            resultId: requestItem.DisciplinaryActionResultId,
+            resultName: requestItem.DisciplinaryActionResultName,
+            violationId: requestItem.DisciplinaryViolationId,
+            violationName: requestItem.DisciplinaryViolationName,
+          },
+        };
+
+        // Update the Redux store with the latest request data
+        dispatch({
+          type: "SET_CURRENT_REQUEST",
+          payload: transformedRequest,
+        });
+
+        // Also set in local state for fallback
+        setLocalRequest(transformedRequest);
+
+        // Set selected ER member based on request data
+        if (requestItem.ERMemberUserId) {
+          setSelectedErMember(requestItem.ERMemberUserId.toString());
+        }
+
+        return transformedRequest;
+      }
+
+      return null;
     } catch (err) {
       console.error("Error fetching current request:", err);
       return null;
@@ -84,6 +165,7 @@ function RequestAction() {
         `${API_BASE_URL}/api/AdminApplicationUser/GetAllERMemberUser`,
         {
           headers: {
+            "ngrok-skip-browser-warning": "narmin",
             accept: "*/*",
             Authorization: `Bearer ${token}`,
           },
@@ -104,6 +186,7 @@ function RequestAction() {
         `${API_BASE_URL}/GetAllDisciplinaryViolation`,
         {
           headers: {
+            "ngrok-skip-browser-warning": "narmin",
             accept: "*/*",
             Authorization: `Bearer ${token}`,
           },
@@ -126,6 +209,7 @@ function RequestAction() {
         `${API_BASE_URL}/GetAllDisciplinaryActionResult`,
         {
           headers: {
+            "ngrok-skip-browser-warning": "narmin",
             accept: "*/*",
             Authorization: `Bearer ${token}`,
           },
@@ -146,6 +230,7 @@ function RequestAction() {
       // Fetch Cases
       const casesResponse = await fetch(`${API_BASE_URL}/api/Case`, {
         headers: {
+          "ngrok-skip-browser-warning": "narmin",
           accept: "*/*",
           Authorization: `Bearer ${token}`,
         },
@@ -161,6 +246,7 @@ function RequestAction() {
       // Fetch SubCases
       const subCasesResponse = await fetch(`${API_BASE_URL}/api/SubCase`, {
         headers: {
+          "ngrok-skip-browser-warning": "narmin",
           accept: "*/*",
           Authorization: `Bearer ${token}`,
         },
@@ -178,6 +264,7 @@ function RequestAction() {
         `${API_BASE_URL}/api/ERRequest/GetAllChildRequest?ParentId=${id}`,
         {
           headers: {
+            "ngrok-skip-browser-warning": "narmin",
             accept: "*/*",
             Authorization: `Bearer ${token}`,
           },
@@ -221,6 +308,7 @@ function RequestAction() {
         {
           method: "PUT",
           headers: {
+            "ngrok-skip-browser-warning": "narmin",
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
@@ -260,6 +348,7 @@ function RequestAction() {
         {
           method: "PUT",
           headers: {
+            "ngrok-skip-browser-warning": "narmin",
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
@@ -276,18 +365,8 @@ function RequestAction() {
 
       console.log("Status update successful, fetching updated data...");
 
-      // Force reload the entire page to ensure all data is refreshed
-      // This is a fallback approach when the standard approach isn't working
+      // Refresh the page to show updated status
       window.location.reload();
-
-      // Alternative approach: fetch updated data and update state
-      /* 
-      await fetchCurrentRequest();
-      setSuccess("Status updated successfully.");
-      showToast("Status updated successfully.", "success");
-      setShouldRefresh(true);
-      setStatusLoading(false);
-      */
     } catch (err) {
       console.error("Error updating status:", err);
       setError(err.message);
@@ -306,6 +385,7 @@ function RequestAction() {
         `${API_BASE_URL}/api/ERRequest/GetAllChildRequest?ParentId=${id}`,
         {
           headers: {
+            "ngrok-skip-browser-warning": "narmin",
             accept: "*/*",
             Authorization: `Bearer ${token}`,
           },
@@ -322,6 +402,9 @@ function RequestAction() {
       setError(err.message);
     }
   };
+
+  // Use either Redux state or local state for request, with a fallback to an empty object
+  const currentRequest = request || localRequest || {};
 
   if (loading && !error && !success) {
     return (
@@ -341,7 +424,11 @@ function RequestAction() {
     <div className="min-h-screen bg-secondary pt-6 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <Header id={id} request={request} navigateToDetail={navigateToDetail} />
+        <Header
+          id={id}
+          request={currentRequest}
+          navigateToDetail={navigateToDetail}
+        />
 
         <Alert
           variant="error"
@@ -358,11 +445,11 @@ function RequestAction() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Column - Takes 8/12 of the space */}
           <div className="lg:col-span-8 space-y-6">
-            {/* ER Member Selection */}
             <ErMemberAssignment
               erMembers={erMembers}
               selectedErMember={selectedErMember}
               onChange={handleErMemberChange}
+              loading={loading}
             />
 
             {/* Tabs */}
@@ -416,7 +503,7 @@ function RequestAction() {
                 {activeTab === "updateRequest" && (
                   <UpdateRequestForm
                     id={id}
-                    request={request}
+                    request={currentRequest}
                     disciplinaryViolations={disciplinaryViolations}
                     disciplinaryActionResults={disciplinaryActionResults}
                     disciplinaryActions={disciplinaryActions}
@@ -448,16 +535,18 @@ function RequestAction() {
           {/* Right Column - Takes 4/12 of the space */}
           <div className="lg:col-span-4 space-y-6">
             {/* Case Summary Card */}
-            <CaseSummary request={request} />
+            <CaseSummary request={currentRequest} />
 
             {/* Status Update Card */}
             <StatusUpdater
               key={`status-updater-${
-                request?.status || "loading"
+                currentRequest?.status || "loading"
               }-${Date.now()}`}
-              request={request}
+              request={currentRequest}
               handleStatusUpdate={handleStatusUpdate}
               statusLoading={statusLoading}
+              API_BASE_URL={API_BASE_URL}
+              id={id}
             />
           </div>
         </div>

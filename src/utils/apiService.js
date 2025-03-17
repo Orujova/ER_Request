@@ -11,6 +11,7 @@ export const apiService = {
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: "GET",
         headers: {
+          "ngrok-skip-browser-warning": "narmin",
           Authorization: `Bearer ${jwtToken}`,
           "Content-Type": "application/json",
         },
@@ -35,6 +36,7 @@ export const apiService = {
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: "POST",
         headers: {
+          "ngrok-skip-browser-warning": "narmin",
           Authorization: `Bearer ${jwtToken}`,
           "Content-Type": "application/json",
         },
@@ -60,6 +62,7 @@ export const apiService = {
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: "PUT",
         headers: {
+          "ngrok-skip-browser-warning": "narmin",
           Authorization: `Bearer ${jwtToken}`,
           "Content-Type": "application/json",
         },
@@ -85,6 +88,7 @@ export const apiService = {
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: "DELETE",
         headers: {
+          "ngrok-skip-browser-warning": "narmin",
           Authorization: `Bearer ${jwtToken}`,
           "Content-Type": "application/json",
         },

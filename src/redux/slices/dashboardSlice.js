@@ -55,6 +55,7 @@ export const fetchDashboardData = createAsyncThunk(
       const response = await fetch(url.toString(), {
         method: "GET",
         headers: {
+          "ngrok-skip-browser-warning": "narmin",
           "Content-Type": "application/json",
           Authorization: `Bearer ${jwtToken}`,
         },
@@ -123,16 +124,28 @@ export const fetchReferenceData = createAsyncThunk(
         employeesResponse,
       ] = await Promise.all([
         fetch(`${API_BASE_URL}/api/Case`, {
-          headers: { Authorization: `Bearer ${jwtToken}` },
+          headers: {
+            "ngrok-skip-browser-warning": "narmin",
+            Authorization: `Bearer ${jwtToken}`,
+          },
         }),
         fetch(`${API_BASE_URL}/api/SubCase`, {
-          headers: { Authorization: `Bearer ${jwtToken}` },
+          headers: {
+            "ngrok-skip-browser-warning": "narmin",
+            Authorization: `Bearer ${jwtToken}`,
+          },
         }),
         fetch(`${API_BASE_URL}/api/Project`, {
-          headers: { Authorization: `Bearer ${jwtToken}` },
+          headers: {
+            "ngrok-skip-browser-warning": "narmin",
+            Authorization: `Bearer ${jwtToken}`,
+          },
         }),
         fetch(`${API_BASE_URL}/api/Employee`, {
-          headers: { Authorization: `Bearer ${jwtToken}` },
+          headers: {
+            "ngrok-skip-browser-warning": "narmin",
+            Authorization: `Bearer ${jwtToken}`,
+          },
         }),
       ]);
 
@@ -177,6 +190,7 @@ export const reassignERMember = createAsyncThunk(
         {
           method: "PUT",
           headers: {
+            "ngrok-skip-browser-warning": "narmin",
             "Content-Type": "application/json",
             Authorization: `Bearer ${jwtToken}`,
           },
