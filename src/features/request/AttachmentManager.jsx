@@ -524,7 +524,7 @@ const AttachmentManager = ({
             </label>
             <div className="flex gap-2">
               <input
-                type="url"
+                type="text"
                 className="block w-full rounded-md border-slate-300 shadow-sm outline-none focus:border-sky-500 focus:ring focus:ring-sky-200 focus:ring-opacity-50 text-sm"
                 placeholder="https://example.com"
                 value={newLink}
