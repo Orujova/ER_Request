@@ -1,5 +1,5 @@
-// AttachmentManager.jsx
-import React from "react";
+// FileAttachmentManager.jsx
+import React, { useState } from "react";
 import {
   Paperclip,
   Link2,
@@ -11,9 +11,8 @@ import {
   Image,
   ExternalLink,
   Globe,
+  AlertCircle,
 } from "lucide-react";
-import { API_BASE_URL } from "../../../apiConfig";
-import { getStoredTokens } from "../../utils/authHandler";
 
 // File type icon selector helper
 const getFileIcon = (url) => {
@@ -51,32 +50,44 @@ const formatAttachmentName = (url) => {
   }
 };
 
-// Attachment card component to display a group of attachments
-const AttachmentCard = ({
+// Attachment Card component to display a group of attachments
+const AttachmentCardGroup = ({
   title,
-  attachments,
+  attachments = [],
   type,
-  onDelete,
-  emptyMessage,
+  onDeleteAttachment,
   icon,
+  isProcessing,
 }) => {
-  const isEmpty = !attachments || attachments.length === 0;
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
-  if (isEmpty) return null;
+  if (!attachments || attachments.length === 0) return null;
+
+  // Handle delete confirmation
+  const handleConfirmDelete = (url) => {
+    if (confirmDelete === url && !isProcessing) {
+      onDeleteAttachment(url, type);
+      setConfirmDelete(null);
+    } else {
+      setConfirmDelete(url);
+    }
+  };
 
   return (
-    <div className="border border-slate-200 rounded-md mb-4">
-      <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
+    <div className="border border-slate-200 rounded-md mb-4 overflow-hidden">
+      <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
         <h3 className="font-medium text-slate-900 flex items-center gap-2">
           {icon || <Paperclip className="w-4 h-4 text-sky-600" />}
-          {title} ({attachments?.length || 0})
+          {title} ({attachments.length})
         </h3>
       </div>
+
       <div className="p-4">
         <ul className="divide-y divide-slate-200">
           {attachments.map((url, index) => {
             // Convert erReq paths to erfile paths for download
             const downloadUrl = url.replace("erReq", "erfile");
+            const isDeleting = confirmDelete === url;
 
             return (
               <li
@@ -95,11 +106,23 @@ const AttachmentCard = ({
                 </a>
                 <button
                   type="button"
-                  onClick={() => onDelete(url, type)}
-                  className="text-slate-400 hover:text-rose-600 transition-colors ml-2"
-                  title="Delete attachment"
+                  onClick={() => handleConfirmDelete(url)}
+                  disabled={isProcessing}
+                  className={`text-slate-400 hover:text-rose-600 transition-colors ml-2 p-1 rounded-full
+                    ${isDeleting ? "bg-rose-50 text-rose-600" : ""}
+                    ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}
+                  `}
+                  title={
+                    isDeleting
+                      ? "Click again to confirm deletion"
+                      : "Delete attachment"
+                  }
                 >
-                  <Trash2 className="w-4 h-4" />
+                  {isDeleting ? (
+                    <AlertCircle className="w-4 h-4" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
                 </button>
               </li>
             );
@@ -110,161 +133,103 @@ const AttachmentCard = ({
   );
 };
 
-// Hyperlink card component to display hyperlinks
-const HyperlinkCard = ({ hyperLinks, onDelete }) => {
-  const isEmpty = !hyperLinks || hyperLinks.length === 0;
+// Hyperlink Card component to display hyperlinks
+const HyperlinkCardGroup = ({
+  hyperLinks = [],
+  onDeleteHyperlink,
+  isProcessing,
+}) => {
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
-  if (isEmpty) return null;
+  // Skip rendering if no hyperlinks
+  if (!hyperLinks || hyperLinks.length === 0) return null;
+
+  // Normalize hyperLinks to handle both string and object formats
+  const normalizedHyperLinks = hyperLinks.map((link) =>
+    typeof link === "object" ? link : { id: link, url: link }
+  );
+
+  // Handle delete confirmation
+  const handleConfirmDelete = (linkId) => {
+    if (confirmDelete === linkId && !isProcessing) {
+      onDeleteHyperlink(linkId);
+      setConfirmDelete(null);
+    } else {
+      setConfirmDelete(linkId);
+    }
+  };
 
   return (
-    <div className="border border-slate-200 rounded-md mb-4">
-      <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
+    <div className="border border-slate-200 rounded-md mb-4 overflow-hidden">
+      <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
         <h3 className="font-medium text-slate-900 flex items-center gap-2">
           <Link2 className="w-4 h-4 text-sky-600" />
-          Hyperlinks ({hyperLinks?.length || 0})
+          Hyperlinks ({normalizedHyperLinks.length})
         </h3>
       </div>
+
       <div className="p-4">
         <ul className="divide-y divide-slate-200">
-          {hyperLinks.map((link, index) => (
-            <li
-              key={`link-${index}`}
-              className="py-3 flex items-center justify-between group"
-            >
-              <a
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 text-sm text-slate-700 hover:text-sky-600 hover:underline group flex-1 truncate"
+          {normalizedHyperLinks.map((link, index) => {
+            const isDeleting = confirmDelete === link.id;
+
+            return (
+              <li
+                key={`link-${index}`}
+                className="py-3 flex items-center justify-between group"
               >
-                <Globe className="w-4 h-4 text-slate-500" />
-                <span className="truncate">{link.url}</span>
-                <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </a>
-              <button
-                type="button"
-                onClick={() => onDelete(link.id)}
-                className="text-slate-400 hover:text-rose-600 transition-colors ml-2"
-                title="Delete hyperlink"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </li>
-          ))}
+                <a
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-sm text-slate-700 hover:text-sky-600 hover:underline group flex-1 truncate"
+                >
+                  <Globe className="w-4 h-4 text-slate-500" />
+                  <span className="truncate">{link.url}</span>
+                  <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => handleConfirmDelete(link.id)}
+                  disabled={isProcessing}
+                  className={`text-slate-400 hover:text-rose-600 transition-colors ml-2 p-1 rounded-full
+                    ${isDeleting ? "bg-rose-50 text-rose-600" : ""}
+                    ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}
+                  `}
+                  title={
+                    isDeleting
+                      ? "Click again to confirm deletion"
+                      : "Delete hyperlink"
+                  }
+                >
+                  {isDeleting ? (
+                    <AlertCircle className="w-4 h-4" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </div>
     </div>
   );
 };
 
-// Empty state when no attachments or links
-const EmptyState = () => (
-  <div className="flex flex-col items-center justify-center py-10 px-6 bg-slate-50 rounded-md border border-slate-200 text-center mb-4">
-    <div className="bg-white p-4 rounded-full shadow-sm mb-4">
-      <Paperclip className="w-8 h-8 text-slate-400" />
-    </div>
-    <h3 className="text-lg font-medium text-slate-900 mb-2">
-      No attachments or links yet
-    </h3>
-    <p className="text-slate-500 max-w-md mb-6">
-      Upload files or add links to share important documents and resources with
-      this request.
-    </p>
-  </div>
-);
-
-// Main AttachmentManager component
-const AttachmentManager = ({
+// Main FileAttachmentManager component - redesigned and improved
+const FileAttachmentManager = ({
   requestId,
   presentationAttachments = [],
   actAttachments = [],
   explanationAttachments = [],
   generalAttachments = [],
   hyperLinks = [],
-  onAttachmentsUpdated,
+  onDeleteAttachment,
+  onDeleteHyperlink,
+  isProcessing = false,
 }) => {
-  // Handler for deleting attachments
-  const handleDeleteAttachment = async (url, type) => {
-    try {
-      const { token } = getStoredTokens();
-
-      const formData = new FormData();
-      formData.append("ERRequestId", requestId);
-      formData.append("AttachmentPathsToDelete", url);
-
-      const response = await fetch(
-        `${API_BASE_URL}/api/ERRequest/ManageERRequestAttachmentsAndHyperLinks`,
-        {
-          method: "PUT",
-          headers: {
-            "ngrok-skip-browser-warning": "narmin",
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Error deleting attachment: ${response.status}`);
-      }
-
-      // Callback to refresh attachments
-      if (onAttachmentsUpdated) {
-        onAttachmentsUpdated();
-      }
-    } catch (err) {
-      console.error("Error deleting attachment:", err);
-    }
-  };
-
-  // Handler for deleting hyperlinks
-  const handleDeleteHyperlink = async (linkId) => {
-    try {
-      const { token } = getStoredTokens();
-
-      const formData = new FormData();
-      formData.append("ERRequestId", requestId);
-      formData.append("HyperLinkIdsToDelete", linkId);
-
-      const response = await fetch(
-        `${API_BASE_URL}/api/ERRequest/ManageERRequestAttachmentsAndHyperLinks`,
-        {
-          method: "PUT",
-          headers: {
-            "ngrok-skip-browser-warning": "narmin",
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Error deleting hyperlink: ${response.status}`);
-      }
-
-      // Callback to refresh attachments
-      if (onAttachmentsUpdated) {
-        onAttachmentsUpdated();
-      }
-    } catch (err) {
-      console.error("Error deleting hyperlink:", err);
-    }
-  };
-
-  // Check if there are any attachments or links
-  const hasAnyContent =
-    presentationAttachments.length > 0 ||
-    actAttachments.length > 0 ||
-    explanationAttachments.length > 0 ||
-    generalAttachments.length > 0 ||
-    hyperLinks.length > 0;
-
-  // Show empty state if no content
-  if (!hasAnyContent) {
-    return <EmptyState />;
-  }
-
-  // List of attachment groups
+  // Define attachment groups to display
   const attachmentGroups = [
     {
       title: "Presentation Attachments",
@@ -292,24 +257,42 @@ const AttachmentManager = ({
     },
   ];
 
+  // Calculate if we have any content to display
+  const hasAnyContent =
+    attachmentGroups.some((group) => group.attachments.length > 0) ||
+    (hyperLinks && hyperLinks.length > 0);
+
+  if (!hasAnyContent) {
+    return (
+      <div className="text-center py-6 text-slate-500">
+        No attachments or links in this category.
+      </div>
+    );
+  }
+
   return (
-    <div>
-      {/* Render attachment cards */}
+    <div className="file-attachment-manager">
+      {/* Render attachment card groups */}
       {attachmentGroups.map((group, index) => (
-        <AttachmentCard
+        <AttachmentCardGroup
           key={`${group.type}-${index}`}
           title={group.title}
           attachments={group.attachments}
           type={group.type}
-          onDelete={handleDeleteAttachment}
+          onDeleteAttachment={onDeleteAttachment}
           icon={group.icon}
+          isProcessing={isProcessing}
         />
       ))}
 
-      {/* Render hyperlink card */}
-      <HyperlinkCard hyperLinks={hyperLinks} onDelete={handleDeleteHyperlink} />
+      {/* Render hyperlink card group */}
+      <HyperlinkCardGroup
+        hyperLinks={hyperLinks}
+        onDeleteHyperlink={onDeleteHyperlink}
+        isProcessing={isProcessing}
+      />
     </div>
   );
 };
 
-export default AttachmentManager;
+export default FileAttachmentManager;

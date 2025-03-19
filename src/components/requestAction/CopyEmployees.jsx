@@ -14,9 +14,9 @@ import {
   Info,
   Filter,
   ChevronDown,
+  CheckCircle,
 } from "lucide-react";
 import { getStoredTokens } from "../../utils/authHandler";
-import { themeColors } from "../../styles/theme";
 
 const CopyEmployees = ({
   id,
@@ -41,7 +41,7 @@ const CopyEmployees = ({
   const [isSearching, setIsSearching] = useState(false);
   const [hoverChildId, setHoverChildId] = useState(null);
   const [formErrors, setFormErrors] = useState({});
-  const [expandedSection, setExpandedSection] = useState("new"); // Default to show new employees section
+  const [expandedSection, setExpandedSection] = useState("new");
 
   // Handle case change
   const handleCaseChange = (e) => {
@@ -75,8 +75,9 @@ const CopyEmployees = ({
       clearTimeout(searchTimeout);
     }
 
-    if (!searchTerm.trim()) {
+    if (!searchTerm.trim() || searchTerm.length < 3) {
       setEmployees([]);
+      setIsSearching(false);
       return;
     }
 
@@ -250,15 +251,15 @@ const CopyEmployees = ({
     <div>
       <div className="mb-6">
         {/* Selection Section */}
-        <div className="p-4 rounded-lg bg-gray-50 border border-gray-200 mb-6">
-          <h3 className="text-md font-medium mb-4 flex items-center text-gray-700">
-            <Filter size={16} className="mr-2 text-primary" />
+        <div className="p-5 rounded-lg bg-slate-50 border border-slate-200 mb-6">
+          <h3 className="text-md font-medium mb-4 flex items-center text-slate-700">
+            <Filter size={16} className="mr-2 text-sky-500" />
             Selection Criteria
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-medium text-textLight mb-2">
+              <label className="block text-sm font-medium text-slate-600 mb-2">
                 Case
                 {formErrors.case && (
                   <span className="text-red-500 ml-1">*</span>
@@ -269,17 +270,17 @@ const CopyEmployees = ({
                   <FileText
                     size={16}
                     className={
-                      formErrors.case ? "text-red-500" : "text-textLight"
+                      formErrors.case ? "text-red-500" : "text-slate-400"
                     }
                   />
                 </div>
                 <select
                   className={`block w-full rounded-lg border ${
                     formErrors.case
-                      ? "border-red-300 focus:border-red-500"
-                      : "border-border focus:border-primary"
-                  } bg-background pl-10 pr-4 py-3 text-sm transition-all
-                  focus:ring-0 focus:outline-none hover:border-borderHover shadow-sm`}
+                      ? "border-red-300 focus:border-red-500 focus:ring-red-100"
+                      : "border-slate-200 focus:border-sky-500 focus:ring-sky-100"
+                  } bg-white pl-10 pr-4 py-3 text-sm transition-all
+                  focus:ring-2 focus:outline-none hover:border-slate-300 shadow-sm`}
                   value={selectedCase}
                   onChange={handleCaseChange}
                 >
@@ -297,7 +298,7 @@ const CopyEmployees = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-textLight mb-2">
+              <label className="block text-sm font-medium text-slate-600 mb-2">
                 Sub Case
                 {formErrors.subCase && (
                   <span className="text-red-500 ml-1">*</span>
@@ -309,22 +310,22 @@ const CopyEmployees = ({
                     size={16}
                     className={
                       !selectedCase
-                        ? "text-gray-300"
+                        ? "text-slate-300"
                         : formErrors.subCase
                         ? "text-red-500"
-                        : "text-textLight"
+                        : "text-slate-400"
                     }
                   />
                 </div>
                 <select
                   className={`block w-full rounded-lg border ${
                     formErrors.subCase
-                      ? "border-red-300 focus:border-red-500"
-                      : "border-border focus:border-primary"
-                  } bg-background pl-10 pr-4 py-3 text-sm transition-all
-                  focus:ring-0 focus:outline-none hover:border-borderHover shadow-sm ${
+                      ? "border-red-300 focus:border-red-500 focus:ring-red-100"
+                      : "border-slate-200 focus:border-sky-500 focus:ring-sky-100"
+                  } bg-white pl-10 pr-4 py-3 text-sm transition-all
+                  focus:ring-2 focus:outline-none hover:border-slate-300 shadow-sm ${
                     !selectedCase
-                      ? "bg-secondaryDark text-gray-400 cursor-not-allowed"
+                      ? "bg-slate-50 text-slate-400 cursor-not-allowed"
                       : ""
                   }`}
                   value={selectedSubCase}
@@ -344,8 +345,8 @@ const CopyEmployees = ({
                   </p>
                 )}
                 {selectedCase && subCases.length === 0 && (
-                  <div className="mt-1 text-xs text-warning flex items-center">
-                    <AlertTriangle size={12} className="mr-1 text-amber-500" />
+                  <div className="mt-1 text-xs text-amber-600 flex items-center">
+                    <AlertTriangle size={12} className="mr-1" />
                     No sub cases available for this case
                   </div>
                 )}
@@ -355,7 +356,7 @@ const CopyEmployees = ({
 
           {/* Employee Search */}
           <div>
-            <label className="block text-sm font-medium text-textLight mb-2">
+            <label className="block text-sm font-medium text-slate-600 mb-2">
               Search Employee
               {formErrors.employee && (
                 <span className="text-red-500 ml-1">*</span>
@@ -367,10 +368,10 @@ const CopyEmployees = ({
                 placeholder="Search by badge, name or FIN..."
                 className={`block w-full rounded-lg border ${
                   formErrors.employee
-                    ? "border-red-300 focus:border-red-500"
-                    : "border-border focus:border-primary"
-                } bg-background pl-10 pr-10 py-3 text-sm transition-all
-                focus:ring-0 focus:outline-none hover:border-borderHover shadow-sm`}
+                    ? "border-red-300 focus:border-red-500 focus:ring-red-100"
+                    : "border-slate-200 focus:border-sky-500 focus:ring-sky-100"
+                } bg-white pl-10 pr-10 py-3 text-sm transition-all
+                focus:ring-2 focus:outline-none hover:border-slate-300 shadow-sm`}
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
@@ -382,18 +383,18 @@ const CopyEmployees = ({
                 <Search
                   size={16}
                   className={
-                    formErrors.employee ? "text-red-500" : "text-textLight"
+                    formErrors.employee ? "text-red-500" : "text-slate-400"
                   }
                 />
               </div>
               {isSearching ? (
                 <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                  <Loader size={16} className="animate-spin text-primary" />
+                  <Loader size={16} className="animate-spin text-sky-500" />
                 </div>
               ) : (
                 searchTerm && (
                   <button
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 transition-colors"
                     onClick={() => setSearchTerm("")}
                   >
                     <X size={16} />
@@ -404,8 +405,8 @@ const CopyEmployees = ({
             {formErrors.employee && (
               <p className="mt-1 text-xs text-red-500">{formErrors.employee}</p>
             )}
-            <div className="mt-1 text-xs text-textLight flex items-center">
-              <Info size={12} className="mr-1 text-[#219cba]" />
+            <div className="mt-1 text-xs text-slate-500 flex items-center">
+              <Info size={12} className="mr-1 text-sky-500" />
               Start typing to search employees automatically (minimum 3
               characters)
             </div>
@@ -414,10 +415,10 @@ const CopyEmployees = ({
 
         {/* Search Results */}
         {employees.length > 0 && (
-          <div className="rounded-lg border border-border overflow-hidden mb-6 shadow-sm">
-            <div className="bg-gray-50 px-4 py-2 border-b border-border">
-              <h4 className="text-sm font-medium text-gray-700 flex items-center">
-                <User size={14} className="mr-2 text-primary" />
+          <div className="rounded-lg border border-slate-200 overflow-hidden mb-6 shadow-sm">
+            <div className="bg-slate-50 px-4 py-2 border-b border-slate-200">
+              <h4 className="text-sm font-medium text-slate-700 flex items-center">
+                <User size={14} className="mr-2 text-sky-500" />
                 Search Results ({employees.length})
               </h4>
             </div>
@@ -425,20 +426,20 @@ const CopyEmployees = ({
               {employees.map((employee) => (
                 <div
                   key={employee.Id}
-                  className="flex justify-between items-center p-3 hover:bg-secondary border-b border-border last:border-0 transition-colors"
+                  className="flex justify-between items-center p-3 hover:bg-slate-50 border-b border-slate-200 last:border-0 transition-colors"
                 >
                   <div className="flex items-center">
-                    <div className="flex items-center justify-center h-8 w-8 rounded-full bg-[#e6f4f7] text-[#0891b2] mr-3">
+                    <div className="flex items-center justify-center h-8 w-8 rounded-full bg-sky-50 text-sky-500 mr-3">
                       <User size={16} />
                     </div>
                     <div>
-                      <div className="font-medium text-text">
+                      <div className="font-medium text-slate-700">
                         {employee.FullName}{" "}
-                        <span className="text-textLight text-xs">
+                        <span className="text-slate-500 text-xs">
                           ({employee.Badge})
                         </span>
                       </div>
-                      <div className="text-xs text-textLight">
+                      <div className="text-xs text-slate-500">
                         {employee.Position?.Name || ""}
                         {employee.Position?.Name &&
                           employee.Section?.Name &&
@@ -449,10 +450,10 @@ const CopyEmployees = ({
                   </div>
                   <button
                     type="button"
-                    className={`inline-flex items-center justify-center p-2 rounded-lg transition-all ${
+                    className={`inline-flex items-center justify-center p-2 rounded-lg transition-colors ${
                       !selectedCase || !selectedSubCase
-                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                        : "bg-primaryLight text-primary hover:bg-primary hover:text-white"
+                        ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                        : "bg-sky-50 text-sky-500 hover:bg-sky-500 hover:text-white"
                     }`}
                     onClick={() => addEmployeeToChildRequests(employee)}
                     disabled={!selectedCase || !selectedSubCase}
@@ -472,18 +473,18 @@ const CopyEmployees = ({
 
         {/* Existing Child Requests (Collapsible Section) */}
         {existingChildRequests.length > 0 && (
-          <div className="mb-6 rounded-lg border border-border overflow-hidden shadow-sm">
+          <div className="mb-6 rounded-lg border border-slate-200 overflow-hidden shadow-sm">
             <button
               onClick={() => toggleSection("existing")}
-              className="w-full flex justify-between items-center p-4 bg-gray-50 hover:bg-gray-100 border-b border-border text-left"
+              className="w-full flex justify-between items-center p-4 bg-slate-50 hover:bg-slate-100 border-b border-slate-200 text-left transition-colors"
             >
-              <h4 className="font-medium text-text flex items-center">
-                <Clipboard size={18} className="mr-2 text-primary" />
+              <h4 className="font-medium text-slate-700 flex items-center">
+                <Clipboard size={18} className="mr-2 text-sky-500" />
                 Existing Child Requests ({existingChildRequests.length})
               </h4>
               <ChevronDown
                 size={18}
-                className={`text-gray-500 transition-transform duration-200 ${
+                className={`text-slate-500 transition-transform duration-200 ${
                   expandedSection === "existing" ? "transform rotate-180" : ""
                 }`}
               />
@@ -494,40 +495,40 @@ const CopyEmployees = ({
                 {existingChildRequests.map((req) => (
                   <div
                     key={req.Id}
-                    className={`flex justify-between items-center p-3 hover:bg-secondary border-b border-border last:border-0 transition-colors ${
-                      hoverChildId === req.Id ? "bg-[#e6f4f7]" : ""
+                    className={`flex justify-between items-center p-3 hover:bg-slate-50 border-b border-slate-200 last:border-0 transition-colors ${
+                      hoverChildId === req.Id ? "bg-sky-50" : ""
                     }`}
                     onMouseEnter={() => setHoverChildId(req.Id)}
                     onMouseLeave={() => setHoverChildId(null)}
                   >
                     <div className="flex items-center">
-                      <div className="flex items-center justify-center h-8 w-8 rounded-full bg-[#e6f4f7] text-[#0891b2] mr-3">
+                      <div className="flex items-center justify-center h-8 w-8 rounded-full bg-sky-50 text-sky-500 mr-3">
                         <User size={16} />
                       </div>
                       <div>
-                        <div className="font-medium text-text">
+                        <div className="font-medium text-slate-700">
                           {req.EmployeeFullName}{" "}
-                          <span className="text-textLight text-xs">
+                          <span className="text-slate-500 text-xs">
                             ({req.EmployeeBadge})
                           </span>
                         </div>
-                        <div className="text-xs text-textLight">
+                        <div className="text-xs text-slate-500">
                           {req.PositionName}
                           {req.PositionName && req.SectionName && " • "}
                           {req.SectionName}
                         </div>
-                        <div className="text-xs text-primary mt-1">
+                        <div className="text-xs text-sky-600 mt-1">
                           {req.CaseName} • {req.SubCaseDescription}
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="text-xs px-2 py-1 rounded-full bg-[#e6f4f7] text-primary">
+                      <div className="text-xs px-2 py-1 rounded-full bg-sky-50 text-sky-500">
                         Request #{req.Id}
                       </div>
                       <button
                         type="button"
-                        className="inline-flex items-center justify-center p-1.5 rounded-lg bg-primary bg-opacity-10 text-primary hover:bg-opacity-20 transition-all"
+                        className="inline-flex items-center justify-center p-1.5 rounded-lg bg-sky-50 text-sky-500 hover:bg-sky-500 hover:text-white transition-colors"
                         onClick={() => navigateToChildDetail(req.Id)}
                         title="View details"
                       >
@@ -543,18 +544,18 @@ const CopyEmployees = ({
 
         {/* New Child Requests to Add (Collapsible Section) */}
         {childRequests.length > 0 && (
-          <div className="mb-6 rounded-lg border border-border overflow-hidden shadow-sm">
+          <div className="mb-6 rounded-lg border border-slate-200 overflow-hidden shadow-sm">
             <button
               onClick={() => toggleSection("new")}
-              className="w-full flex justify-between items-center p-4 bg-[#e6f4f7] hover:bg-[#e6f4f7] border-b border-[#cee9f0] text-left"
+              className="w-full flex justify-between items-center p-4 bg-sky-50 hover:bg-sky-100 border-b border-sky-100 text-left transition-colors"
             >
-              <h4 className="font-medium text-[#0783a0] flex items-center">
-                <Users size={18} className="mr-2 text-[#0891b2]" />
+              <h4 className="font-medium text-sky-700 flex items-center">
+                <Users size={18} className="mr-2 text-sky-600" />
                 New Employees to Add ({childRequests.length})
               </h4>
               <ChevronDown
                 size={18}
-                className={`text-[#219cba] transition-transform duration-200 ${
+                className={`text-sky-500 transition-transform duration-200 ${
                   expandedSection === "new" ? "transform rotate-180" : ""
                 }`}
               />
@@ -565,32 +566,32 @@ const CopyEmployees = ({
                 {childRequests.map((req) => (
                   <div
                     key={req.EmployeeId}
-                    className="flex justify-between items-center p-3 hover:bg-secondary border-b border-border last:border-0 transition-colors"
+                    className="flex justify-between items-center p-3 hover:bg-slate-50 border-b border-slate-200 last:border-0 transition-colors"
                   >
                     <div className="flex items-center">
-                      <div className="flex items-center justify-center h-8 w-8 rounded-full bg-[#e6f4f7] text-[#0891b2] mr-3">
+                      <div className="flex items-center justify-center h-8 w-8 rounded-full bg-sky-50 text-sky-500 mr-3">
                         <User size={16} />
                       </div>
                       <div>
-                        <div className="font-medium text-text">
+                        <div className="font-medium text-slate-700">
                           {req.EmployeeName}{" "}
-                          <span className="text-textLight text-xs">
+                          <span className="text-slate-500 text-xs">
                             ({req.Badge})
                           </span>
                         </div>
-                        <div className="text-xs text-textLight">
+                        <div className="text-xs text-slate-500">
                           {req.Position}
                           {req.Position && req.Department && " • "}
                           {req.Department}
                         </div>
-                        <div className="text-xs text-primary mt-1">
+                        <div className="text-xs text-sky-600 mt-1">
                           {req.CaseName} • {req.SubCaseName}
                         </div>
                       </div>
                     </div>
                     <button
                       type="button"
-                      className="inline-flex items-center justify-center p-1.5 rounded-lg bg-red-50 text-error hover:bg-error hover:text-white transition-all"
+                      className="inline-flex items-center justify-center p-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-colors"
                       onClick={() =>
                         removeEmployeeFromChildRequests(req.EmployeeId)
                       }
@@ -610,23 +611,18 @@ const CopyEmployees = ({
           <div className="flex justify-end">
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded-lg px-5 py-3 text-sm font-medium text-white shadow-sm hover:shadow-md transition-all disabled:opacity-70"
-              style={{
-                background: loading
-                  ? "#CBD5E1"
-                  : `linear-gradient(to right, ${themeColors.primaryGradientStart}, ${themeColors.primaryGradientEnd})`,
-              }}
+              className="inline-flex items-center justify-center rounded-lg px-5 py-3 text-sm font-medium text-white shadow-sm hover:shadow-md transition-all disabled:opacity-70 bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 focus:ring-2 focus:ring-sky-100 focus:outline-none"
               onClick={submitChildRequests}
               disabled={loading}
             >
               {loading ? (
                 <>
-                  <Loader size={18} className="animate-spin mr-2" />
+                  <Loader size={16} className="animate-spin mr-2" />
                   Creating...
                 </>
               ) : (
                 <>
-                  <Copy size={18} className="mr-2" />
+                  <Copy size={16} className="mr-2" />
                   Create Copy Requests
                 </>
               )}
@@ -636,12 +632,12 @@ const CopyEmployees = ({
 
         {/* Empty State */}
         {!isSearching && employees.length === 0 && searchTerm.length > 2 && (
-          <div className="p-8 rounded-lg border border-dashed border-gray-300 text-center mb-6">
-            <User size={48} className="mx-auto mb-2 text-gray-300" />
-            <h3 className="text-lg font-medium text-gray-600 mb-1">
+          <div className="p-8 rounded-lg border border-dashed border-slate-200 text-center mb-6 bg-slate-50">
+            <User size={48} className="mx-auto mb-2 text-slate-300" />
+            <h3 className="text-lg font-medium text-slate-700 mb-1">
               No employees found
             </h3>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-slate-500">
               Try adjusting your search terms or search criteria
             </p>
           </div>
@@ -650,16 +646,16 @@ const CopyEmployees = ({
         {childRequests.length === 0 &&
           existingChildRequests.length === 0 &&
           !searchTerm && (
-            <div className="p-8 rounded-lg border border-dashed border-gray-300 text-center mb-6">
-              <Users size={48} className="mx-auto mb-2 text-gray-300" />
-              <h3 className="text-lg font-medium text-gray-600 mb-1">
+            <div className="p-8 rounded-lg border border-dashed border-slate-200 text-center mb-6 bg-slate-50">
+              <Users size={48} className="mx-auto mb-2 text-slate-300" />
+              <h3 className="text-lg font-medium text-slate-700 mb-1">
                 No employees added
               </h3>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-slate-500">
                 Search for employees to create copy requests
               </p>
               <div className="mt-4 flex justify-center">
-                <div className="inline-flex items-center text-xs text-primary">
+                <div className="inline-flex items-center text-xs text-sky-600 bg-sky-50 py-2 px-3 rounded-full">
                   <Info size={14} className="mr-1" />
                   Select a Case and Sub Case first, then search for employees
                 </div>

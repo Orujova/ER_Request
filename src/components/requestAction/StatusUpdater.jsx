@@ -1,111 +1,18 @@
 import React, { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
 import {
   Clock,
   Search,
-  FileText,
-  Clipboard,
   Check,
   X,
   ChevronRight,
   Loader,
   AlertTriangle,
-  Mail,
-  User,
-  AlertCircle,
+  Activity,
+  CornerDownRight,
+  Calendar,
+  Info,
 } from "lucide-react";
-import { themeColors } from "../../styles/theme";
 import StatusPoint from "./StatusPoint";
-import { getStoredTokens } from "../../utils/authHandler";
-
-// Modal component that uses portal for proper display
-const ConfirmationModal = ({
-  isOpen,
-  onClose,
-  onConfirm,
-  statusCode,
-  loading,
-  isCancel = false,
-}) => {
-  if (!isOpen) return null;
-
-  const getStatusNameByCode = (code) => {
-    switch (code) {
-      case 0:
-        return "Pending";
-      case 1:
-        return "Under Review";
-      case 2:
-        return "Decision Made";
-      case 3:
-        return "ReAssigned";
-      case 4:
-        return "Decision Communicated";
-      case 5:
-        return "Completed";
-      case 999: // Special code for cancel action
-        return "Canceled";
-      default:
-        return "Unknown";
-    }
-  };
-
-  const title = isCancel ? "Confirm Cancellation" : "Confirm Status Change";
-  const message = isCancel
-    ? "Are you sure you want to cancel this request? This action cannot be undone."
-    : `Are you sure you want to change the status to "${getStatusNameByCode(
-        statusCode
-      )}"?`;
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div
-        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
-        onClick={onClose}
-      />
-
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl transform transition-all">
-          <div className="mb-4 flex items-center text-amber-500">
-            <AlertTriangle size={24} className="mr-2" />
-            <h3 className="text-lg font-semibold">{title}</h3>
-          </div>
-
-          <p className="mb-6 text-gray-700">{message}</p>
-
-          <div className="flex justify-end gap-3">
-            <button
-              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-              onClick={onClose}
-              disabled={loading}
-            >
-              Cancel
-            </button>
-            <button
-              className={`px-4 py-2 rounded-lg text-white ${
-                isCancel
-                  ? "bg-red-500 hover:bg-red-600"
-                  : "bg-[#219cba] hover:bg-[#0891b2]"
-              }`}
-              onClick={onConfirm}
-              disabled={loading}
-            >
-              {loading ? (
-                <div className="flex items-center justify-center">
-                  <Loader size={16} className="animate-spin mx-2" />
-                  <span>Processing...</span>
-                </div>
-              ) : (
-                "Confirm"
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-};
 
 const StatusUpdater = ({
   request,
@@ -113,83 +20,65 @@ const StatusUpdater = ({
   statusLoading,
   API_BASE_URL,
   id,
+  defaultStatusHistory = [],
 }) => {
+  // State management
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [actionToConfirm, setActionToConfirm] = useState(null);
   const [isCancel, setIsCancel] = useState(false);
+  const [statusHistory, setStatusHistory] = useState(defaultStatusHistory);
 
+  // Status color mapping
   const getStatusBadgeColor = (status) => {
-    switch (status) {
-      case "Pending":
-        return "bg-gray-50 text-gray-700 border-gray-200";
-      case "ReAssigned":
-        return "bg-amber-50 text-amber-700 border-amber-200";
-      case "Under Review":
-        return "bg-sky-50 text-sky-700 border-sky-200";
-      case "Decision Made":
-        return "bg-indigo-50 text-indigo-700 border-indigo-200";
-      case "Decision Communicated":
-        return "bg-blue-50 text-blue-700 border-blue-200";
-      case "Completed":
-        return "bg-teal-50 text-teal-700 border-teal-200";
-      case "Canceled":
-        return "bg-red-50 text-red-700 border-red-200";
-      default:
-        return "bg-gray-50 text-gray-700 border-gray-200";
-    }
+    const statusColorMap = {
+      Pending: "bg-slate-100 text-slate-600 border-slate-200",
+      ReAssigned: "bg-amber-50 text-amber-600 border-amber-200",
+      "Under Review": "bg-sky-50 text-sky-600 border-sky-200",
+      "Decision Made": "bg-indigo-50 text-indigo-600 border-indigo-200",
+      "Decision Communicated": "bg-blue-50 text-blue-600 border-blue-200",
+      Completed: "bg-emerald-50 text-emerald-600 border-emerald-200",
+      Canceled: "bg-red-50 text-red-600 border-red-200",
+      default: "bg-slate-100 text-slate-600 border-slate-200",
+    };
+    return statusColorMap[status] || statusColorMap["default"];
   };
 
+  // Convert status to numeric representation
   const getStatusNumber = (status) => {
-    // Handle numeric status
-    if (typeof status === "number") {
-      return status;
-    }
+    if (typeof status === "number") return status;
 
-    // Handle string status
-    switch (status) {
-      case "Pending":
-        return 0;
-      case "Under Review":
-        return 1;
-      case "Decision Made":
-        return 2;
-      case "ReAssigned":
-        return 3;
-      case "Decision Communicated":
-        return 4;
-      case "Completed":
-        return 5;
-      default:
-        return -1;
-    }
+    const statusNumberMap = {
+      Pending: 0,
+      "Under Review": 1,
+      "Decision Made": 2,
+      ReAssigned: 3,
+      "Decision Communicated": 4,
+      Completed: 5,
+    };
+    return statusNumberMap[status] ?? -1;
   };
 
-  // Check if a request is canceled (using IsCanceled property)
+  // Check if request is canceled
   const isRequestCanceled = (req) => {
     if (!req) return false;
     return req.IsCanceled === true || req.isCanceled === true;
   };
 
+  // Convert status code to readable name
   const getStatusNameByCode = (code) => {
-    switch (code) {
-      case 0:
-        return "Pending";
-      case 1:
-        return "Under Review";
-      case 2:
-        return "Decision Made";
-      case 3:
-        return "ReAssigned";
-      case 4:
-        return "Decision Communicated";
-      case 5:
-        return "Completed";
-      default:
-        return "Unknown";
-    }
+    const statusNameMap = {
+      0: "Pending",
+      1: "Under Review",
+      2: "Decision Made",
+      3: "ReAssigned",
+      4: "Decision Communicated",
+      5: "Completed",
+      999: "Canceled",
+    };
+    return statusNameMap[code] || "Unknown";
   };
 
-  // Get status from either numeric or string representation
+  // Get current status, handling different input formats
   const getCurrentStatus = () => {
     if (typeof request?.status === "number") {
       return getStatusNameByCode(request.status);
@@ -200,8 +89,14 @@ const StatusUpdater = ({
     return request?.status || request?.ERRequestStatus || "Unknown";
   };
 
+  // Adjust status number, treating ReAssigned as Pending
+  const getAdjustedStatusNumber = (status) => {
+    const statusNum = getStatusNumber(status);
+    return statusNum === 3 ? 0 : statusNum;
+  };
+
+  // Initiate status update
   const initiateStatusUpdate = (statusCode) => {
-    // Only Under Review and Completed can be manually set
     if (statusCode === 1 || statusCode === 5) {
       setIsCancel(false);
       setActionToConfirm(statusCode);
@@ -209,56 +104,19 @@ const StatusUpdater = ({
     }
   };
 
+  // Initiate request cancellation
   const initiateCancelRequest = () => {
     setIsCancel(true);
-    setActionToConfirm(null); // We'll use a different API for cancellation
+    setActionToConfirm(null);
     setIsModalOpen(true);
   };
 
+  // Confirm status update or cancellation
   const confirmStatusUpdate = () => {
-    if (isCancel) {
-      // Handle cancellation with a different API endpoint
-      handleCancelRequest();
-    } else {
-      handleStatusUpdate(actionToConfirm);
-    }
+    handleStatusUpdate(isCancel ? 999 : actionToConfirm);
   };
 
-  const handleCancelRequest = async () => {
-    try {
-      setStatusLoading(true);
-      const { token } = getStoredTokens();
-
-      // Using the correct API endpoint for cancellation
-      const reqId = request?.id || id; // Fallback to param id if request object doesn't have id
-
-      // Using the separate dedicated Cancel API endpoint
-      const response = await fetch(
-        `${API_BASE_URL}/api/ERRequest/CancelERRequest?ERRequestId=${reqId}`,
-        {
-          method: "PUT",
-          headers: {
-            "ngrok-skip-browser-warning": "narmin",
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Error canceling request: ${response.status}`);
-      }
-
-      console.log("Cancel request successful");
-
-      // Refresh the page to show updated status
-      window.location.reload();
-    } catch (error) {
-      console.error("Error canceling request:", error);
-      setStatusLoading(false);
-    }
-  };
-
+  // Update modal state when loading completes
   useEffect(() => {
     if (!statusLoading && isModalOpen) {
       setIsModalOpen(false);
@@ -267,313 +125,332 @@ const StatusUpdater = ({
     }
   }, [statusLoading]);
 
-  // Handle status changes
-  useEffect(() => {
-    // This will run whenever the request status changes
-    if (request?.status) {
-      // Any additional logic needed when status changes
-    }
-  }, [request?.status]);
-
-  if (!request || Object.keys(request).length === 0) {
-    return (
-      <div
-        className="bg-background rounded-xl shadow-sm p-6 transition-all duration-300 hover:shadow-md"
-        style={{ boxShadow: themeColors.cardShadow }}
-      >
-        <h3 className="text-lg font-semibold mb-5 text-text flex items-center">
-          <Clock size={20} className="mr-2 text-primary" />
-          Update Status
-        </h3>
-        <div className="p-4 rounded-lg bg-secondary text-textLight text-center border border-dashed border-gray-300">
-          <Clock size={24} className="mx-auto mb-2 text-gray-400" />
-          No status information available
-        </div>
-      </div>
-    );
-  }
-
+  // Configurable status actions
   const statusActions = [
     {
       statusCode: 1,
       label: "Under Review",
-      description: "Begin review process (Manual)",
+      // description: "Begin review process",
       icon: <Search size={16} />,
-      iconBg: "bg-[#e6f4f7] text-[#5cb8ca]",
-      hoverStyles:
-        "hover:bg-[#e6f4f7] hover:border-[#cee9f0] focus:ring-2 focus:ring-[#e6f4f7]",
-      chevronColor: "text-[#5cb8ca]",
+      iconBg: "bg-sky-50 text-sky-500",
+      bgColor: "bg-white hover:bg-sky-50",
+      textColor: "text-sky-600",
+      borderColor: "border-sky-200 hover:border-sky-300",
       disabled:
         getCurrentStatus() === "Under Review" ||
-        getStatusNumber(getCurrentStatus()) > 1 ||
+        getAdjustedStatusNumber(getCurrentStatus()) > 1 ||
         statusLoading ||
         isRequestCanceled(request),
       isManual: true,
     },
     {
-      statusCode: 2,
-      label: "Decision Made",
-      description: "Mark decision as completed (Automatic)",
-      icon: <FileText size={16} />,
-      iconBg: "bg-indigo-50 text-indigo-500",
-      hoverStyles:
-        "hover:bg-indigo-50 hover:border-indigo-200 focus:ring-2 focus:ring-indigo-100",
-      chevronColor: "text-indigo-400",
-      disabled: true, // Always disabled as this is automatic
-      isManual: false,
-    },
-    {
-      statusCode: 3,
-      label: "ReAssigned",
-      description: "Reassign to another member (Automatic)",
-      icon: <User size={16} />,
-      iconBg: "bg-amber-50 text-amber-500",
-      hoverStyles:
-        "hover:bg-amber-50 hover:border-amber-200 focus:ring-2 focus:ring-amber-100",
-      chevronColor: "text-amber-400",
-      disabled: true, // Always disabled as this is automatic
-      isManual: false,
-    },
-    {
-      statusCode: 4,
-      label: "Decision Communicated",
-      description: "Decision has been communicated (Automatic)",
-      icon: <Mail size={16} />,
-      iconBg: "bg-blue-50 text-blue-500",
-      hoverStyles:
-        "hover:bg-blue-50 hover:border-blue-200 focus:ring-2 focus:ring-blue-100",
-      chevronColor: "text-blue-400",
-      disabled: true, // Always disabled as this is automatic
-      isManual: false,
-    },
-    {
       statusCode: 5,
       label: "Complete",
-      description: "Mark as fully completed (Manual)",
+      // description: "Mark as fully completed",
       icon: <Check size={16} />,
-      iconBg: "bg-teal-50 text-teal-600",
-      hoverStyles:
-        "hover:bg-teal-50 hover:border-teal-200 focus:ring-2 focus:ring-teal-100",
-      chevronColor: "text-teal-500",
-      buttonClass:
-        "bg-gradient-to-r from-teal-400 to-teal-500 text-white hover:from-teal-500 hover:to-teal-600",
+      iconBg: "bg-emerald-200 text-emerald-600",
+      bgColor:
+        "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500",
+      textColor: "text-white",
+      borderColor: "border-transparent",
       disabled:
         getCurrentStatus() === "Completed" ||
-        getStatusNumber(getCurrentStatus()) < 1 ||
+        getAdjustedStatusNumber(getCurrentStatus()) < 1 ||
         statusLoading ||
         isRequestCanceled(request),
       isManual: true,
     },
   ];
 
+  const currentStatusNum = getAdjustedStatusNumber(getCurrentStatus());
+
+  // Render when no request is available
+  if (!request || Object.keys(request).length === 0) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm p-6 transition-all duration-300 hover:shadow-md border border-slate-100">
+        <h3 className="text-lg font-semibold mb-5 text-slate-700 flex items-center">
+          <Activity size={20} className="mr-2 text-sky-500" />
+          Update Status
+        </h3>
+        <div className="p-4 rounded-lg bg-slate-50 text-slate-500 text-center border border-dashed border-slate-200">
+          <Clock size={24} className="mx-auto mb-2 text-slate-400" />
+          No status information available
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div
-      className="bg-background rounded-xl shadow-sm p-6 transition-all duration-300 hover:shadow-md"
-      style={{ boxShadow: themeColors.cardShadow }}
-    >
-      <h3 className="text-lg font-semibold mb-5 text-text flex items-center">
-        <Clock size={20} className="mr-2 text-primary" />
+    <div className="bg-white rounded-xl shadow-sm p-6 transition-all duration-300 hover:shadow-md border border-slate-100">
+      <h3 className="text-lg font-semibold mb-5 text-slate-700 flex items-center">
+        <Activity size={20} className="mr-2 text-sky-500" />
         Update Status
       </h3>
 
-      {/* Current Status */}
-      <div className="mb-6">
-        <div className="text-sm text-textLight mb-2">Current Status</div>
-        <div
-          className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium border ${getStatusBadgeColor(
-            getCurrentStatus()
-          )}`}
-        >
-          {getCurrentStatus()}
+      {/* Current Status Badge */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col">
+          <div className="text-sm text-slate-500 mb-2">Current Status</div>
+          <div
+            className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium border ${getStatusBadgeColor(
+              getCurrentStatus()
+            )}`}
+          >
+            {getCurrentStatus()}
+          </div>
+        </div>
+
+        {/* Last updated timestamp */}
+        <div className="text-right">
+          <div className="text-xs text-slate-400">Last updated</div>
+          <div className="text-sm text-slate-600 font-medium flex items-center justify-end">
+            <Calendar size={12} className="mr-1" />
+            {request.createdDate || "Today, 10:30 AM"}
+          </div>
         </div>
       </div>
 
-      {/* Status Progression */}
+      {/* Status Progression Workflow */}
       <div className="mb-8">
         <div className="relative pt-8 pb-4">
-          <div className="absolute top-12 left-0 w-full h-1 bg-gray-200 rounded-full"></div>
+          <div className="absolute top-12 left-0 w-full h-1 bg-slate-100 rounded-full"></div>
 
-          {/* Status Points */}
           <div className="relative flex justify-between">
             <StatusPoint
-              label="Pending/Reassigned"
+              label="Pending"
               stepNumber={1}
-              active={
-                getCurrentStatus() === "Pending" ||
-                getCurrentStatus() === "ReAssigned"
-              }
-              completed={
-                getStatusNumber(getCurrentStatus()) > 0 &&
-                getCurrentStatus() !== "ReAssigned"
-              }
+              active={currentStatusNum === 0}
+              completed={currentStatusNum > 0}
             />
             <StatusPoint
               label="Review"
               stepNumber={2}
-              active={getCurrentStatus() === "Under Review"}
-              completed={getStatusNumber(getCurrentStatus()) > 1}
+              active={currentStatusNum === 1}
+              completed={currentStatusNum > 1}
             />
             <StatusPoint
               label="Decision"
               stepNumber={3}
-              active={getCurrentStatus() === "Decision Made"}
-              completed={getStatusNumber(getCurrentStatus()) > 2}
+              active={currentStatusNum === 2}
+              completed={currentStatusNum > 2}
             />
             <StatusPoint
               label="Communicated"
               stepNumber={4}
-              active={getCurrentStatus() === "Decision Communicated"}
-              completed={getStatusNumber(getCurrentStatus()) > 4}
+              active={currentStatusNum === 4}
+              completed={currentStatusNum > 4}
             />
             <StatusPoint
               label="Complete"
               stepNumber={5}
-              active={getCurrentStatus() === "Completed"}
-              completed={getCurrentStatus() === "Completed"}
+              active={currentStatusNum === 5}
+              completed={currentStatusNum === 5}
             />
           </div>
         </div>
       </div>
 
       {/* Status Action Buttons */}
-      <div className="space-y-3 mb-6">
-        <h4 className="text-sm font-medium text-textLight mb-3">
-          Change Status To
-        </h4>
+      {!isRequestCanceled(request) ? (
+        <div className="space-y-4">
+          <h4 className="text-sm font-medium text-slate-600 mb-3 flex items-center">
+            <CornerDownRight size={14} className="mr-2 text-slate-400" />
+            Change Status To
+          </h4>
 
-        {!isRequestCanceled(request) ? (
-          <>
-            {/* Only show manually actionable status options */}
+          {/* Manual Status Action Buttons */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {statusActions
               .filter((action) => action.isManual)
               .map((action) => (
                 <button
                   key={action.statusCode}
-                  className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
+                  className={`flex items-center p-2 rounded-lg border transition-all ${
                     action.disabled
-                      ? "opacity-60 cursor-not-allowed bg-gray-50 border-gray-200"
-                      : action.statusCode === 5
-                      ? action.buttonClass
-                      : action.hoverStyles + " border-border"
+                      ? "opacity-60 cursor-not-allowed bg-slate-50 border-slate-200"
+                      : `${action.bgColor} ${action.borderColor}`
                   }`}
                   onClick={() => initiateStatusUpdate(action.statusCode)}
                   disabled={action.disabled}
                 >
-                  <div className="flex items-center">
-                    <div
-                      className={`flex items-center justify-center h-8 w-8 rounded-full ${
-                        action.statusCode === 5 && !action.disabled
-                          ? "bg-white bg-opacity-20"
-                          : action.iconBg
-                      } mr-3`}
-                    >
-                      {action.icon}
-                    </div>
-                    <div className="text-left">
-                      <div
-                        className={`font-medium ${
-                          action.statusCode === 5 && !action.disabled
-                            ? "text-white"
-                            : ""
-                        }`}
-                      >
-                        {action.label}
-                      </div>
-                      <div
-                        className={`text-xs ${
-                          action.statusCode === 5 && !action.disabled
-                            ? "text-white text-opacity-90"
-                            : "text-textLight"
-                        }`}
-                      >
-                        {action.description}
-                      </div>
-                    </div>
-                  </div>
-                  {statusLoading && action.statusCode === actionToConfirm ? (
-                    <Loader
-                      size={16}
-                      className="animate-spin mr-1 text-gray-500"
-                    />
-                  ) : (
-                    <ChevronRight
-                      size={16}
-                      className={
-                        action.statusCode === 5 && !action.disabled
-                          ? "text-white"
-                          : action.chevronColor
-                      }
-                    />
-                  )}
-                </button>
-              ))}
-
-            {/* Automatic status updates info section */}
-            <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <div className="flex items-start">
-                <AlertCircle
-                  size={16}
-                  className="text-textLight mt-0.5 mr-2 flex-shrink-0"
-                />
-                <div>
-                  <p className="text-sm font-medium text-textLight">
-                    Automatic Status Updates
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    The other status changes (Decision Made, ReAssigned,
-                    Decision Communicated) happen automatically based on system
-                    actions.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Cancel Request Button */}
-            <div className="mt-6">
-              <button
-                className="w-full flex items-center justify-between p-3 rounded-lg border border-red-200 hover:bg-red-50 hover:border-red-300 transition-all"
-                onClick={initiateCancelRequest}
-                disabled={request?.status === "Completed" || statusLoading}
-              >
-                <div className="flex items-center">
-                  <div className="flex items-center justify-center h-8 w-8 rounded-full bg-red-50 text-red-500 mr-3">
-                    <X size={16} />
+                  <div
+                    className={`flex-shrink-0 flex items-center justify-center h-6 w-6 rounded-full ${action.iconBg} mr-3`}
+                  >
+                    {action.icon}
                   </div>
                   <div className="text-left">
-                    <div className="font-medium text-red-600">
-                      Cancel Request
+                    <div
+                      className={`font-medium ${
+                        action.disabled ? "text-slate-500" : action.textColor
+                      }`}
+                    >
+                      {action.label}
                     </div>
-                    <div className="text-xs text-red-400">
-                      This action cannot be undone
+                    <div
+                      className={`text-xs ${
+                        action.disabled
+                          ? "text-slate-400"
+                          : action.statusCode === 5
+                          ? "text-white text-opacity-90"
+                          : "text-slate-500"
+                      }`}
+                    >
+                      {action.description}
                     </div>
                   </div>
+                </button>
+              ))}
+          </div>
+
+          {/* Automatic Status Updates Info */}
+          <div className="mt-5 p-4 bg-blue-50 rounded-lg border border-blue-100">
+            <div className="flex items-start">
+              <Info
+                size={18}
+                className="text-blue-500 mr-3 flex-shrink-0 mt-0.5"
+              />
+              <div>
+                <p className="text-sm font-medium text-blue-700">
+                  About Status Updates
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  "Decision Made", "ReAssigned", and "Decision Communicated"
+                  statuses are updated automatically based on system actions.
+                  You can only change the status to "Under Review" or "Complete"
+                  manually.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Cancel Request Button */}
+          <div className="mt-6 pt-4 border-t border-slate-100">
+            <button
+              className="w-full flex items-center justify-between p-3 rounded-lg border-2 border-red-200 hover:bg-red-50 hover:border-red-300 transition-all"
+              onClick={initiateCancelRequest}
+              disabled={getCurrentStatus() === "Completed" || statusLoading}
+            >
+              <div className="flex items-center">
+                <div className="flex items-center justify-center h-6 w-6 rounded-full bg-red-50 text-red-500 mr-3">
+                  <X size={16} />
                 </div>
-                <ChevronRight size={16} className="text-red-400" />
+                <div className="text-left">
+                  <div className="font-medium text-sm text-red-600">
+                    Cancel Request
+                  </div>
+                  <div className="text-xs text-red-400">
+                    This action cannot be undone
+                  </div>
+                </div>
+              </div>
+              <ChevronRight size={16} className="text-red-400" />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="p-5 rounded-lg bg-red-50 border border-red-100 text-center">
+          <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-red-100 text-red-500 mb-3">
+            <AlertTriangle size={24} />
+          </div>
+          <p className="text-base font-medium text-red-600">
+            This request has been canceled
+          </p>
+          <p className="text-sm text-red-500 mt-1">
+            No further status changes are possible
+          </p>
+        </div>
+      )}
+
+      {/* Status History Timeline */}
+      {statusHistory.length > 0 && (
+        <div className="mt-6 pt-4 border-t border-slate-100">
+          <h4 className="text-sm font-medium text-slate-600 mb-3">
+            Status History
+          </h4>
+          <div className="space-y-3">
+            {statusHistory.map((item, index) => (
+              <div key={index} className="flex items-start">
+                <div className="flex-shrink-0 w-2 h-2 rounded-full bg-sky-400 mt-1.5"></div>
+                <div className="ml-3">
+                  <div className="text-sm font-medium text-slate-700">
+                    {item.status}
+                  </div>
+                  <div className="text-xs text-slate-500 flex items-center">
+                    <Calendar size={10} className="mr-1" />
+                    {item.date} {item.user && `by ${item.user}`}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900 bg-opacity-50 backdrop-blur-sm flex items-center justify-center">
+          <div className="relative bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-xl transform transition-all">
+            <div className="mb-4 flex items-center">
+              <div
+                className={`p-3 rounded-full ${
+                  isCancel ? "bg-red-50" : "bg-amber-50"
+                } mr-3`}
+              >
+                <AlertTriangle
+                  size={22}
+                  className={isCancel ? "text-red-500" : "text-amber-500"}
+                />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-800">
+                {isCancel ? "Confirm Cancellation" : "Confirm Status Change"}
+              </h3>
+            </div>
+
+            <p className="mb-6 text-slate-600">
+              {isCancel
+                ? "Are you sure you want to cancel this request? This action cannot be undone."
+                : `Are you sure you want to change the status to "${getStatusNameByCode(
+                    actionToConfirm
+                  )}"?`}
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                className="px-4 py-2 border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 font-medium transition-colors"
+                onClick={() => !statusLoading && setIsModalOpen(false)}
+                disabled={statusLoading}
+              >
+                Cancel
+              </button>
+              <button
+                className={`px-4 py-2 rounded-lg text-white font-medium flex items-center ${
+                  isCancel
+                    ? "bg-red-500 hover:bg-red-600"
+                    : "bg-emerald-500 hover:bg-emerald-600"
+                } transition-colors`}
+                onClick={confirmStatusUpdate}
+                disabled={statusLoading}
+              >
+                {statusLoading ? (
+                  <>
+                    <Loader size={16} className="animate-spin mr-2" />
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  <>
+                    {isCancel ? (
+                      <X size={16} className="mr-2" />
+                    ) : (
+                      <Check size={16} className="mr-2" />
+                    )}
+                    Confirm
+                  </>
+                )}
               </button>
             </div>
-          </>
-        ) : (
-          <div className="p-4 rounded-lg bg-red-50 border border-red-100 text-center">
-            <AlertTriangle size={24} className="mx-auto mb-2 text-red-400" />
-            <p className="text-sm font-medium text-red-600">
-              This request has been canceled
-            </p>
-            <p className="text-xs text-red-400 mt-1">
-              No further status changes are possible
-            </p>
           </div>
-        )}
-      </div>
-
-      {/* Confirmation Modal using Portal */}
-      <ConfirmationModal
-        isOpen={isModalOpen}
-        onClose={() => !statusLoading && setIsModalOpen(false)}
-        onConfirm={confirmStatusUpdate}
-        statusCode={actionToConfirm}
-        loading={statusLoading}
-        isCancel={isCancel}
-      />
+        </div>
+      )}
     </div>
   );
 };

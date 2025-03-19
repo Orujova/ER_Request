@@ -422,7 +422,7 @@ function RequestAction() {
 
   return (
     <div className="min-h-screen bg-secondary pt-6 pb-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="">
         {/* Header */}
         <Header
           id={id}
@@ -450,6 +450,7 @@ function RequestAction() {
               selectedErMember={selectedErMember}
               onChange={handleErMemberChange}
               loading={loading}
+              request={currentRequest}
             />
 
             {/* Tabs */}
@@ -534,7 +535,6 @@ function RequestAction() {
 
           {/* Right Column - Takes 4/12 of the space */}
           <div className="lg:col-span-4 space-y-6">
-            {/* Case Summary Card */}
             <CaseSummary request={currentRequest} />
 
             {/* Status Update Card */}

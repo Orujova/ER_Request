@@ -56,7 +56,7 @@ const TabNavigation = ({
   ];
 
   return (
-    <div className="bg-white rounded-t-xl overflow-hidden shadow-sm border border-slate-200 border-b-0">
+    <div className="bg-white rounded-xl overflow-hidden shadow-sm border border-slate-200">
       <div className="flex flex-wrap overflow-x-auto" aria-label="Tabs">
         {tabs.map((tab) => {
           // Only show tab if it's always visible or its condition is true
@@ -66,9 +66,13 @@ const TabNavigation = ({
                 key={tab.id}
                 className={`px-5 py-4 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === tab.id
-                    ? "border-sky-600 text-sky-600"
+                    ? "border-cyan-600 text-cyan-600"
                     : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
                 }`}
+                style={{
+                  borderColor: activeTab === tab.id ? "#0891b2" : "transparent",
+                  color: activeTab === tab.id ? "#0891b2" : undefined,
+                }}
                 onClick={() => setActiveTab(tab.id)}
               >
                 <div className="flex items-center gap-2">

@@ -25,6 +25,10 @@ import AttachmentsTab from "./AttachmentsTab";
 import DisciplinaryTab from "./DisciplinaryTab";
 import RelatedRequestsTab from "./RelatedRequestsTab";
 
+import StatusTimeline from "./StatusTimeline";
+
+import ChatPopup from "./ChatPopup";
+
 function RequestDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -118,7 +122,7 @@ function RequestDetail() {
           general: data.GeneralAttachments || [],
         },
         hyperLinks: (data.ERHyperLinks || []).map((link, index) => ({
-          id: index,
+          id: data.ERHyperLinkIds?.[index] || index,
           url: link,
         })),
         erMember: data.ERMember,
@@ -138,6 +142,13 @@ function RequestDetail() {
         },
         isEligible: data.IsEligible,
         contractEndDate: data.ContractEndDate,
+        // Timeline dates
+        pendingDate: data.PendingDate,
+        underReviewDate: data.UnderReviewDate,
+        desicionMadeDate: data.DesicionMadeDate,
+        reAssignedDate: data.ReAssignedDate,
+        decisionCommunicatedDate: data.DecisionCommunicatedDate,
+        completedDate: data.CompletedDate,
       };
 
       dispatch(setRequest(transformedRequest));
@@ -470,11 +481,11 @@ function RequestDetail() {
         return (
           <AttachmentsTab
             requestId={id}
-            presentationAttachments={request.attachments.presentation}
-            actAttachments={request.attachments.act}
-            explanationAttachments={request.attachments.explanation}
-            generalAttachments={request.attachments.general}
-            hyperLinks={request.hyperLinks}
+            presentationAttachments={request?.attachments?.presentation || []}
+            actAttachments={request?.attachments?.act || []}
+            explanationAttachments={request?.attachments?.explanation || []}
+            generalAttachments={request?.attachments?.general || []}
+            hyperLinks={request?.hyperLinks || []}
             onAttachmentsUpdated={handleAttachmentsUpdated}
           />
         );
@@ -494,21 +505,23 @@ function RequestDetail() {
     }
   };
 
-  // Main render
+  // Main component render
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6">
-      {/* Header Section */}
-      <RequestHeader
-        id={id}
-        request={request}
-        handleGoBack={handleGoBack}
-        navigateToAction={navigateToAction}
-      />
+    <div className="bg-slate-50 min-h-screen pb-20">
+      <div className="max-w-7xl mx-auto p-4 md:p-6">
+        {/* Header Section */}
+        <RequestHeader
+          id={id}
+          request={request}
+          handleGoBack={handleGoBack}
+          navigateToAction={navigateToAction}
+        />
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Takes 2/3 of the space */}
-        <div className="lg:col-span-2">
+        {/* Timeline Component */}
+        <StatusTimeline request={request} />
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 gap-6">
           {/* Tabs Navigation */}
           <TabNavigation
             activeTab={activeTab}
@@ -520,23 +533,20 @@ function RequestDetail() {
           />
 
           {/* Tab Content */}
-          <div className="bg-white rounded-b-xl mb-6 overflow-hidden shadow-sm border border-gray-200 transition-all hover:shadow-md">
+          <div className="bg-white rounded-b-xl mb-6 overflow-hidden shadow-sm border border-slate-200 transition-all hover:shadow-md">
             <div className="p-6">{renderActiveTabContent()}</div>
           </div>
         </div>
 
-        {/* Right Column - Takes 1/3 of the space */}
-        <div className="space-y-6">
-          {/* Chat Panel */}
-          <ChatPanel
-            messages={messages}
-            currentUserId={currentUserId}
-            handleSendMessage={handleSendMessage}
-            handleEditMessage={handleEditMessage}
-            handleDeleteMessage={handleDeleteMessage}
-            erMembers={erMembers}
-          />
-        </div>
+        {/* Chat Popup (Fixed Position) */}
+        <ChatPopup
+          messages={messages}
+          currentUserId={currentUserId}
+          handleSendMessage={handleSendMessage}
+          handleEditMessage={handleEditMessage}
+          handleDeleteMessage={handleDeleteMessage}
+          erMembers={erMembers}
+        />
       </div>
     </div>
   );

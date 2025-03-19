@@ -18,7 +18,6 @@ const CaseInfoTab = ({ request }) => {
           label="Case Name"
           value={request.case}
           icon={<FileText className="w-4 h-4" />}
-          theme="primary"
         />
 
         <InfoCard label="Sub Case" value={request.subCase} />

@@ -2,33 +2,55 @@ import React from "react";
 import { Check } from "lucide-react";
 
 const StatusPoint = ({ label, stepNumber, active, completed }) => {
-  // Improved color scheme with more intuitive visual hierarchy
-  let bgColor = completed
-    ? "bg-emerald-600"
-    : active
-    ? "bg-[#219cba]"
-    : "bg-gray-200";
-  let textColor = completed || active ? "text-white" : "text-gray-600";
-  let ringColor = active ? "ring-2 ring-[#cee9f0]" : "";
+  // Softer color scheme for better visual comfort
+  const bgColors = {
+    default: "bg-slate-100",
+    active: "bg-sky-100",
+    completed: "bg-emerald-50",
+  };
 
-  // Animation for active state
-  let animation = active ? "animate-pulse" : "";
+  const iconColors = {
+    default: "text-slate-400",
+    active: "text-sky-500",
+    completed: "text-emerald-500",
+  };
+
+  const textColors = {
+    default: "text-slate-500",
+    active: "text-sky-600",
+    completed: "text-emerald-600",
+  };
+
+  const borderColors = {
+    default: "border-slate-200",
+    active: "border-sky-300",
+    completed: "border-emerald-300",
+  };
+
+  // Determine current state
+  const state = completed ? "completed" : active ? "active" : "default";
 
   return (
     <div className="flex flex-col items-center">
       <div
-        className={`z-10 flex items-center justify-center w-9 h-9 rounded-full ${bgColor} ${textColor} ${ringColor} ${animation} shadow-sm transition-all duration-200`}
+        className={`
+          z-10 flex items-center justify-center 
+          w-8 h-8 rounded-full border-2
+          ${bgColors[state]} 
+          ${borderColors[state]} 
+          ${iconColors[state]}
+          ${state === "active" ? "shadow-md" : ""}
+          transition-all duration-300 ease-in-out
+        `}
       >
-        {completed ? <Check size={16} className="text-white" /> : stepNumber}
+        {completed ? <Check size={16} /> : stepNumber}
       </div>
       <span
-        className={`mt-2 text-xs font-medium ${
-          active
-            ? "text-[#0891b2]"
-            : completed
-            ? "text-emerald-600"
-            : "text-gray-500"
-        }`}
+        className={`
+          mt-2 text-xs font-medium
+          ${textColors[state]}
+          transition-colors duration-300
+        `}
       >
         {label}
       </span>

@@ -30,6 +30,7 @@ const RequestMatrix = () => {
     return {
       "Content-Type": "application/json",
       Authorization: `Bearer ${jwtToken}`,
+      "ngrok-skip-browser-warning": "narmin",
     };
   };
 

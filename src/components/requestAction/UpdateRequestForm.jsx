@@ -1,28 +1,34 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   AlertTriangle,
   FileText,
   Calendar,
   Check,
   Loader,
-  CheckSquare,
-  XSquare,
+  CheckCircle,
+  XCircle,
   HelpCircle,
   Info,
   RefreshCw,
+  PencilLine,
+  File,
+  AlertCircle,
+  ThumbsUp,
+  ThumbsDown,
+  Save,
 } from "lucide-react";
 import { getStoredTokens } from "../../utils/authHandler";
-import { themeColors } from "../../styles/theme";
-import { showToast } from "../../toast/toast";
 
 const UpdateRequestForm = ({
   id,
   request,
   disciplinaryViolations,
   disciplinaryActionResults,
+  disciplinaryActions,
   API_BASE_URL,
   setSuccess,
   setError,
+  showToast,
 }) => {
   // Default to true if null
   const [isEligible, setIsEligible] = useState(true);
@@ -45,6 +51,8 @@ const UpdateRequestForm = ({
   const [formErrors, setFormErrors] = useState({});
   const [unsavedChanges, setUnsavedChanges] = useState(false);
 
+  const TERMINATION_RESULT_IDS = ["6"]; // Example IDs - replace with actual termination-related IDs
+
   // Initialize form data when request changes or direct API call
   const fetchRequestDetails = async () => {
     try {
@@ -64,7 +72,6 @@ const UpdateRequestForm = ({
       }
 
       const data = await response.json();
-      console.log("API Response:", data); // Logging to debug
 
       // Extract the actual request data if it's nested
       const requestData = data[0]?.ERRequests?.[0] || data;
@@ -212,6 +219,17 @@ const UpdateRequestForm = ({
     if (formData.DisciplinaryActionResultId) {
       fetchDisciplinaryActions(formData.DisciplinaryActionResultId);
 
+      // Auto-set IsEligible to false if termination is selected
+      if (
+        TERMINATION_RESULT_IDS.includes(formData.DisciplinaryActionResultId)
+      ) {
+        setIsEligible(false);
+        setFormData((prev) => ({
+          ...prev,
+          IsEligible: false,
+        }));
+      }
+
       // Reset disciplinary action selection when action result changes
       // Only if it's different from initial load
       if (
@@ -292,10 +310,23 @@ const UpdateRequestForm = ({
       return;
     }
 
-    setFormData({
-      ...formData,
-      [name]: newValue,
-    });
+    // If the user is changing the action result to a termination one, auto-set eligibility to false
+    if (
+      name === "DisciplinaryActionResultId" &&
+      TERMINATION_RESULT_IDS.includes(value)
+    ) {
+      setIsEligible(false);
+      setFormData({
+        ...formData,
+        [name]: newValue,
+        IsEligible: false,
+      });
+    } else {
+      setFormData({
+        ...formData,
+        [name]: newValue,
+      });
+    }
 
     // Clear error for this field when user makes a change
     if (formErrors[name]) {
@@ -344,12 +375,6 @@ const UpdateRequestForm = ({
       params.append("IsEligible", isEligible.toString());
       params.append("ContractEndDate", formData.ContractEndDate || "");
       params.append("OrderNumber", formData.OrderNumber || "");
-
-      // Log the URL and parameters for debugging
-      console.log(
-        "Request URL:",
-        `${API_BASE_URL}/api/ERRequest/UpdateERRequest?${params.toString()}`
-      );
 
       // Make the PUT request
       const response = await fetch(
@@ -400,12 +425,21 @@ const UpdateRequestForm = ({
     }
   };
 
+  // Get Action Result Name
+  const getActionResultName = (resultId) => {
+    if (!resultId) return "";
+    const result = disciplinaryActionResults.find(
+      (r) => r.Id.toString() === resultId
+    );
+    return result ? result.Name : "";
+  };
+
   // If we're fetching initial data, show a loading state
   if (fetchingData) {
     return (
       <div className="flex justify-center items-center p-12">
-        <Loader size={30} className="animate-spin text-primary mr-3" />
-        <span className="text-lg text-gray-600">Loading request data...</span>
+        <Loader size={30} className="animate-spin text-sky-500 mr-3" />
+        <span className="text-lg text-slate-600">Loading request data...</span>
       </div>
     );
   }
@@ -416,7 +450,7 @@ const UpdateRequestForm = ({
       <button
         type="button"
         onClick={fetchRequestDetails}
-        className="absolute top-0 right-0 p-2 text-gray-500 hover:text-primary"
+        className="absolute top-0 right-0 p-2 text-slate-400 hover:text-sky-500 transition-colors"
         title="Refresh data from server"
       >
         <RefreshCw size={16} className={fetchingData ? "animate-spin" : ""} />
@@ -424,15 +458,20 @@ const UpdateRequestForm = ({
 
       {/* Unsaved changes indicator */}
       {unsavedChanges && (
-        <div className="mb-4 p-2 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm flex items-center">
-          <Info size={16} className="mr-2 flex-shrink-0" />
-          You have unsaved changes
+        <div className="mb-5 p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm flex items-center">
+          <Info size={18} className="mr-3 flex-shrink-0" />
+          <div>
+            <p className="font-medium">You have unsaved changes</p>
+            <p className="text-xs text-amber-600 mt-1">
+              Click Save Changes button to save your updates
+            </p>
+          </div>
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label className="block text-sm font-medium text-textLight mb-2">
+          <label className="block text-sm font-medium text-slate-600 mb-2">
             Disciplinary Violation
             {formErrors.DisciplinaryViolationId && (
               <span className="text-red-500 ml-1">*</span>
@@ -445,7 +484,7 @@ const UpdateRequestForm = ({
                 className={
                   formErrors.DisciplinaryViolationId
                     ? "text-red-500"
-                    : "text-textLight"
+                    : "text-slate-400"
                 }
               />
             </div>
@@ -453,10 +492,10 @@ const UpdateRequestForm = ({
               name="DisciplinaryViolationId"
               className={`block w-full rounded-lg border ${
                 formErrors.DisciplinaryViolationId
-                  ? "border-red-300 focus:border-red-500"
-                  : "border-border focus:border-primary"
-              } bg-background pl-10 pr-4 py-3 text-sm transition-all
-              focus:ring-0 focus:outline-none hover:border-borderHover shadow-sm`}
+                  ? "border-red-300 focus:border-red-500 focus:ring-red-100"
+                  : "border-slate-200 focus:border-sky-500 focus:ring-sky-100"
+              } bg-white pl-10 pr-4 py-3 text-sm transition-all
+              focus:ring-2 focus:outline-none hover:border-slate-300 shadow-sm`}
               value={formData.DisciplinaryViolationId}
               onChange={handleChange}
               disabled={loading || fetchingData}
@@ -477,7 +516,7 @@ const UpdateRequestForm = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-textLight mb-2">
+          <label className="block text-sm font-medium text-slate-600 mb-2">
             Disciplinary Action Result
             {formErrors.DisciplinaryActionResultId && (
               <span className="text-red-500 ml-1">*</span>
@@ -490,7 +529,7 @@ const UpdateRequestForm = ({
                 className={
                   formErrors.DisciplinaryActionResultId
                     ? "text-red-500"
-                    : "text-textLight"
+                    : "text-slate-400"
                 }
               />
             </div>
@@ -498,10 +537,10 @@ const UpdateRequestForm = ({
               name="DisciplinaryActionResultId"
               className={`block w-full rounded-lg border ${
                 formErrors.DisciplinaryActionResultId
-                  ? "border-red-300 focus:border-red-500"
-                  : "border-border focus:border-primary"
-              } bg-background pl-10 pr-4 py-3 text-sm transition-all
-              focus:ring-0 focus:outline-none hover:border-borderHover shadow-sm`}
+                  ? "border-red-300 focus:border-red-500 focus:ring-red-100"
+                  : "border-slate-200 focus:border-sky-500 focus:ring-sky-100"
+              } bg-white pl-10 pr-4 py-3 text-sm transition-all
+              focus:ring-2 focus:outline-none hover:border-slate-300 shadow-sm`}
               value={formData.DisciplinaryActionResultId}
               onChange={handleChange}
               disabled={loading || fetchingData}
@@ -518,11 +557,24 @@ const UpdateRequestForm = ({
                 {formErrors.DisciplinaryActionResultId}
               </p>
             )}
+
+            {/* Show auto-eligibility notice when termination is selected */}
+            {TERMINATION_RESULT_IDS.includes(
+              formData.DisciplinaryActionResultId
+            ) && (
+              <div className="mt-1.5 text-xs flex items-center text-indigo-600">
+                <Info size={12} className="mr-1" />
+                <span>
+                  Termination selected - Employee automatically marked as not
+                  eligible for rehire
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-textLight mb-2">
+          <label className="block text-sm font-medium text-slate-600 mb-2">
             Disciplinary Action
             {formErrors.DisciplinaryActionId && (
               <span className="text-red-500 ml-1">*</span>
@@ -534,28 +586,28 @@ const UpdateRequestForm = ({
                 size={16}
                 className={
                   !formData.DisciplinaryActionResultId
-                    ? "text-gray-300"
+                    ? "text-slate-300"
                     : formErrors.DisciplinaryActionId
                     ? "text-red-500"
-                    : "text-textLight"
+                    : "text-slate-400"
                 }
               />
             </div>
             {loading && formData.DisciplinaryActionResultId && (
               <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                <Loader size={16} className="animate-spin text-primary" />
+                <Loader size={16} className="animate-spin text-sky-500" />
               </div>
             )}
             <select
               name="DisciplinaryActionId"
               className={`block w-full rounded-lg border ${
                 formErrors.DisciplinaryActionId
-                  ? "border-red-300 focus:border-red-500"
-                  : "border-border focus:border-primary"
-              } bg-background pl-10 pr-4 py-3 text-sm transition-all
-              focus:ring-0 focus:outline-none hover:border-borderHover shadow-sm ${
+                  ? "border-red-300 focus:border-red-500 focus:ring-red-100"
+                  : "border-slate-200 focus:border-sky-500 focus:ring-sky-100"
+              } bg-white pl-10 pr-4 py-3 text-sm transition-all
+              focus:ring-2 focus:outline-none hover:border-slate-300 shadow-sm ${
                 !formData.DisciplinaryActionResultId
-                  ? "bg-secondaryDark text-gray-400 cursor-not-allowed"
+                  ? "bg-slate-50 text-slate-400 cursor-not-allowed"
                   : ""
               }`}
               value={formData.DisciplinaryActionId}
@@ -574,7 +626,8 @@ const UpdateRequestForm = ({
             {formData.DisciplinaryActionResultId &&
               localDisciplinaryActions.length === 0 &&
               !loading && (
-                <div className="mt-1 text-xs text-warning">
+                <div className="mt-1 text-xs text-amber-600 flex items-center">
+                  <AlertCircle size={12} className="mr-1" />
                   No actions available for this result
                 </div>
               )}
@@ -587,156 +640,137 @@ const UpdateRequestForm = ({
         </div>
 
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-textLight mb-2">
+          <label className="block text-sm font-medium text-slate-600 mb-2">
             Reason
             {formErrors.Reason && <span className="text-red-500 ml-1">*</span>}
           </label>
-          <textarea
-            name="Reason"
-            rows={3}
-            className={`block w-full rounded-lg border ${
-              formErrors.Reason
-                ? "border-red-300 focus:border-red-500"
-                : "border-border focus:border-primary"
-            } bg-background px-4 py-3 text-sm transition-all
-            focus:ring-0 focus:outline-none hover:border-borderHover shadow-sm`}
-            placeholder="Enter reason..."
-            value={formData.Reason}
-            onChange={handleChange}
-            disabled={loading || fetchingData}
-          />
+          <div className="relative">
+            <div className="absolute top-3 left-3 pointer-events-none">
+              <PencilLine
+                size={16}
+                className={
+                  formErrors.Reason ? "text-red-500" : "text-slate-400"
+                }
+              />
+            </div>
+            <textarea
+              name="Reason"
+              rows={3}
+              className={`block w-full rounded-lg border ${
+                formErrors.Reason
+                  ? "border-red-300 focus:border-red-500 focus:ring-red-100"
+                  : "border-slate-200 focus:border-sky-500 focus:ring-sky-100"
+              } bg-white pl-10 pr-4 py-3 text-sm transition-all
+              focus:ring-2 focus:outline-none hover:border-slate-300 shadow-sm`}
+              placeholder="Enter reason..."
+              value={formData.Reason}
+              onChange={handleChange}
+              disabled={loading || fetchingData}
+            />
+          </div>
           {formErrors.Reason && (
             <p className="mt-1 text-xs text-red-500">{formErrors.Reason}</p>
           )}
         </div>
 
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-textLight mb-2">
+          <label className="block text-sm font-medium text-slate-600 mb-2">
             Note
-            <span className="text-xs text-gray-500 ml-2">(Optional)</span>
+            <span className="text-xs text-slate-400 ml-2">(Optional)</span>
           </label>
-          <textarea
-            name="Note"
-            rows={3}
-            className="block w-full rounded-lg border border-border bg-background px-4 py-3 text-sm transition-all
-            focus:border-primary focus:ring-0 focus:outline-none hover:border-borderHover shadow-sm"
-            placeholder="Enter note..."
-            value={formData.Note}
-            onChange={handleChange}
-            disabled={loading || fetchingData}
-          />
+          <div className="relative">
+            <div className="absolute top-3 left-3 pointer-events-none">
+              <File size={16} className="text-slate-400" />
+            </div>
+            <textarea
+              name="Note"
+              rows={3}
+              className="block w-full rounded-lg border border-slate-200 bg-white pl-10 pr-4 py-3 text-sm transition-all
+              focus:border-sky-500 focus:ring-2 focus:ring-sky-100 focus:outline-none hover:border-slate-300 shadow-sm"
+              placeholder="Enter note..."
+              value={formData.Note}
+              onChange={handleChange}
+              disabled={loading || fetchingData}
+            />
+          </div>
         </div>
 
-        {/* Rehiring Eligibility Section - Always visible and styled with a card */}
-        <div className="md:col-span-2 p-4 bg-gray-50 rounded-lg border border-gray-200 mt-2">
-          <h3 className="text-md font-medium mb-4 text-gray-700 flex items-center">
-            <CheckSquare size={16} className="mr-2 text-primary" />
-            Rehiring Eligibility
-          </h3>
-
-          {/* Eligibility Radio Buttons */}
-          <div className="mb-4">
-            <div className="flex gap-6">
-              <div className="flex items-center">
-                <input
-                  id="eligibleOption"
+        {/* Rehiring Eligibility Section */}
+        <div className="md:col-span-2 mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Rehiring Eligibility */}
+            <div className="md:col-span-1">
+              <label className="block text-sm font-medium text-slate-600 mb-2">
+                Rehiring Eligibility
+              </label>
+              <div className="flex items-center space-x-3">
+                <select
                   name="eligibilityOption"
-                  type="radio"
-                  value="eligible"
-                  className="h-4 w-4 text-primary focus:ring-0 focus:outline-none border-border"
-                  checked={isEligible}
+                  value={isEligible ? "eligible" : "not-eligible"}
                   onChange={handleChange}
-                  required
-                  disabled={loading || fetchingData}
-                />
-                <label
-                  htmlFor="eligibleOption"
-                  className="ml-2 block text-sm text-text"
+                  disabled={
+                    loading ||
+                    fetchingData ||
+                    TERMINATION_RESULT_IDS.includes(
+                      formData.DisciplinaryActionResultId
+                    )
+                  }
+                  className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm transition-all 
+                  focus:border-sky-500 focus:ring-2 focus:ring-sky-100 focus:outline-none"
                 >
-                  <span className="flex items-center">
-                    <CheckSquare size={16} className="mr-1 text-success" />
-                    Eligible
-                  </span>
-                </label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  id="notEligibleOption"
-                  name="eligibilityOption"
-                  type="radio"
-                  value="notEligible"
-                  className="h-4 w-4 text-error focus:ring-0 focus:outline-none border-border"
-                  checked={!isEligible}
-                  onChange={handleChange}
-                  required
-                  disabled={loading || fetchingData}
-                />
-                <label
-                  htmlFor="notEligibleOption"
-                  className="ml-2 block text-sm text-text"
-                >
-                  <span className="flex items-center">
-                    <XSquare size={16} className="mr-1 text-error" />
-                    Not Eligible
-                  </span>
-                </label>
-              </div>
-              <div className="relative ml-1">
-                <HelpCircle
-                  size={16}
-                  className="text-textLight cursor-pointer"
-                  onMouseEnter={() => setShowTooltip("eligibility")}
-                  onMouseLeave={() => setShowTooltip("")}
-                />
-                {showTooltip === "eligibility" && (
-                  <div className="absolute z-10 w-64 p-3 bg-gray-800 text-white text-xs rounded-lg shadow-lg -mt-2 left-6">
-                    This determines if the employee is eligible for rehiring
-                    after the disciplinary action.
-                  </div>
+                  <option value="eligible">Eligible for Rehire</option>
+                  <option value="not-eligible">Not Eligible</option>
+                </select>
+                {TERMINATION_RESULT_IDS.includes(
+                  formData.DisciplinaryActionResultId
+                ) && (
+                  <HelpCircle
+                    size={18}
+                    className="text-indigo-500"
+                    title="Automatically set to Not Eligible due to termination action"
+                  />
                 )}
               </div>
             </div>
-          </div>
 
-          {/* Contract End Date - Always visible */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Contract End Date */}
             <div>
-              <label className="block text-sm font-medium text-textLight mb-2">
+              <label className="block text-sm font-medium text-slate-600 mb-2">
                 Contract End Date
-                <span className="text-xs text-gray-500 ml-2">(Optional)</span>
+                <span className="text-xs text-slate-400 ml-2">(Optional)</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                  <Calendar size={16} className="text-textLight" />
+                  <Calendar size={16} className="text-slate-400" />
                 </div>
                 <input
                   type="date"
                   name="ContractEndDate"
-                  className="block w-full rounded-lg border border-border bg-background pl-10 pr-4 py-3 text-sm transition-all
-                  focus:border-primary focus:ring-0 focus:outline-none hover:border-borderHover shadow-sm"
-                  value={formData.ContractEndDate}
+                  className="block w-full rounded-lg border border-slate-200 bg-white pl-10 pr-4 py-2 text-sm transition-all
+                  focus:border-sky-500 focus:ring-2 focus:ring-sky-100 focus:outline-none hover:border-slate-300"
                   onChange={handleChange}
                   disabled={loading || fetchingData}
+                  value={formData.ContractEndDate}
                 />
               </div>
             </div>
 
-            {/* Order Number - Always visible */}
+            {/* Order Number */}
             <div>
-              <label className="block text-sm font-medium text-textLight mb-2">
+              <label className="block text-sm font-medium text-slate-600 mb-2">
                 Order Number
-                <span className="text-xs text-gray-500 ml-2">(Optional)</span>
+                <span className="text-xs text-slate-400 ml-2">(Optional)</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                  <FileText size={16} className="text-textLight" />
+                  <FileText size={16} className="text-slate-400" />
                 </div>
                 <input
                   type="text"
                   name="OrderNumber"
-                  className="block w-full rounded-lg border border-border bg-background pl-10 pr-4 py-3 text-sm transition-all
-                  focus:border-primary focus:ring-0 focus:outline-none hover:border-borderHover shadow-sm"
-                  placeholder="Enter order number..."
+                  className="block w-full rounded-lg border border-slate-200 bg-white pl-10 pr-4 py-2 text-sm transition-all
+                  focus:border-sky-500 focus:ring-2 focus:ring-sky-100 focus:outline-none hover:border-slate-300"
+                  placeholder="Enter order number"
                   value={formData.OrderNumber}
                   onChange={handleChange}
                   disabled={loading || fetchingData}
@@ -747,41 +781,36 @@ const UpdateRequestForm = ({
         </div>
       </div>
 
-      <div className="mt-6 flex justify-end gap-3">
-        {unsavedChanges && (
+      {/* Form Action Buttons */}
+      <div className="mt-8 flex justify-between items-center">
+        <button
+          type="button"
+          onClick={handleReset}
+          className="px-4 py-2 border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
+          disabled={loading || fetchingData || !unsavedChanges}
+        >
+          Reset
+        </button>
+
+        <div className="flex space-x-3">
           <button
-            type="button"
-            className="inline-flex items-center justify-center rounded-lg px-5 py-3 text-sm font-medium border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 shadow-sm"
-            onClick={handleReset}
+            type="submit"
+            className="px-6 py-2.5 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-colors flex items-center"
             disabled={loading || fetchingData}
           >
-            Reset
+            {loading ? (
+              <>
+                <Loader size={16} className="animate-spin mr-2" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save size={16} className="mr-2" />
+                Save Changes
+              </>
+            )}
           </button>
-        )}
-
-        <button
-          type="submit"
-          className="inline-flex items-center justify-center rounded-lg px-5 py-3 text-sm font-medium text-white shadow-sm hover:shadow-md transition-all disabled:opacity-70"
-          style={{
-            background:
-              loading || fetchingData
-                ? "#CBD5E1"
-                : `linear-gradient(to right, ${themeColors.primaryGradientStart}, ${themeColors.primaryGradientEnd})`,
-          }}
-          disabled={loading || fetchingData}
-        >
-          {loading ? (
-            <>
-              <Loader size={18} className="animate-spin mr-2" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Check size={18} className="mr-2" />
-              Save Changes
-            </>
-          )}
-        </button>
+        </div>
       </div>
     </form>
   );

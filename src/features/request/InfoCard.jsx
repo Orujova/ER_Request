@@ -19,7 +19,7 @@ const InfoCard = ({
           text: "text-slate-800",
           labelColor: "text-amber-700",
           iconColor: "text-amber-600",
-          hoverBg: "hover:bg-amber-100",
+          // hoverBg: "hover:bg-amber-100",
           emptyText: "text-amber-300",
         };
       case "success":
@@ -29,7 +29,7 @@ const InfoCard = ({
           text: "text-slate-800",
           labelColor: "text-emerald-700",
           iconColor: "text-emerald-600",
-          hoverBg: "hover:bg-emerald-100",
+          // hoverBg: "hover:bg-emerald-100",
           emptyText: "text-emerald-300",
         };
       case "danger":

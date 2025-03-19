@@ -1,3 +1,4 @@
+// components/ChatPanel.jsx
 import React, { useState, useRef, useEffect } from "react";
 import {
   MessageCircle,
@@ -11,7 +12,6 @@ import {
   Loader,
   CircleUser,
 } from "lucide-react";
-import { themeColors } from "../styles/theme";
 
 // Message Bubble Component
 const MessageBubble = ({
@@ -25,7 +25,6 @@ const MessageBubble = ({
   handleEditMessage,
 }) => {
   const isCurrentUser = message.senderId === parseInt(currentUserId);
-  console.log(isCurrentUser);
 
   // If this message is being edited
   if (editingMessageId === message.id) {
@@ -41,12 +40,8 @@ const MessageBubble = ({
               type="text"
               value={editMessageText}
               onChange={(e) => setEditMessageText(e.target.value)}
-              className="w-full px-3 py-2 rounded-l-md"
+              className="w-full px-3 py-2 rounded-l-md bg-slate-100 border border-slate-300 border-r-0"
               style={{
-                backgroundColor: themeColors.background,
-                color: themeColors.text,
-                border: `1px solid ${themeColors.border}`,
-                borderRight: "none",
                 outline: "none",
               }}
               autoFocus
@@ -54,10 +49,9 @@ const MessageBubble = ({
             />
             <button
               onClick={handleEditMessage}
-              className="px-3 py-2 rounded-r-md transition-colors"
+              className="px-3 py-2 rounded-r-md transition-colors text-white"
               style={{
-                backgroundColor: themeColors.primary,
-                color: themeColors.background,
+                backgroundColor: "#0891b2",
               }}
             >
               <Check className="w-4 h-4" />
@@ -69,8 +63,7 @@ const MessageBubble = ({
                 onEdit(null);
                 setEditMessageText("");
               }}
-              className="text-xs"
-              style={{ color: themeColors.textLight }}
+              className="text-xs text-slate-500"
             >
               Cancel
             </button>
@@ -94,16 +87,16 @@ const MessageBubble = ({
           }`}
           style={{
             backgroundColor: isCurrentUser
-              ? themeColors.primary + "30"
-              : themeColors.secondary,
-            color: themeColors.text,
+              ? "rgba(8, 145, 178, 0.2)" // Cyan with opacity
+              : "#f1f5f9", // Slate-100
+            color: "#334155", // Slate-700
           }}
         >
           <div className="flex flex-col">
             {!isCurrentUser && (
               <span
                 className="text-xs font-medium mb-1"
-                style={{ color: themeColors.primary }}
+                style={{ color: "#0891b2" }} // Cyan-600
               >
                 {message.sender}
               </span>
@@ -114,7 +107,7 @@ const MessageBubble = ({
           </div>
 
           <div className="flex justify-end items-center gap-1 mt-1">
-            <span className="text-xs" style={{ color: themeColors.textLight }}>
+            <span className="text-xs text-slate-500">
               {typeof message.timestamp === "string"
                 ? new Date(message.timestamp).toLocaleTimeString([], {
                     hour: "2-digit",
@@ -130,37 +123,20 @@ const MessageBubble = ({
               <div className="flex">
                 {message.isRead ? (
                   <div className="flex">
-                    <Check
-                      className="w-3 h-3"
-                      style={{ color: themeColors.success }}
-                    />
-                    <Check
-                      className="w-3 h-3 -ml-1"
-                      style={{ color: themeColors.success }}
-                    />
+                    <Check className="w-3 h-3 text-emerald-500" />
+                    <Check className="w-3 h-3 -ml-1 text-emerald-500" />
                   </div>
                 ) : (
                   <div className="flex">
-                    <Check
-                      className="w-3 h-3"
-                      style={{ color: themeColors.textLight }}
-                    />
-                    <Check
-                      className="w-3 h-3 -ml-1"
-                      style={{ color: themeColors.textLight }}
-                    />
+                    <Check className="w-3 h-3 text-slate-400" />
+                    <Check className="w-3 h-3 -ml-1 text-slate-400" />
                   </div>
                 )}
               </div>
             )}
 
             {message.isEdited && (
-              <span
-                className="text-xs"
-                style={{ color: themeColors.textLight }}
-              >
-                edited
-              </span>
+              <span className="text-xs text-slate-400">edited</span>
             )}
           </div>
         </div>
@@ -172,21 +148,13 @@ const MessageBubble = ({
                 onEdit(message.id);
                 setEditMessageText(message.message);
               }}
-              className="p-1 rounded-full shadow transition-colors"
-              style={{
-                backgroundColor: themeColors.background,
-                color: themeColors.text,
-              }}
+              className="p-1 rounded-full shadow transition-colors bg-white text-slate-600"
             >
               <Edit2 className="w-3 h-3" />
             </button>
             <button
               onClick={() => onDelete(message.id)}
-              className="p-1 rounded-full shadow transition-colors"
-              style={{
-                backgroundColor: themeColors.background,
-                color: themeColors.error,
-              }}
+              className="p-1 rounded-full shadow transition-colors bg-white text-rose-500"
             >
               <Trash2 className="w-3 h-3" />
             </button>
@@ -199,12 +167,12 @@ const MessageBubble = ({
 
 // Chat Panel Component
 const ChatPanel = ({
-  messages,
+  messages = [],
   currentUserId,
   handleSendMessage,
   handleEditMessage,
   handleDeleteMessage,
-  erMembers,
+  erMembers = [],
 }) => {
   const [newMessage, setNewMessage] = useState("");
   const [editingMessageId, setEditingMessageId] = useState(null);
@@ -231,8 +199,9 @@ const ChatPanel = ({
       setMentionQuery(query);
 
       if (query.length >= 0) {
-        const filtered = erMembers.filter((member) =>
-          member.FullName.toLowerCase().includes(query)
+        const filtered = erMembers.filter(
+          (member) =>
+            member.FullName && member.FullName.toLowerCase().includes(query)
         );
         setFilteredMembers(filtered);
         setShowMentionDropdown(filtered.length > 0);
@@ -268,12 +237,14 @@ const ChatPanel = ({
     setMessageError(null);
 
     handleSendMessage(newMessage)
-      .then(() => {
-        setNewMessage("");
-        setShowMentionDropdown(false);
+      .then((success) => {
+        if (success) {
+          setNewMessage("");
+          setShowMentionDropdown(false);
+        }
       })
       .catch((err) => {
-        setMessageError(err.message);
+        setMessageError(err.message || "Error sending message");
       })
       .finally(() => {
         setSendingMessage(false);
@@ -288,12 +259,14 @@ const ChatPanel = ({
     setMessageError(null);
 
     handleEditMessage(editingMessageId, editMessageText)
-      .then(() => {
-        setEditingMessageId(null);
-        setEditMessageText("");
+      .then((success) => {
+        if (success) {
+          setEditingMessageId(null);
+          setEditMessageText("");
+        }
       })
       .catch((err) => {
-        setMessageError(err.message);
+        setMessageError(err.message || "Error editing message");
       })
       .finally(() => {
         setSendingMessage(false);
@@ -308,79 +281,24 @@ const ChatPanel = ({
   }, [messages]);
 
   return (
-    <div
-      className="rounded-xl overflow-hidden flex flex-col h-[calc(100vh-22rem)]"
-      style={{
-        backgroundColor: themeColors.background,
-        boxShadow: themeColors.cardShadow,
-        border: `1px solid ${themeColors.border}`,
-      }}
-    >
-      {/* Chat Header */}
-      <div
-        className="px-5 py-4 border-b flex items-center justify-between"
-        style={{
-          backgroundColor: themeColors.secondary,
-          borderColor: themeColors.border,
-        }}
-      >
-        <h3
-          className="font-semibold flex items-center gap-2"
-          style={{ color: themeColors.text }}
-        >
-          <MessageCircle
-            className="w-4 h-4"
-            style={{ color: themeColors.primary }}
-          />
-          <span>Chat</span>
-          {messages.length > 0 && (
-            <span
-              className="px-2 py-0.5 text-xs rounded-full"
-              style={{
-                backgroundColor: themeColors.primary + "20",
-                color: themeColors.primary,
-              }}
-            >
-              {messages.length}
-            </span>
-          )}
-        </h3>
-        <div>
-          <button
-            className="p-1 rounded-md transition-colors"
-            style={{ color: themeColors.textLight }}
-          >
-            <MoreHorizontal className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
+    <div className="flex flex-col h-full">
       {/* Messages Container */}
       <div
-        className="flex-1 overflow-y-auto p-5"
+        className="flex-1 overflow-y-auto p-4"
         ref={messageContainerRef}
         style={{
-          backgroundColor: themeColors.background,
+          backgroundColor: "#ffffff",
           backgroundImage: `linear-gradient(rgba(0,0,0,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.02) 1px, transparent 1px)`,
           backgroundSize: "20px 20px",
         }}
       >
-        {messages.length === 0 ? (
+        {!messages || messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
-            <div
-              className="w-12 h-12 rounded-full flex items-center justify-center mb-3"
-              style={{
-                backgroundColor: themeColors.primary + "20",
-                color: themeColors.primary,
-              }}
-            >
+            <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3 bg-cyan-100 text-cyan-600">
               <MessageCircle className="w-5 h-5" />
             </div>
-            <p style={{ color: themeColors.text }}>No messages yet</p>
-            <p
-              className="text-sm mt-1"
-              style={{ color: themeColors.textLight }}
-            >
+            <p className="text-slate-700">No messages yet</p>
+            <p className="text-sm mt-1 text-slate-500">
               Start the conversation
             </p>
           </div>
@@ -406,14 +324,7 @@ const ChatPanel = ({
 
       {/* Error Message Display */}
       {messageError && (
-        <div
-          className="px-4 py-2 border-t text-sm flex items-center justify-between"
-          style={{
-            backgroundColor: themeColors.error + "15",
-            borderColor: themeColors.error + "30",
-            color: themeColors.error,
-          }}
-        >
+        <div className="px-4 py-2 border-t text-sm flex items-center justify-between bg-rose-50 border-rose-200 text-rose-600">
           <span>{messageError}</span>
           <button
             className="text-inherit hover:opacity-75"
@@ -425,7 +336,7 @@ const ChatPanel = ({
       )}
 
       {/* Message Input */}
-      <div className="border-t p-4" style={{ borderColor: themeColors.border }}>
+      <div className="border-t p-3 bg-white" style={{ borderColor: "#e2e8f0" }}>
         <div className="relative">
           <input
             type="text"
@@ -434,17 +345,11 @@ const ChatPanel = ({
             onChange={handleMessageChange}
             onKeyPress={(e) => e.key === "Enter" && sendMessage()}
             placeholder="Type a message... Use @ to mention"
-            className="w-full pl-10 pr-10 py-2.5 rounded-md transition-colors"
-            style={{
-              backgroundColor: themeColors.background,
-              color: themeColors.text,
-              border: `1px solid ${themeColors.border}`,
-            }}
+            className="w-full pl-10 pr-10 py-2.5 rounded-md transition-colors bg-slate-50 border border-slate-200"
             disabled={sendingMessage}
           />
           <button
-            className="absolute left-2 top-1/2 transform -translate-y-1/2 disabled:opacity-50"
-            style={{ color: themeColors.textLight }}
+            className="absolute left-2 top-1/2 transform -translate-y-1/2 disabled:opacity-50 text-slate-400"
             onClick={() => {
               if (!sendingMessage) {
                 setNewMessage(newMessage + "@");
@@ -463,17 +368,12 @@ const ChatPanel = ({
             onClick={sendMessage}
             className="absolute right-2 top-1/2 transform -translate-y-1/2 disabled:opacity-50 transition-colors"
             style={{
-              color: newMessage.trim()
-                ? themeColors.primary
-                : themeColors.textLight,
+              color: newMessage.trim() ? "#0891b2" : "#94a3b8",
             }}
             disabled={!newMessage.trim() || sendingMessage}
           >
             {sendingMessage ? (
-              <Loader
-                className="w-5 h-5 animate-spin"
-                style={{ color: themeColors.primary }}
-              />
+              <Loader className="w-5 h-5 animate-spin text-cyan-600" />
             ) : (
               <Send className="w-5 h-5" />
             )}
@@ -481,35 +381,20 @@ const ChatPanel = ({
 
           {/* @mention dropdown */}
           {showMentionDropdown && (
-            <div
-              className="absolute bottom-full left-0 w-full mb-1 rounded-md shadow-lg z-10 max-h-48 overflow-y-auto"
-              style={{
-                backgroundColor: themeColors.background,
-                border: `1px solid ${themeColors.border}`,
-              }}
-            >
+            <div className="absolute bottom-full left-0 w-full mb-1 rounded-md shadow-lg z-10 max-h-48 overflow-y-auto bg-white border border-slate-200">
               {filteredMembers.length > 0 ? (
                 filteredMembers.map((member) => (
                   <button
                     key={`member-${member.Id}`}
-                    className="w-full text-left px-4 py-2 flex items-center gap-2 transition-colors hover:bg-gray-100"
-                    style={{
-                      color: themeColors.text,
-                    }}
+                    className="w-full text-left px-4 py-2 flex items-center gap-2 transition-colors hover:bg-slate-100 text-slate-700"
                     onClick={() => handleMemberSelect(member)}
                   >
-                    <CircleUser
-                      className="w-4 h-4"
-                      style={{ color: themeColors.primary }}
-                    />
+                    <CircleUser className="w-4 h-4 text-cyan-600" />
                     <span>{member.FullName}</span>
                   </button>
                 ))
               ) : (
-                <div
-                  className="px-4 py-2"
-                  style={{ color: themeColors.textLight }}
-                >
+                <div className="px-4 py-2 text-slate-500">
                   No matching members
                 </div>
               )}

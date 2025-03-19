@@ -55,7 +55,7 @@ const RequestHeader = ({ id, request, handleGoBack, navigateToAction }) => {
 
             <div>
               <div className="text-sm font-medium flex items-center gap-1.5 text-slate-700">
-                <User className="w-4 h-4 text-sky-600" />
+                <User className="w-4 h-4 text-cyan-600" />
                 <span>{request?.erMember || "Unassigned"}</span>
               </div>
             </div>
@@ -64,7 +64,7 @@ const RequestHeader = ({ id, request, handleGoBack, navigateToAction }) => {
           {/* Action Buttons */}
           <div className="flex gap-3 w-full lg:w-auto mt-4 lg:mt-0">
             <button
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md transition-colors w-full lg:w-auto bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 focus:ring-2 focus:ring-sky-200 focus:outline-none"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md transition-colors w-full lg:w-auto bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 focus:ring-2 focus:ring-cyan-200 focus:outline-none"
               onClick={handleGoBack}
             >
               <ArrowLeft className="w-4 h-4" />
@@ -72,7 +72,8 @@ const RequestHeader = ({ id, request, handleGoBack, navigateToAction }) => {
             </button>
 
             <button
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md transition-colors w-full lg:w-auto bg-sky-600 text-white hover:bg-sky-700 focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 focus:outline-none"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md transition-colors w-full lg:w-auto bg-cyan-600 text-white hover:bg-cyan-700 focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:outline-none"
+              style={{ backgroundColor: "#0891b2" }}
               onClick={navigateToAction}
             >
               <ExternalLink className="w-4 h-4" />
