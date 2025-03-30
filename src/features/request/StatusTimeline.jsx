@@ -5,7 +5,7 @@ const StatusTimeline = ({ request }) => {
   if (!request) return null;
 
   // Define the possible statuses and their configurations
-  const statuses = [
+  let statuses = [
     {
       id: 0,
       name: "Pending",
@@ -64,6 +64,24 @@ const StatusTimeline = ({ request }) => {
 
   const currentStatus = request.status || 0;
 
+  // Check if the current status is "Reassigned" (id: 3)
+  if (currentStatus === 3) {
+    // Replace "Pending" with "Reassigned" at position 0
+    statuses = [
+      {
+        id: 0,
+        name: "Reassigned",
+        icon: Users,
+        color: "text-purple-500",
+        bgColor: "bg-purple-50",
+        progressColor: "bg-purple-500",
+        date: request.reAssignedDate,
+      },
+      ...statuses.slice(1, 3), // Keep "Under Review" and "Decision Made"
+      ...statuses.slice(4), // Skip the original "Reassigned" and keep "Decision Communicated" and "Completed"
+    ];
+  }
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm mb-4 overflow-hidden">
       {/* Header */}
@@ -83,8 +101,13 @@ const StatusTimeline = ({ request }) => {
           <div className="absolute left-0 right-0 top-6 h-0.5 bg-slate-200"></div>
 
           {statuses.map((status, index) => {
-            const isActive = currentStatus >= status.id;
-            const isLastActive = currentStatus === status.id;
+            // If we're in "Reassigned" state, only the first status should be active
+            const isActive =
+              currentStatus === 3 ? index === 0 : currentStatus >= status.id;
+
+            const isLastActive =
+              currentStatus === 3 ? index === 0 : currentStatus === status.id;
+
             const StatusIcon = status.icon;
 
             return (
@@ -140,7 +163,7 @@ const StatusTimeline = ({ request }) => {
       </div>
 
       {/* Footer */}
-      <div className="bg-slate-50 border-t border-slate-200 px-6 py-3">
+      <div className="bg-slate-50 border-t border-slate-200 px-6 py-3 mt-4">
         <div className="flex justify-between items-center text-sm text-slate-600">
           <span>
             Last Updated:{" "}
@@ -149,7 +172,9 @@ const StatusTimeline = ({ request }) => {
           <div className="flex items-center space-x-2">
             <span>Status:</span>
             <span className="font-medium text-emerald-600">
-              {statuses[currentStatus].name}
+              {currentStatus === 3
+                ? "Reassigned"
+                : statuses[currentStatus].name}
             </span>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -8,6 +8,7 @@ import {
   setCurrentPage,
   clearFilters,
   updateSorting,
+  fetchTotalStats, // Import the fetchTotalStats action
 } from "../redux/slices/dashboardSlice";
 import { fetchERMembers } from "../redux/slices/erMembersSlice";
 
@@ -17,18 +18,24 @@ import FiltersPanel from "../components/dashboard/FiltersPanel";
 import RequestsTable from "../components/dashboard/RequestsTable";
 import Pagination from "../components/common/Pagination";
 import LoadingState from "../components/common/LoadingState";
+import ExportColumnsModal from "../components/dashboard/ExportColumnsModal ";
 
 // Icons
-import { FilterIcon, ArrowUpDownIcon } from "lucide-react";
+import { FilterIcon, ArrowUpDownIcon, Download } from "lucide-react";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
+  // Add state for export modal
+  const [showExportModal, setShowExportModal] = useState(false);
+
   // Get state from Redux store
   const {
     requests,
     stats,
+    totalStats,
+    totalStatsLoading,
     loading,
     error,
     currentPage,
@@ -45,7 +52,7 @@ const Dashboard = () => {
     dispatch(fetchERMembers());
   }, [dispatch]);
 
-  // Fetch dashboard data with filters
+  // Fetch dashboard data with filters and pagination
   useEffect(() => {
     dispatch(
       fetchDashboardData({
@@ -56,6 +63,11 @@ const Dashboard = () => {
       })
     );
   }, [dispatch, currentPage, itemsPerPage, orderBy, activeFilters]);
+
+  // Fetch total stats when filters change but not when pagination changes
+  useEffect(() => {
+    dispatch(fetchTotalStats());
+  }, [dispatch, activeFilters, orderBy]); // Don't include currentPage or itemsPerPage
 
   const handleSortChange = (e) => {
     dispatch(updateSorting(e.target.value));
@@ -74,10 +86,18 @@ const Dashboard = () => {
     navigate(`/request/${requestId}`);
   };
 
+  // Export handler
+  const handleExport = () => {
+    setShowExportModal(true);
+  };
+
+  // Choose which stats to display
+  const displayStats = totalStatsLoading || !totalStats ? stats : totalStats;
+
   return (
     <div className="space-y-6 p-1 bg-gray-50 min-h-screen">
-      {/* Status Overview Cards */}
-      <StatusOverview stats={stats} />
+      {/* Status Overview Cards - Use totalStats when available, fallback to stats */}
+      <StatusOverview stats={displayStats} />
 
       {/* Main Dashboard Content */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -95,6 +115,15 @@ const Dashboard = () => {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3">
+                {/* Export button */}
+                <button
+                  onClick={handleExport}
+                  className="inline-flex items-center justify-center px-4 py-2 border hover:bg-[#f5fcfd] border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white focus:outline-none focus:ring-0"
+                >
+                  <Download className="h-4 w-4 text-gray-500 mr-2" />
+                  Export
+                </button>
+
                 {/* Sort dropdown */}
                 <div className="relative">
                   <select
@@ -125,13 +154,24 @@ const Dashboard = () => {
             </div>
 
             {/* Filters panel */}
-            {showFilters && (
-              <FiltersPanel onClearFilters={handleClearFilters} />
-            )}
+            {showFilters ? (
+              <FiltersPanel
+                key={`filters-panel-${showFilters}`}
+                onClearFilters={handleClearFilters}
+              />
+            ) : null}
 
             {/* Table or loading/error states */}
             {loading ? (
               <LoadingState />
+            ) : error ? (
+              <div className="text-center py-6 text-red-500">
+                Error loading data: {error}
+              </div>
+            ) : requests.length === 0 ? (
+              <div className="text-center py-6 text-gray-500">
+                No requests found matching your filters
+              </div>
             ) : (
               <>
                 <RequestsTable
@@ -140,7 +180,7 @@ const Dashboard = () => {
                 />
 
                 {/* Pagination */}
-                {requests.length > 0 && (
+                {totalItems > itemsPerPage && (
                   <Pagination
                     currentPage={currentPage}
                     totalItems={totalItems}
@@ -153,6 +193,13 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Export Columns Modal */}
+      <ExportColumnsModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        activeFilters={activeFilters}
+      />
     </div>
   );
 };

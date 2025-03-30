@@ -1,5 +1,5 @@
-// src/pages/Dashboard/components/FiltersPanel.jsx
-import { useSelector, useDispatch } from "react-redux";
+import React, { useEffect, useRef } from "react";
+import { useDispatch as useReduxDispatch, useSelector } from "react-redux";
 import {
   updateFilterValue,
   updateFilteredSubCases,
@@ -12,7 +12,7 @@ import {
 } from "../../redux/slices/dashboardSlice";
 
 const FiltersPanel = ({ onClearFilters }) => {
-  const dispatch = useDispatch();
+  const dispatch = useReduxDispatch();
   const {
     activeFilters,
     caseOptions,
@@ -24,6 +24,10 @@ const FiltersPanel = ({ onClearFilters }) => {
   } = useSelector((state) => state.dashboard);
 
   const { erMembers } = useSelector((state) => state.erMembers);
+
+  // Refs for handling click outside
+  const projectDropdownRef = useRef(null);
+  const employeeDropdownRef = useRef(null);
 
   const handleFilterChange = (key, value) => {
     dispatch(updateFilterValue({ key, value }));
@@ -48,6 +52,34 @@ const FiltersPanel = ({ onClearFilters }) => {
   const handleEmployeeSelect = (employee) => {
     dispatch(selectEmployee(employee));
   };
+
+  // Handle click outside to close dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Close project dropdown when clicking outside
+      if (
+        projectDropdownRef.current &&
+        !projectDropdownRef.current.contains(event.target) &&
+        showProjectDropdown
+      ) {
+        dispatch(toggleProjectDropdown(false));
+      }
+
+      // Close employee dropdown when clicking outside
+      if (
+        employeeDropdownRef.current &&
+        !employeeDropdownRef.current.contains(event.target) &&
+        showEmployeeDropdown
+      ) {
+        dispatch(toggleEmployeeDropdown(false));
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [dispatch, showProjectDropdown, showEmployeeDropdown]);
 
   return (
     <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 mt-4">
@@ -85,7 +117,7 @@ const FiltersPanel = ({ onClearFilters }) => {
         </div>
 
         {/* Project Filter */}
-        <div>
+        <div ref={projectDropdownRef}>
           <label
             htmlFor="projectSearch"
             className="block text-xs font-medium text-gray-700 mb-1"
@@ -124,7 +156,7 @@ const FiltersPanel = ({ onClearFilters }) => {
         </div>
 
         {/* Employee Filter */}
-        <div>
+        <div ref={employeeDropdownRef}>
           <label
             htmlFor="employeeSearch"
             className="block text-xs font-medium text-gray-700 mb-1"
@@ -222,9 +254,27 @@ const FiltersPanel = ({ onClearFilters }) => {
             <option value="0">Pending</option>
             <option value="1">Under Review</option>
             <option value="2">Decision Made</option>
-            <option value="3">Order Created</option>
-            <option value="4">Completed</option>
-            <option value="5">Canceled</option>
+            <option value="3">ReAssigned</option>
+            <option value="4">Decision Communicated</option>
+            <option value="5">Completed</option>
+          </select>
+        </div>
+        <div>
+          <label
+            htmlFor="isCanceled"
+            className="block text-xs font-medium text-gray-700 mb-1"
+          >
+            Canceled Requests
+          </label>
+          <select
+            id="isCanceled"
+            className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#06b6d4] focus:border-[#06b6d4]"
+            value={activeFilters.isCanceled || ""}
+            onChange={(e) => handleFilterChange("isCanceled", e.target.value)}
+          >
+            <option value="">All Requests</option>
+            <option value="true">Canceled</option>
+            <option value="false">Not Canceled</option>
           </select>
         </div>
         <div>

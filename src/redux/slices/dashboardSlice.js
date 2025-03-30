@@ -2,6 +2,102 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { API_BASE_URL } from "../../../apiConfig";
 import { getStoredTokens, getUserId } from "../../utils/authHandler";
 
+// Status enum mapping from backend:
+// Pending = 0, UnderReview = 1, DesicionMade = 2, ReAssigned = 3, DecisionCommunicated = 4, Completed = 5
+// Add this new action to your dashboardSlice.js file
+
+export const fetchTotalStats = createAsyncThunk(
+  "dashboard/fetchTotalStats",
+  async (_, { rejectWithValue, getState }) => {
+    try {
+      const { jwtToken } = getStoredTokens();
+      const userId = getUserId();
+      const { activeFilters } = getState().dashboard;
+
+      // Use the regular ERRequest endpoint without specific ID
+      const url = new URL(`${API_BASE_URL}/api/ERRequest`);
+
+      // Remove pagination parameters to get all records
+      // url.searchParams.append("Page", 1);
+      // url.searchParams.append("ShowMore.Take", 1000); // Large number to get all
+
+      // Add userId
+      if (userId) {
+        url.searchParams.append("UserId", userId);
+      }
+
+      // Add filters (but skip pagination-related params)
+      if (activeFilters.erMember) {
+        url.searchParams.append("ERMember", activeFilters.erMember);
+      }
+      if (activeFilters.projectId) {
+        url.searchParams.append("ProjectId", activeFilters.projectId);
+      }
+      if (activeFilters.employeeId) {
+        url.searchParams.append("EmployeeId", activeFilters.employeeId);
+      }
+      if (activeFilters.caseId) {
+        url.searchParams.append("CaseId", activeFilters.caseId);
+      }
+      if (activeFilters.subCaseId) {
+        url.searchParams.append("SubCaseId", activeFilters.subCaseId);
+      }
+      if (activeFilters.status !== "") {
+        url.searchParams.append("ERRequestStatus", activeFilters.status);
+      }
+      if (
+        activeFilters.isCanceled === "true" ||
+        activeFilters.isCanceled === "false"
+      ) {
+        url.searchParams.append("IsCanceled", activeFilters.isCanceled);
+      }
+      if (activeFilters.startDate) {
+        url.searchParams.append("StartedDate", activeFilters.startDate);
+      }
+      if (activeFilters.endDate) {
+        url.searchParams.append("EndDate", activeFilters.endDate);
+      }
+
+      const response = await fetch(url.toString(), {
+        method: "GET",
+        headers: {
+          "ngrok-skip-browser-warning": "narmin",
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${jwtToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Process the data to calculate the stats
+      const requestsData = Array.isArray(data) ? data[0] : {};
+      const erRequests = requestsData.ERRequests || [];
+      const totalCount = requestsData.TotalERRequestCount || 0;
+
+      // Calculate stats for each status
+      const statusCounts = {
+        total: totalCount,
+        pending: erRequests.filter((r) => r.ERRequestStatus === 0).length,
+        underReview: erRequests.filter((r) => r.ERRequestStatus === 1).length,
+        decisionMade: erRequests.filter((r) => r.ERRequestStatus === 2).length,
+        reAssigned: erRequests.filter((r) => r.ERRequestStatus === 3).length,
+        decisionCommunicated: erRequests.filter((r) => r.ERRequestStatus === 4)
+          .length,
+        completed: erRequests.filter((r) => r.ERRequestStatus === 5).length,
+        canceled: erRequests.filter((r) => r.IsCanceled === true).length,
+      };
+
+      return statusCounts;
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
 // Async thunks
 export const fetchDashboardData = createAsyncThunk(
   "dashboard/fetchDashboardData",
@@ -39,6 +135,9 @@ export const fetchDashboardData = createAsyncThunk(
       }
       if (filters.status !== "") {
         url.searchParams.append("ERRequestStatus", filters.status);
+      }
+      if (filters.isCanceled === "true" || filters.isCanceled === "false") {
+        url.searchParams.append("IsCanceled", filters.isCanceled);
       }
       if (filters.startDate) {
         url.searchParams.append("StartedDate", filters.startDate);
@@ -83,20 +182,23 @@ export const fetchDashboardData = createAsyncThunk(
         case: item.CaseName,
         subcase: item.SubCaseDescription,
         statusCode: item.ERRequestStatus,
+        isCanceled: item.IsCanceled,
         date: new Date(item.CreatedDate || Date.now())
           .toISOString()
           .split("T")[0],
       }));
 
-      // Calculate stats for each status
+      // Calculate stats for each status with correct naming scheme
       const statusCounts = {
         total: totalCount,
         pending: erRequests.filter((r) => r.ERRequestStatus === 0).length,
         underReview: erRequests.filter((r) => r.ERRequestStatus === 1).length,
         decisionMade: erRequests.filter((r) => r.ERRequestStatus === 2).length,
-        orderCreated: erRequests.filter((r) => r.ERRequestStatus === 3).length,
-        completed: erRequests.filter((r) => r.ERRequestStatus === 4).length,
-        canceled: erRequests.filter((r) => r.ERRequestStatus === 5).length,
+        reAssigned: erRequests.filter((r) => r.ERRequestStatus === 3).length,
+        decisionCommunicated: erRequests.filter((r) => r.ERRequestStatus === 4)
+          .length,
+        completed: erRequests.filter((r) => r.ERRequestStatus === 5).length,
+        canceled: erRequests.filter((r) => r.IsCanceled === true).length,
       };
 
       return {
@@ -215,12 +317,25 @@ export const reassignERMember = createAsyncThunk(
 const initialState = {
   // Data
   requests: [],
+  totalStats: {
+    total: 0,
+    pending: 0,
+    underReview: 0,
+    decisionMade: 0,
+    reAssigned: 0,
+    decisionCommunicated: 0,
+    completed: 0,
+    canceled: 0,
+  },
+  totalStatsLoading: false,
+  totalStatsError: null,
   stats: {
     total: 0,
     pending: 0,
     underReview: 0,
     decisionMade: 0,
-    orderCreated: 0,
+    reAssigned: 0,
+    decisionCommunicated: 0,
     completed: 0,
     canceled: 0,
   },
@@ -246,6 +361,7 @@ const initialState = {
     caseId: "",
     subCaseId: "",
     status: "",
+    isCanceled: "",
     startDate: "",
     endDate: "",
   },
@@ -306,6 +422,7 @@ const dashboardSlice = createSlice({
         caseId: "",
         subCaseId: "",
         status: "",
+        isCanceled: "",
         startDate: "",
         endDate: "",
       };
@@ -324,7 +441,16 @@ const dashboardSlice = createSlice({
     },
 
     toggleFilters(state) {
+      // This is the critical reducer - make sure it's properly flipping the state
+      console.log(
+        "Toggle filters reducer called, current state:",
+        state.showFilters
+      );
       state.showFilters = !state.showFilters;
+      console.log(
+        "Toggle filters reducer completed, new state:",
+        state.showFilters
+      );
     },
 
     toggleProjectDropdown(state, action) {
@@ -434,6 +560,19 @@ const dashboardSlice = createSlice({
       .addCase(fetchReferenceData.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+      // Add to extraReducers:
+      .addCase(fetchTotalStats.pending, (state) => {
+        state.totalStatsLoading = true;
+        state.totalStatsError = null;
+      })
+      .addCase(fetchTotalStats.fulfilled, (state, action) => {
+        state.totalStatsLoading = false;
+        state.totalStats = action.payload;
+      })
+      .addCase(fetchTotalStats.rejected, (state, action) => {
+        state.totalStatsLoading = false;
+        state.totalStatsError = action.payload;
       })
 
       // Handle reassignERMember
