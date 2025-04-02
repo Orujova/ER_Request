@@ -13,12 +13,8 @@ import uiReducer from "../slices/uiSlice";
 
 // Create a debug middleware to log actions and state changes
 const loggerMiddleware = (store) => (next) => (action) => {
-  console.log("Dispatching action:", action.type);
   const result = next(action);
-  console.log("New state:", {
-    requestForm: store.getState().requestForm,
-    formData: store.getState().formData,
-  });
+
   return result;
 };
 

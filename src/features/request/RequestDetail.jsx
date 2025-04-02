@@ -14,7 +14,6 @@ import { getStoredTokens, getUserId } from "../../utils/authHandler";
 // Import components
 import RequestHeader from "./DetailHeader";
 import TabNavigation from "./TabNavigation";
-import { ChatPanel } from "../../components/Chat";
 import LoadingState from "../../components/common/LoadingState";
 
 // Import tabs
@@ -193,9 +192,9 @@ function RequestDetail() {
           senderId: msg.AppuserId,
           sender: msg.SenderFullName,
           message: msg.MessageContent,
-          timestamp: new Date(msg.CreatedDate).toLocaleString(),
-          isRead: msg.IsRead,
-          isEdited: msg.IsEdited,
+          timestamp: msg.CreatedDate, // Keep the original timestamp format
+          isRead: Boolean(msg.IsRead), // Ensure boolean type
+          isEdited: Boolean(msg.IsEdit || msg.IsEdited), // Check both possible field names
         }));
 
         dispatch(setMessages(transformedMessages));
@@ -204,7 +203,7 @@ function RequestDetail() {
         if (currentUserId) {
           const unreadMsgIds = messages
             .filter(
-              (msg) => !msg.IsRead && msg.SenderId !== parseInt(currentUserId)
+              (msg) => !msg.IsRead && msg.AppuserId !== parseInt(currentUserId)
             )
             .map((msg) => msg.Id);
 
@@ -290,22 +289,47 @@ function RequestDetail() {
 
       if (!currentUserId) return;
 
-      const response = await fetch(
-        `${API_BASE_URL}/api/ERRequestMessage/IsReadMessages?currentUserId=${currentUserId}&ids=${messageIds.join(
+      console.log(
+        `Marking messages as read: ${messageIds.join(
           ","
-        )}`,
-        {
-          method: "GET",
-          headers: {
-            accept: "*/*",
-            Authorization: `Bearer ${jwtToken}`,
-          },
-        }
+        )} for user ${currentUserId}`
       );
 
+      // Create the correct URL format with query parameters
+      // The API expects currentUserId as a query param and ids as a comma-separated list
+      const url = new URL(
+        `${API_BASE_URL}/api/ERRequestMessage/IsReadMessages`
+      );
+      url.searchParams.append("currentUserId", currentUserId);
+
+      // Add each ID as an individual query parameter as seen in the curl example
+      messageIds.forEach((id) => {
+        url.searchParams.append("ids", id);
+      });
+
+      const response = await fetch(url.toString(), {
+        method: "GET",
+        headers: {
+          accept: "*/*",
+          Authorization: `Bearer ${jwtToken}`,
+        },
+      });
+
       if (!response.ok) {
-        console.error("Error marking messages as read");
+        const errorText = await response.text();
+        console.error(
+          `Error marking messages as read: ${response.status}`,
+          errorText
+        );
+        return;
       }
+
+      // Parse the response to update our local message state
+      const updatedMessages = await response.json();
+      console.log("Messages marked as read:", updatedMessages);
+
+      // Update local message state if needed
+      // fetchMessages(id); // Uncomment if you want to refresh messages after marking as read
     } catch (err) {
       console.error("Error marking messages as read:", err);
     }
@@ -367,11 +391,17 @@ function RequestDetail() {
         throw new Error("User ID not found");
       }
 
+      // Convert params to the exact format the API expects
       const updateData = {
-        MessageId: messageId,
-        UserId: parseInt(userId),
+        MessageId: parseInt(messageId), // Ensure this is a number, not a string
+        UserId: parseInt(userId), // Ensure this is a number, not a string
         MessageContent: newContent,
       };
+
+      console.log(
+        "Sending edit request with data:",
+        JSON.stringify(updateData)
+      );
 
       const response = await fetch(
         `${API_BASE_URL}/api/ERRequestMessage/UpdateERRequest`,
@@ -385,8 +415,13 @@ function RequestDetail() {
         }
       );
 
+      // Enhanced error handling
       if (!response.ok) {
-        throw new Error(`Error updating message: ${response.status}`);
+        const errorText = await response.text();
+        console.error("Error response from server:", errorText);
+        throw new Error(
+          `Error updating message: ${response.status} - ${errorText}`
+        );
       }
 
       // Refresh messages to get the correct data from the server
@@ -395,6 +430,7 @@ function RequestDetail() {
       return true;
     } catch (err) {
       console.error("Error editing message:", err);
+      alert(`Failed to edit message: ${err.message}`);
       return false;
     }
   };
