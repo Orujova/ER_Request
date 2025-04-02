@@ -1,16 +1,48 @@
 // src/Pages/LoginPage.jsx
 import { useIsAuthenticated, useMsal } from "@azure/msal-react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { loginRequest } from "../../authConfig";
 import { HomeIcon } from "lucide-react";
+import { useEffect } from "react";
+import { getDefaultRedirect } from "../utils/roles";
+import { verifyTokenWithBackend } from "../utils/authHandler";
 
 const LoginPage = () => {
   const isAuthenticated = useIsAuthenticated();
-  const { instance, inProgress } = useMsal();
+  const { instance, inProgress, accounts } = useMsal();
+  const navigate = useNavigate();
 
-  // Redirect to dashboard if already authenticated
+  // Handle user authentication and role storage
+  useEffect(() => {
+    const handleAuthentication = async () => {
+      if (isAuthenticated && accounts && accounts.length > 0) {
+        try {
+          // Get token silently
+          const tokenResponse = await instance.acquireTokenSilent({
+            account: accounts[0],
+            scopes: loginRequest.scopes,
+          });
+
+          // Verify token with backend
+          await verifyTokenWithBackend(tokenResponse.accessToken);
+
+          // Redirect based on user's highest priority role
+          navigate(getDefaultRedirect());
+        } catch (error) {
+          console.error("Error handling authentication:", error);
+          // Default redirect if token verification fails
+          navigate("/");
+        }
+      }
+    };
+
+    handleAuthentication();
+  }, [isAuthenticated, accounts, navigate, instance]);
+
+  // Redirect if already authenticated (while waiting for role check)
   if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+    // The useEffect will handle the role-based redirect
+    return null;
   }
 
   const handleSignIn = async () => {
@@ -50,7 +82,7 @@ const LoginPage = () => {
 
         <button
           onClick={handleSignIn}
-          className="w-full flex justify-center items-center py-3 px-4 rounded-md bg-[#0284c7] text-white font-medium hover:bg-[#0369a1] transition-colors  shadow-sm"
+          className="w-full flex justify-center items-center py-3 px-4 rounded-md bg-[#0284c7] text-white font-medium hover:bg-[#0369a1] transition-colors shadow-sm"
         >
           Sign in with Microsoft
         </button>

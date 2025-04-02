@@ -1,11 +1,8 @@
 import React from "react";
 
 const StatusOverview = ({ stats }) => {
-  // Handle null or undefined stats object
   const safeStats = stats || {};
 
-  // Create a properly mapped stats object based on the database enum:
-  // Pending = 0, UnderReview = 1, DesicionMade = 2, ReAssigned = 3, DecisionCommunicated = 4, Completed = 5
   const displayStats = {
     // Status codes from the enum
     pending: safeStats.pending || 0,

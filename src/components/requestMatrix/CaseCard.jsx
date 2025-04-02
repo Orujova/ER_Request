@@ -1,9 +1,14 @@
+// src/components/requestMatrix/CaseCard.jsx
 import React, { useState } from "react";
 import { ChevronRight, Edit3, Trash2, File, Folder, Plus } from "lucide-react";
 import { themeColors } from "../../styles/theme";
 import SubCaseForm from "./SubCaseForm";
 import SubCaseItem from "./SubCaseItem";
 import DeleteConfirmationModal from "../common/DeleteConfirmationModal";
+import {
+  canManageContent,
+  withPermissionCheck,
+} from "../../utils/permissionChecks";
 
 const CaseCard = ({
   caseItem,
@@ -25,8 +30,12 @@ const CaseCard = ({
   const [itemToDelete, setItemToDelete] = useState(null);
   const [deleteType, setDeleteType] = useState(""); // 'case' or 'subcase'
 
+  // Check if user has permission to manage content
+  const hasPermission = canManageContent();
+
   // Handler for showing delete modal for case
   const handleShowCaseDeleteModal = (e) => {
+    if (!hasPermission) return;
     e.stopPropagation();
     setDeleteType("case");
     setItemToDelete(caseItem);
@@ -35,6 +44,7 @@ const CaseCard = ({
 
   // Handler for showing delete modal for subcase
   const handleShowSubcaseDeleteModal = (subcase) => {
+    if (!hasPermission) return;
     setDeleteType("subcase");
     setItemToDelete(subcase);
     setIsDeleteModalOpen(true);
@@ -42,6 +52,8 @@ const CaseCard = ({
 
   // Handler for confirming deletion
   const handleConfirmDelete = (id) => {
+    if (!hasPermission) return;
+
     if (deleteType === "case") {
       onDeleteCase(id);
     } else if (deleteType === "subcase") {
@@ -51,6 +63,8 @@ const CaseCard = ({
 
   // Handler for creating a new subcase
   const handleCreateSubCase = async () => {
+    if (!hasPermission) return;
+
     const result = await onCreateSubCase();
     if (result) {
       // Reset the form after successful creation
@@ -131,34 +145,38 @@ const CaseCard = ({
               </div>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onEditCase();
-              }}
-              className="p-2 rounded-lg hover:bg-gray-100"
-              style={{
-                color: themeColors.textLight,
-              }}
-            >
-              <Edit3
-                size={18}
-                strokeWidth={1.5}
-                className="text-inherit hover:text-gray-800"
-              />
-            </button>
-            <button
-              onClick={handleShowCaseDeleteModal}
-              className="p-2 rounded-lg hover:bg-red-50"
-            >
-              <Trash2
-                size={18}
-                strokeWidth={1.5}
-                className="text-red-400 hover:text-red-600"
-              />
-            </button>
-          </div>
+
+          {/* Only show edit/delete buttons if user has permission */}
+          {hasPermission && (
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditCase();
+                }}
+                className="p-2 rounded-lg hover:bg-gray-100"
+                style={{
+                  color: themeColors.textLight,
+                }}
+              >
+                <Edit3
+                  size={18}
+                  strokeWidth={1.5}
+                  className="text-inherit hover:text-gray-800"
+                />
+              </button>
+              <button
+                onClick={handleShowCaseDeleteModal}
+                className="p-2 rounded-lg hover:bg-red-50"
+              >
+                <Trash2
+                  size={18}
+                  strokeWidth={1.5}
+                  className="text-red-400 hover:text-red-600"
+                />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Case content - subcases */}
@@ -170,33 +188,39 @@ const CaseCard = ({
               borderTop: `1px solid ${themeColors.border}`,
             }}
           >
-            {/* Subcase creation form */}
-            <div
-              className="p-4 rounded-lg"
-              style={{
-                backgroundColor: themeColors.background,
-                boxShadow: `0 2px 6px ${themeColors.shadowLight}`,
-                border: `1px solid ${themeColors.border}`,
-              }}
-            >
-              <div className="flex items-center mb-3">
-                <Plus
-                  size={16}
-                  strokeWidth={2.5}
-                  style={{ color: themeColors.primary }}
-                  className="mr-2"
+            {/* Subcase creation form - only visible to admins */}
+            {hasPermission && (
+              <div
+                className="p-4 rounded-lg"
+                style={{
+                  backgroundColor: themeColors.background,
+                  boxShadow: `0 2px 6px ${themeColors.shadowLight}`,
+                  border: `1px solid ${themeColors.border}`,
+                }}
+              >
+                <div className="flex items-center mb-3">
+                  <Plus
+                    size={16}
+                    strokeWidth={2.5}
+                    style={{ color: themeColors.primary }}
+                    className="mr-2"
+                  />
+                  <h4
+                    className="font-medium"
+                    style={{ color: themeColors.text }}
+                  >
+                    Add New Subcase
+                  </h4>
+                </div>
+                <SubCaseForm
+                  caseId={caseItem.Id}
+                  newSubCase={newSubCase}
+                  setNewSubCase={setNewSubCase}
+                  onCreateSubCase={handleCreateSubCase}
+                  hasPermission={hasPermission}
                 />
-                <h4 className="font-medium" style={{ color: themeColors.text }}>
-                  Add New Subcase
-                </h4>
               </div>
-              <SubCaseForm
-                caseId={caseItem.Id}
-                newSubCase={newSubCase}
-                setNewSubCase={setNewSubCase}
-                onCreateSubCase={handleCreateSubCase}
-              />
-            </div>
+            )}
 
             {/* Subcases list */}
             <div className="mt-5">
@@ -234,6 +258,7 @@ const CaseCard = ({
                       onEditSubCase={onEditSubCase}
                       onDeleteSubCase={onDeleteSubCase}
                       onShowDeleteModal={handleShowSubcaseDeleteModal}
+                      hasPermission={hasPermission}
                     />
                   ))}
                 </div>

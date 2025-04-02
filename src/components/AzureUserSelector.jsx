@@ -47,7 +47,7 @@ const AzureUsers = ({ onSelect, selectedUsers = [], onRemove }) => {
 
         const response = await fetch(searchUrl, {
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
+           
             Authorization: `Bearer ${tokenResponse.accessToken}`,
           },
         });

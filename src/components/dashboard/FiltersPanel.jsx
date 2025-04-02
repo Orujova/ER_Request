@@ -11,6 +11,9 @@ import {
   selectEmployee,
 } from "../../redux/slices/dashboardSlice";
 
+// Import the new duration filter component
+import DurationFilter from "./DurationFilter";
+
 const FiltersPanel = ({ onClearFilters }) => {
   const dispatch = useReduxDispatch();
   const {
@@ -194,6 +197,7 @@ const FiltersPanel = ({ onClearFilters }) => {
           </div>
         </div>
 
+        {/* Case Filter */}
         <div>
           <label
             htmlFor="caseId"
@@ -210,11 +214,13 @@ const FiltersPanel = ({ onClearFilters }) => {
             <option value="">All Cases</option>
             {caseOptions.map((caseItem) => (
               <option key={caseItem.Id} value={caseItem.Id}>
-                {caseItem.CaseName}
+                {caseItem.Name || caseItem.CaseName}
               </option>
             ))}
           </select>
         </div>
+
+        {/* Subcase Filter */}
         <div>
           <label
             htmlFor="subCaseId"
@@ -237,6 +243,8 @@ const FiltersPanel = ({ onClearFilters }) => {
             ))}
           </select>
         </div>
+
+        {/* Status Filter */}
         <div>
           <label
             htmlFor="status"
@@ -259,6 +267,8 @@ const FiltersPanel = ({ onClearFilters }) => {
             <option value="5">Completed</option>
           </select>
         </div>
+
+        {/* Canceled Filter */}
         <div>
           <label
             htmlFor="isCanceled"
@@ -277,6 +287,11 @@ const FiltersPanel = ({ onClearFilters }) => {
             <option value="false">Not Canceled</option>
           </select>
         </div>
+
+        {/* Duration Filter - New! */}
+        <DurationFilter />
+
+        {/* Start Date Filter */}
         <div>
           <label
             htmlFor="startDate"
@@ -292,6 +307,8 @@ const FiltersPanel = ({ onClearFilters }) => {
             onChange={(e) => handleFilterChange("startDate", e.target.value)}
           />
         </div>
+
+        {/* End Date Filter */}
         <div>
           <label
             htmlFor="endDate"

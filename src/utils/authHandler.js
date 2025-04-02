@@ -18,7 +18,6 @@ export const verifyTokenWithBackend = async (msalAccessToken) => {
       {
         method: "POST",
         headers: {
-          "ngrok-skip-browser-warning": "narmin",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -33,6 +32,7 @@ export const verifyTokenWithBackend = async (msalAccessToken) => {
 
     const data = await response.json();
     console.log(data);
+    localStorage.setItem("rols", data.RoleIds);
 
     if (!data.IsSuccess) {
       throw new Error(

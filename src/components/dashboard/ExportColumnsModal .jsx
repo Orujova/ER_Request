@@ -125,7 +125,6 @@ const ExportColumnsModal = ({ isOpen, onClose, activeFilters }) => {
       const response = await fetch(url.toString(), {
         method: "GET",
         headers: {
-          "ngrok-skip-browser-warning": "narmin",
           Authorization: `Bearer ${jwtToken}`,
         },
       });

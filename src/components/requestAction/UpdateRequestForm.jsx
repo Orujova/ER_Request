@@ -57,13 +57,12 @@ const UpdateRequestForm = ({
   const fetchRequestDetails = async () => {
     try {
       setFetchingData(true);
-      const { token } = getStoredTokens();
+      const { jwtToken } = getStoredTokens();
 
       const response = await fetch(`${API_BASE_URL}/api/ERRequest/${id}`, {
         headers: {
-          "ngrok-skip-browser-warning": "narmin",
           accept: "*/*",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${jwtToken}`,
         },
       });
 
@@ -185,15 +184,14 @@ const UpdateRequestForm = ({
 
     try {
       setLoading(true);
-      const { token } = getStoredTokens();
+      const { jwtToken } = getStoredTokens();
 
       const response = await fetch(
         `${API_BASE_URL}/GetDisciplinaryActions?DisciplinaryActionResultId=${actionResultId}`,
         {
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
             accept: "*/*",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${jwtToken}`,
           },
         }
       );
@@ -382,9 +380,8 @@ const UpdateRequestForm = ({
         {
           method: "PUT",
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
             accept: "*/*",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${jwtToken}`,
           },
         }
       );

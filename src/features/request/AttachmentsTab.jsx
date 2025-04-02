@@ -133,7 +133,6 @@ const AttachmentsTab = ({
         {
           method: "PUT",
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
             Authorization: `Bearer ${token}`,
           },
           body: formData,
@@ -183,7 +182,7 @@ const AttachmentsTab = ({
     try {
       setIsProcessing(true);
       setErrorMessage("");
-      const { token } = getStoredTokens();
+      const { jwtToken } = getStoredTokens();
 
       const formData = new FormData();
       formData.append("ERRequestId", requestId);
@@ -194,8 +193,7 @@ const AttachmentsTab = ({
         {
           method: "PUT",
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${jwtToken}`,
           },
           body: formData,
         }
@@ -264,8 +262,7 @@ const AttachmentsTab = ({
         {
           method: "PUT",
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${jwtToken}`,
           },
           body: formData,
         }
@@ -311,8 +308,7 @@ const AttachmentsTab = ({
         {
           method: "PUT",
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${jwtToken}`,
           },
           body: formData,
         }

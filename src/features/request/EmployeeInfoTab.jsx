@@ -20,13 +20,12 @@ const EmployeeInfoTab = ({ request }) => {
       setIsLoading(true);
       setError(null);
 
-      const { token } = getStoredTokens();
+      const { jwtToken } = getStoredTokens();
       const response = await fetch(
         `${API_BASE_URL}/api/Employee/${employeeId}`,
         {
           headers: {
-            Authorization: `Bearer ${token}`,
-            "ngrok-skip-browser-warning": "narmin",
+            Authorization: `Bearer ${jwtToken}`,
           },
         }
       );

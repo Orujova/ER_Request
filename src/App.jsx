@@ -1,4 +1,4 @@
-// src/App.jsx
+// src/App.jsx - Updated Routes
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Theme } from "@radix-ui/themes";
 import "@radix-ui/themes/styles.css";
@@ -16,8 +16,12 @@ import MainContainer from "./components/layout/MainContainer";
 import Navbar from "./components/layout/Navbar";
 import LoginPage from "./Pages/LoginPage";
 import ProfilePage from "./Pages/ProfilePage";
-import { AuthGuard } from "./components/common/AuthGuard";
+import { AuthGuard, AdminGuard } from "./components/common/AuthGuard";
 import ToastContainer from "./toast/ToastContainer";
+
+// Import role utilities
+import { ROLES, getDefaultRedirect, hasAccess } from "./utils/roles";
+
 // Auth redirect component
 const AuthRedirect = ({ children, requireAuth = true }) => {
   const isAuthenticated = useIsAuthenticated();
@@ -27,7 +31,8 @@ const AuthRedirect = ({ children, requireAuth = true }) => {
   }
 
   if (!requireAuth && isAuthenticated) {
-    return <Navigate to="/" replace />;
+    // Get default redirect based on user's roles
+    return <Navigate to={getDefaultRedirect()} replace />;
   }
 
   return children;
@@ -55,7 +60,9 @@ function App() {
             <Route
               path="/"
               element={
-                <AuthGuard>
+                <AuthGuard
+                  requiredRoles={[ROLES.ADMIN, ROLES.ER_ADMIN, ROLES.ER_MEMBER]}
+                >
                   <Dashboard />
                 </AuthGuard>
               }
@@ -73,15 +80,20 @@ function App() {
             <Route
               path="/request/:id"
               element={
-                <AuthGuard>
+                <AuthGuard
+                  requiredRoles={[ROLES.ADMIN, ROLES.ER_ADMIN, ROLES.ER_MEMBER]}
+                >
                   <RequestDetail />
                 </AuthGuard>
               }
             />
+
             <Route
               path="/request/:id/action"
               element={
-                <AuthGuard>
+                <AuthGuard
+                  requiredRoles={[ROLES.ADMIN, ROLES.ER_ADMIN, ROLES.ER_MEMBER]}
+                >
                   <ActionPage />
                 </AuthGuard>
               }
@@ -99,7 +111,9 @@ function App() {
             <Route
               path="/request-matrix"
               element={
-                <AuthGuard>
+                <AuthGuard
+                  requiredRoles={[ROLES.ADMIN, ROLES.ER_ADMIN, ROLES.ER_MEMBER]}
+                >
                   <RequestMatrix />
                 </AuthGuard>
               }
@@ -108,14 +122,17 @@ function App() {
             <Route
               path="/admin"
               element={
-                <AuthGuard>
+                <AdminGuard>
                   <AdminPanel />
-                </AuthGuard>
+                </AdminGuard>
               }
             />
 
             {/* Catch-all route */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route
+              path="*"
+              element={<Navigate to={getDefaultRedirect()} replace />}
+            />
           </Routes>
         </MainContainer>
       </Layout>

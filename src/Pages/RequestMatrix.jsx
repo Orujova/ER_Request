@@ -30,7 +30,6 @@ const RequestMatrix = () => {
     return {
       "Content-Type": "application/json",
       Authorization: `Bearer ${jwtToken}`,
-      "ngrok-skip-browser-warning": "narmin",
     };
   };
 
@@ -436,9 +435,6 @@ const RequestMatrix = () => {
             </div>
           </div>
         </header>
-
-        {/* Toast Manager will be mounted in the application entry point */}
-        {/* <showToast.ToastManager /> */}
 
         {/* Tab Navigation */}
         <TabNavigation activeTab={activeTab} setActiveTab={setActiveTab} />

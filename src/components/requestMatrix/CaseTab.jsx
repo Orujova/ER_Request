@@ -1,3 +1,4 @@
+// src/components/requestMatrix/CaseTab.jsx
 import React, { useState } from "react";
 import {
   Plus,
@@ -11,6 +12,10 @@ import { themeColors } from "../../styles/theme";
 import CaseForm from "./CaseForm";
 import CaseCard from "./CaseCard";
 import EmptyState from "./EmptyState";
+import {
+  canManageContent,
+  withPermissionCheck,
+} from "../../utils/permissionChecks";
 
 const CaseTab = ({
   cases,
@@ -39,14 +44,30 @@ const CaseTab = ({
   const [sortOrder, setSortOrder] = useState("newest");
   const [showFilters, setShowFilters] = useState(false);
 
-  // Handle case creation
-  const handleCreateCase = async () => {
+  // Check if user has permission to create/edit/delete
+  const hasPermission = canManageContent();
+
+  // Create wrapped handlers that check permissions
+  const handleCreateCase = withPermissionCheck(async () => {
     const result = await createCase(newCase);
     if (result) {
       setNewCase({ caseName: "" });
       setActiveView("dashboard");
     }
-  };
+  });
+
+  const handleUpdateCase = withPermissionCheck(() => {
+    updateCase(selectedCase);
+    setActiveView("dashboard");
+  });
+
+  const handleDeleteCase = withPermissionCheck(deleteCase);
+
+  const handleCreateSubCase = withPermissionCheck(createSubCase);
+
+  const handleUpdateSubCase = withPermissionCheck(updateSubCase);
+
+  const handleDeleteSubCase = withPermissionCheck(deleteSubCase);
 
   // Sort cases based on current sort order
   const sortCases = (casesToSort) => {
@@ -104,10 +125,7 @@ const CaseTab = ({
           <CaseForm
             caseData={selectedCase}
             setCaseData={setSelectedCase}
-            onSubmit={() => {
-              updateCase(selectedCase);
-              setActiveView("dashboard");
-            }}
+            onSubmit={handleUpdateCase}
             onCancel={() => setActiveView("dashboard")}
             formTitle="Edit Case"
             formSubtitle={`ID: ${selectedCase?.Id}`}
@@ -139,29 +157,33 @@ const CaseTab = ({
               {sortedAndFilteredCases.length === 1 ? "case" : "cases"} available
             </p>
           </div>
-          <button
-            onClick={() => {
-              setNewCase({ caseName: "" });
-              setActiveView("createCase");
-            }}
-            className="px-4 py-2.5 rounded-lg flex items-center space-x-2 transition-all duration-200"
-            style={{
-              background: `linear-gradient(to right, ${themeColors.gradientStart}, ${themeColors.gradientEnd})`,
-              color: themeColors.background,
-              boxShadow: `0 2px 8px ${themeColors.primaryDark}30`,
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.transform = "translateY(-1px)";
-              e.currentTarget.style.boxShadow = `0 4px 12px ${themeColors.primaryDark}40`;
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = `0 2px 8px ${themeColors.primaryDark}30`;
-            }}
-          >
-            <Plus size={20} strokeWidth={2.5} />
-            <span className="font-medium">Create New Case</span>
-          </button>
+
+          {/* Only show Create button if user has permission */}
+          {hasPermission && (
+            <button
+              onClick={() => {
+                setNewCase({ caseName: "" });
+                setActiveView("createCase");
+              }}
+              className="px-4 py-2.5 rounded-lg flex items-center space-x-2 transition-all duration-200"
+              style={{
+                background: `linear-gradient(to right, ${themeColors.gradientStart}, ${themeColors.gradientEnd})`,
+                color: themeColors.background,
+                boxShadow: `0 2px 8px ${themeColors.primaryDark}30`,
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = "translateY(-1px)";
+                e.currentTarget.style.boxShadow = `0 4px 12px ${themeColors.primaryDark}40`;
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = `0 2px 8px ${themeColors.primaryDark}30`;
+              }}
+            >
+              <Plus size={20} strokeWidth={2.5} />
+              <span className="font-medium">Create New Case</span>
+            </button>
+          )}
         </div>
 
         {/* Search and filter bar */}
@@ -369,11 +391,14 @@ const CaseTab = ({
               searchTerm
                 ? () => setSearchTerm("")
                 : () => {
-                    setNewCase({ caseName: "" });
-                    setActiveView("createCase");
+                    if (hasPermission) {
+                      setNewCase({ caseName: "" });
+                      setActiveView("createCase");
+                    }
                   }
             }
             searchTerm={searchTerm}
+            hideButton={!searchTerm && !hasPermission}
           />
         ) : (
           <div className="grid grid-cols-1 gap-6">
@@ -388,20 +413,25 @@ const CaseTab = ({
                 setNewSubCase={setNewSubCase}
                 toggleExpansion={() => toggleCaseExpansion(caseItem.Id)}
                 onEditCase={() => {
-                  setSelectedCase(caseItem);
-                  setActiveView("editCase");
+                  if (hasPermission) {
+                    setSelectedCase(caseItem);
+                    setActiveView("editCase");
+                  }
                 }}
-                onDeleteCase={() => deleteCase(caseItem.Id)}
+                onDeleteCase={handleDeleteCase}
                 onCreateSubCase={() =>
-                  createSubCase({
+                  handleCreateSubCase({
                     description: newSubCase.description,
                     caseId: caseItem.Id,
+                    IsPresentationRequired:
+                      newSubCase.IsPresentationRequired || false,
+                    IsActRequired: newSubCase.IsActRequired || false,
+                    IsExplanationRequired:
+                      newSubCase.IsExplanationRequired || false,
                   })
                 }
-                onEditSubCase={(updatedSubcase) =>
-                  updateSubCase(updatedSubcase)
-                }
-                onDeleteSubCase={(subCaseId) => deleteSubCase(subCaseId)}
+                onEditSubCase={handleUpdateSubCase}
+                onDeleteSubCase={handleDeleteSubCase}
                 setSelectedSubCase={setSelectedSubCase}
               />
             ))}

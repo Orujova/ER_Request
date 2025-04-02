@@ -42,14 +42,13 @@ function RequestAction() {
   // Create a function to fetch the current request data
   const fetchCurrentRequest = useCallback(async () => {
     try {
-      const { token } = getStoredTokens();
+      const { jwtToken } = getStoredTokens();
       const requestResponse = await fetch(
         `${API_BASE_URL}/api/ERRequest/${id}`,
         {
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
             accept: "*/*",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${jwtToken}`,
           },
         }
       );
@@ -155,7 +154,7 @@ function RequestAction() {
   const fetchAllData = useCallback(async () => {
     try {
       setLoading(true);
-      const { token } = getStoredTokens();
+      const { jwtToken } = getStoredokens();
 
       // First, fetch the current request to ensure we have the latest data
       await fetchCurrentRequest();
@@ -165,9 +164,8 @@ function RequestAction() {
         `${API_BASE_URL}/api/AdminApplicationUser/GetAllERMemberUser`,
         {
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
             accept: "*/*",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${jwtToken}`,
           },
         }
       );
@@ -186,9 +184,8 @@ function RequestAction() {
         `${API_BASE_URL}/GetAllDisciplinaryViolation`,
         {
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
             accept: "*/*",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${jwtToken}`,
           },
         }
       );
@@ -209,9 +206,8 @@ function RequestAction() {
         `${API_BASE_URL}/GetAllDisciplinaryActionResult`,
         {
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
             accept: "*/*",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${jwtToken}`,
           },
         }
       );
@@ -230,9 +226,8 @@ function RequestAction() {
       // Fetch Cases
       const casesResponse = await fetch(`${API_BASE_URL}/api/Case`, {
         headers: {
-          "ngrok-skip-browser-warning": "narmin",
           accept: "*/*",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${jwtToken}`,
         },
       });
 
@@ -246,9 +241,8 @@ function RequestAction() {
       // Fetch SubCases
       const subCasesResponse = await fetch(`${API_BASE_URL}/api/SubCase`, {
         headers: {
-          "ngrok-skip-browser-warning": "narmin",
           accept: "*/*",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${jwtToken}`,
         },
       });
 
@@ -264,9 +258,8 @@ function RequestAction() {
         `${API_BASE_URL}/api/ERRequest/GetAllChildRequest?ParentId=${id}`,
         {
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
             accept: "*/*",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${jwtToken}`,
           },
         }
       );
@@ -302,15 +295,14 @@ function RequestAction() {
       setLoading(true);
       setSelectedErMember(newErMemberId);
 
-      const { token } = getStoredTokens();
+      const { jwtToken } = getStoredTokens();
       const response = await fetch(
         `${API_BASE_URL}/api/ERRequest/UpdateERRequestERMember`,
         {
           method: "PUT",
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${jwtToken}`,
           },
           body: JSON.stringify({
             ERRequestId: parseInt(id),
@@ -339,7 +331,7 @@ function RequestAction() {
   const handleStatusUpdate = async (newStatus) => {
     try {
       setStatusLoading(true);
-      const { token } = getStoredTokens();
+      const { jwtToken } = getStoredTokens();
 
       console.log(`Updating status to: ${newStatus}`);
 
@@ -348,9 +340,8 @@ function RequestAction() {
         {
           method: "PUT",
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${jwtToken}`,
           },
           body: JSON.stringify({
             ERRequestId: parseInt(id),
@@ -380,14 +371,13 @@ function RequestAction() {
 
   const refreshChildRequests = async () => {
     try {
-      const { token } = getStoredTokens();
+      const { jwtToken } = getStoredTokens();
       const childRequestsResponse = await fetch(
         `${API_BASE_URL}/api/ERRequest/GetAllChildRequest?ParentId=${id}`,
         {
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
             accept: "*/*",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${jwtToken}`,
           },
         }
       );

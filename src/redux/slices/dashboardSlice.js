@@ -2,9 +2,25 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { API_BASE_URL } from "../../../apiConfig";
 import { getStoredTokens, getUserId } from "../../utils/authHandler";
 
+// Helper function to calculate duration
+const calculateDuration = (request) => {
+  const createdDate = new Date(request.CreatedDate || Date.now());
+
+  // If the request has reached Decision Communicated status (4) or higher
+  if (request.ERRequestStatus >= 4 && request.DecisionCommunicatedDate) {
+    const communicatedDate = new Date(request.DecisionCommunicatedDate);
+    const diffTime = Math.abs(communicatedDate - createdDate);
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  }
+
+  // For requests that haven't reached Decision Communicated status yet
+  const today = new Date();
+  const diffTime = Math.abs(today - createdDate);
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+};
+
 // Status enum mapping from backend:
 // Pending = 0, UnderReview = 1, DesicionMade = 2, ReAssigned = 3, DecisionCommunicated = 4, Completed = 5
-// Add this new action to your dashboardSlice.js file
 
 export const fetchTotalStats = createAsyncThunk(
   "dashboard/fetchTotalStats",
@@ -16,10 +32,6 @@ export const fetchTotalStats = createAsyncThunk(
 
       // Use the regular ERRequest endpoint without specific ID
       const url = new URL(`${API_BASE_URL}/api/ERRequest`);
-
-      // Remove pagination parameters to get all records
-      // url.searchParams.append("Page", 1);
-      // url.searchParams.append("ShowMore.Take", 1000); // Large number to get all
 
       // Add userId
       if (userId) {
@@ -57,11 +69,17 @@ export const fetchTotalStats = createAsyncThunk(
       if (activeFilters.endDate) {
         url.searchParams.append("EndDate", activeFilters.endDate);
       }
+      // Add duration filters if present
+      if (activeFilters.durationMin) {
+        url.searchParams.append("DurationMin", activeFilters.durationMin);
+      }
+      if (activeFilters.durationMax) {
+        url.searchParams.append("DurationMax", activeFilters.durationMax);
+      }
 
       const response = await fetch(url.toString(), {
         method: "GET",
         headers: {
-          "ngrok-skip-browser-warning": "narmin",
           "Content-Type": "application/json",
           Authorization: `Bearer ${jwtToken}`,
         },
@@ -145,6 +163,13 @@ export const fetchDashboardData = createAsyncThunk(
       if (filters.endDate) {
         url.searchParams.append("EndDate", filters.endDate);
       }
+      // Add duration filters if present
+      if (filters.durationMin) {
+        url.searchParams.append("DurationMin", filters.durationMin);
+      }
+      if (filters.durationMax) {
+        url.searchParams.append("DurationMax", filters.durationMax);
+      }
 
       // Add ordering
       if (params.orderBy) {
@@ -154,7 +179,6 @@ export const fetchDashboardData = createAsyncThunk(
       const response = await fetch(url.toString(), {
         method: "GET",
         headers: {
-          "ngrok-skip-browser-warning": "narmin",
           "Content-Type": "application/json",
           Authorization: `Bearer ${jwtToken}`,
         },
@@ -186,6 +210,13 @@ export const fetchDashboardData = createAsyncThunk(
         date: new Date(item.CreatedDate || Date.now())
           .toISOString()
           .split("T")[0],
+        // Add duration
+        duration: calculateDuration(item),
+        // Flag for highlighting long-duration requests
+        isDurationCritical:
+          calculateDuration(item) > 14 && item.ERRequestStatus < 4,
+        // Store whether decision has been communicated
+        isDecisionCommunicated: item.ERRequestStatus >= 4,
       }));
 
       // Calculate stats for each status with correct naming scheme
@@ -227,25 +258,21 @@ export const fetchReferenceData = createAsyncThunk(
       ] = await Promise.all([
         fetch(`${API_BASE_URL}/api/Case`, {
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
             Authorization: `Bearer ${jwtToken}`,
           },
         }),
         fetch(`${API_BASE_URL}/api/SubCase`, {
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
             Authorization: `Bearer ${jwtToken}`,
           },
         }),
         fetch(`${API_BASE_URL}/api/Project`, {
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
             Authorization: `Bearer ${jwtToken}`,
           },
         }),
         fetch(`${API_BASE_URL}/api/Employee`, {
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
             Authorization: `Bearer ${jwtToken}`,
           },
         }),
@@ -292,7 +319,6 @@ export const reassignERMember = createAsyncThunk(
         {
           method: "PUT",
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
             "Content-Type": "application/json",
             Authorization: `Bearer ${jwtToken}`,
           },
@@ -364,6 +390,9 @@ const initialState = {
     isCanceled: "",
     startDate: "",
     endDate: "",
+    // Add duration filters
+    durationMin: "",
+    durationMax: "",
   },
 
   // Reference data
@@ -425,6 +454,8 @@ const dashboardSlice = createSlice({
         isCanceled: "",
         startDate: "",
         endDate: "",
+        durationMin: "",
+        durationMax: "",
       };
       state.currentPage = 1;
       state.showProjectDropdown = false;
@@ -441,16 +472,7 @@ const dashboardSlice = createSlice({
     },
 
     toggleFilters(state) {
-      // This is the critical reducer - make sure it's properly flipping the state
-      console.log(
-        "Toggle filters reducer called, current state:",
-        state.showFilters
-      );
       state.showFilters = !state.showFilters;
-      console.log(
-        "Toggle filters reducer completed, new state:",
-        state.showFilters
-      );
     },
 
     toggleProjectDropdown(state, action) {
@@ -523,6 +545,14 @@ const dashboardSlice = createSlice({
     setSearchTerm(state, action) {
       state.searchTerm = action.payload;
     },
+
+    // Add duration filter reducer
+    updateDurationFilter(state, action) {
+      const { min, max } = action.payload;
+      if (min !== undefined) state.activeFilters.durationMin = min;
+      if (max !== undefined) state.activeFilters.durationMax = max;
+      state.currentPage = 1;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -590,8 +620,19 @@ const dashboardSlice = createSlice({
         );
 
         if (requestIndex !== -1) {
-          // We would need to update erMember name too, but we'll need to fetch it from the ER members
-          // This will be updated when the dashboard is refreshed
+          // Update status to ReAssigned (3)
+          state.requests[requestIndex].statusCode = 3;
+
+          // Recalculate duration since status has changed
+          const today = new Date();
+          const createdDate = new Date(state.requests[requestIndex].date);
+          const diffTime = Math.abs(today - createdDate);
+          const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+          state.requests[requestIndex].duration = days;
+          state.requests[requestIndex].isDurationCritical = days > 14;
+
+          // The erMember name will be updated when dashboard refreshes
         }
       })
       .addCase(reassignERMember.rejected, (state, action) => {
@@ -615,6 +656,7 @@ export const {
   selectProject,
   selectEmployee,
   setSearchTerm,
+  updateDurationFilter,
 } = dashboardSlice.actions;
 
 export default dashboardSlice.reducer;

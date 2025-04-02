@@ -1,270 +1,285 @@
+// src/components/requestMatrix/SubCaseItem.jsx
 import React, { useState } from "react";
 import {
   Edit3,
-  Check,
-  X,
   Trash2,
   FileText,
   FileCheck,
   MessageSquare,
 } from "lucide-react";
 import { themeColors } from "../../styles/theme";
-import DeleteConfirmationModal from "../common/DeleteConfirmationModal";
 
 const SubCaseItem = ({
   subcase,
   selectedSubCase,
   setSelectedSubCase,
   onEditSubCase,
-  onDeleteSubCase,
+  onShowDeleteModal,
+  hasPermission,
 }) => {
+  // Local state for handling edit mode
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedDescription, setEditedDescription] = useState(
+    subcase.Description
+  );
+  const [editedRequirements, setEditedRequirements] = useState({
+    IsPresentationRequired: subcase.IsPresentationRequired,
+    IsActRequired: subcase.IsActRequired,
+    IsExplanationRequired: subcase.IsExplanationRequired,
+  });
+
+  // Check if this is the selected subcase
   const isSelected = selectedSubCase?.Id === subcase.Id;
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  // Handle showing the delete modal
-  const handleShowDeleteModal = () => {
-    setIsDeleteModalOpen(true);
-  };
-
-  // Handle confirming deletion
-  const handleConfirmDelete = (id) => {
-    onDeleteSubCase(id);
-  };
-
-  // Handle toggling requirement fields when editing
+  // Toggle a requirement
   const toggleRequirement = (field) => {
-    setSelectedSubCase({
-      ...selectedSubCase,
-      [field]: !selectedSubCase[field],
+    setEditedRequirements({
+      ...editedRequirements,
+      [field]: !editedRequirements[field],
     });
   };
 
-  // Requirement indicator badges
-  const RequirementBadge = ({ isRequired, icon, label, color }) => {
-    if (!isRequired) return null;
+  // Save edited subcase
+  const handleSaveEdit = () => {
+    if (!hasPermission) return;
+
+    onEditSubCase({
+      ...subcase,
+      Description: editedDescription,
+      ...editedRequirements,
+    });
+    setIsEditing(false);
+  };
+
+  // Enter edit mode
+  const handleEditClick = (e) => {
+    if (!hasPermission) return;
+
+    e.stopPropagation();
+    setEditedDescription(subcase.Description);
+    setEditedRequirements({
+      IsPresentationRequired: subcase.IsPresentationRequired,
+      IsActRequired: subcase.IsActRequired,
+      IsExplanationRequired: subcase.IsExplanationRequired,
+    });
+    setIsEditing(true);
+  };
+
+  // Cancel edit mode
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+  };
+
+  // Handle delete click
+  const handleDeleteClick = (e) => {
+    if (!hasPermission) return;
+
+    e.stopPropagation();
+    onShowDeleteModal(subcase);
+  };
+
+  // Render required document badges
+  const renderRequirementBadges = () => {
+    const requirements = isEditing
+      ? editedRequirements
+      : {
+          IsPresentationRequired: subcase.IsPresentationRequired,
+          IsActRequired: subcase.IsActRequired,
+          IsExplanationRequired: subcase.IsExplanationRequired,
+        };
 
     return (
-      <div
-        className="flex items-center px-2 py-0.5 rounded-full text-xs font-medium mr-2"
-        style={{
-          backgroundColor: `${color}20`,
-          color: color,
-        }}
-      >
-        {icon}
-        <span className="ml-1">{label}</span>
+      <div className="flex flex-wrap gap-1 mt-2">
+        {requirements.IsPresentationRequired && (
+          <span
+            className="px-2 py-0.5 text-xs rounded-full flex items-center"
+            style={{
+              backgroundColor: "#e6f4fa",
+              color: "#0ea5e9",
+              fontWeight: 500,
+            }}
+          >
+            <FileText size={12} className="mr-1" />
+            Presentation
+          </span>
+        )}
+        {requirements.IsActRequired && (
+          <span
+            className="px-2 py-0.5 text-xs rounded-full flex items-center"
+            style={{
+              backgroundColor: "#e7f8ed",
+              color: "#10b981",
+              fontWeight: 500,
+            }}
+          >
+            <FileCheck size={12} className="mr-1" />
+            Act
+          </span>
+        )}
+        {requirements.IsExplanationRequired && (
+          <span
+            className="px-2 py-0.5 text-xs rounded-full flex items-center"
+            style={{
+              backgroundColor: "#fef3e6",
+              color: "#f59e0b",
+              fontWeight: 500,
+            }}
+          >
+            <MessageSquare size={12} className="mr-1" />
+            Explanation
+          </span>
+        )}
       </div>
     );
   };
 
-  // Requirement toggle buttons for edit mode
-  const RequirementToggle = ({ field, value, label, icon, color }) => {
+  // Render edit mode
+  if (isEditing) {
     return (
-      <button
-        type="button"
-        onClick={() => toggleRequirement(field)}
-        className={`flex items-center rounded-md px-2 py-1 text-xs font-medium transition-colors duration-200 hover:opacity-80 mr-2`}
-        style={{
-          backgroundColor: value ? color : `${color}20`,
-          color: value ? "white" : color,
-          border: `1px solid ${value ? color : "transparent"}`,
-        }}
-      >
-        {icon}
-        <span className="ml-1">{label}</span>
-        {value && <Check size={14} className="ml-1" />}
-      </button>
-    );
-  };
-
-  return (
-    <>
       <div
-        className="rounded-lg p-4 transition-all duration-200 border group"
+        className="p-4 rounded-lg transition-all duration-200"
         style={{
-          backgroundColor: isSelected
-            ? `${themeColors.primaryLight}10`
-            : themeColors.background,
-          borderColor: isSelected
-            ? themeColors.primaryLight
-            : themeColors.border,
-          boxShadow: isSelected
-            ? `0 0 0 1px ${themeColors.primaryLight}30`
-            : `0 1px 3px ${themeColors.shadowLight}`,
+          backgroundColor: themeColors.background,
+          border: `1px solid ${themeColors.primaryLight}40`,
+          boxShadow: `0 2px 8px ${themeColors.shadowLight}`,
         }}
       >
-        <div className="flex justify-between items-start">
-          <span
-            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-            style={{
-              backgroundColor: `${themeColors.textLight}15`,
-              color: themeColors.textLight,
-            }}
-          >
-            ID: {subcase.Id}
-          </span>
+        <textarea
+          value={editedDescription}
+          onChange={(e) => setEditedDescription(e.target.value)}
+          className="w-full p-2 mb-3 border rounded-md"
+          style={{
+            borderColor: themeColors.border,
+            backgroundColor: themeColors.background,
+            color: themeColors.text,
+          }}
+          rows={2}
+        />
 
-          <div className="flex items-center space-x-1">
-            {isSelected ? (
-              <>
-                <button
-                  onClick={() => onEditSubCase(selectedSubCase)}
-                  className="p-1.5 rounded transition-colors duration-150 hover:bg-green-50"
-                  style={{
-                    color: themeColors.success,
-                  }}
-                >
-                  <Check
-                    size={18}
-                    strokeWidth={2.5}
-                    className="hover:scale-110 transition-transform"
-                  />
-                </button>
-                <button
-                  onClick={() => setSelectedSubCase(null)}
-                  className="p-1.5 rounded transition-colors duration-150 hover:bg-gray-50"
-                  style={{
-                    color: themeColors.textLight,
-                  }}
-                >
-                  <X
-                    size={18}
-                    strokeWidth={2.5}
-                    className="hover:scale-110 transition-transform"
-                  />
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={() => setSelectedSubCase(subcase)}
-                  className="p-1.5 rounded transition-colors duration-150 hover:bg-gray-50"
-                  style={{
-                    color: themeColors.primary,
-                  }}
-                >
-                  <Edit3
-                    size={18}
-                    strokeWidth={1.5}
-                    className="hover:scale-110 transition-transform"
-                  />
-                </button>
-                <button
-                  onClick={handleShowDeleteModal}
-                  className="p-1.5 rounded transition-colors duration-150 hover:bg-red-50"
-                  style={{
-                    color: themeColors.error,
-                  }}
-                >
-                  <Trash2
-                    size={18}
-                    strokeWidth={1.5}
-                    className="hover:scale-110 transition-transform"
-                  />
-                </button>
-              </>
-            )}
+        <div className="mb-3">
+          <p
+            className="text-xs font-medium mb-2"
+            style={{ color: themeColors.textLight }}
+          >
+            REQUIRED DOCUMENTS:
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <RequirementToggle
+              label="Presentation"
+              icon={<FileText size={14} />}
+              isActive={editedRequirements.IsPresentationRequired}
+              onClick={() => toggleRequirement("IsPresentationRequired")}
+              color="#0ea5e9"
+            />
+            <RequirementToggle
+              label="Act"
+              icon={<FileCheck size={14} />}
+              isActive={editedRequirements.IsActRequired}
+              onClick={() => toggleRequirement("IsActRequired")}
+              color="#10b981"
+            />
+            <RequirementToggle
+              label="Explanation"
+              icon={<MessageSquare size={14} />}
+              isActive={editedRequirements.IsExplanationRequired}
+              onClick={() => toggleRequirement("IsExplanationRequired")}
+              color="#f59e0b"
+            />
           </div>
         </div>
 
-        <div className="mt-3">
-          {isSelected ? (
-            <textarea
-              value={selectedSubCase.Description}
-              onChange={(e) =>
-                setSelectedSubCase({
-                  ...selectedSubCase,
-                  Description: e.target.value,
-                })
-              }
-              className="w-full rounded-md px-3 py-2 focus:outline-none transition-all duration-200"
-              style={{
-                border: `1px solid ${themeColors.primaryLight}`,
-                boxShadow: `0 0 0 2px ${themeColors.primaryLight}30`,
-                backgroundColor: themeColors.background,
-                color: themeColors.text,
-              }}
-              rows={2}
-            />
-          ) : (
-            <p style={{ color: themeColors.text }}>{subcase.Description}</p>
-          )}
-        </div>
-
-        {/* Required documents section */}
-        <div
-          className={`mt-3 ${isSelected ? "border-t pt-3" : ""}`}
-          style={{ borderColor: isSelected ? `${themeColors.border}50` : "" }}
-        >
-          {isSelected ? (
-            // Edit mode - toggle buttons
-            <div>
-              <h4
-                className="text-xs font-medium mb-2"
-                style={{ color: themeColors.textLight }}
-              >
-                REQUIRED DOCUMENTS:
-              </h4>
-              <div className="flex flex-wrap">
-                <RequirementToggle
-                  field="IsPresentationRequired"
-                  value={selectedSubCase.IsPresentationRequired}
-                  label="Presentation"
-                  icon={<FileText size={14} className="mr-1" />}
-                  color="#4299e1" // blue
-                />
-                <RequirementToggle
-                  field="IsActRequired"
-                  value={selectedSubCase.IsActRequired}
-                  label="Act"
-                  icon={<FileCheck size={14} className="mr-1" />}
-                  color="#48bb78" // green
-                />
-                <RequirementToggle
-                  field="IsExplanationRequired"
-                  value={selectedSubCase.IsExplanationRequired}
-                  label="Explanation"
-                  icon={<MessageSquare size={14} className="mr-1" />}
-                  color="#ed8936" // orange
-                />
-              </div>
-            </div>
-          ) : (
-            // View mode - badges
-            <div className="flex flex-wrap mt-2">
-              <RequirementBadge
-                isRequired={subcase.IsPresentationRequired}
-                icon={<FileText size={12} />}
-                label="Presentation"
-                color="#4299e1" // blue
-              />
-              <RequirementBadge
-                isRequired={subcase.IsActRequired}
-                icon={<FileCheck size={12} />}
-                label="Act"
-                color="#48bb78" // green
-              />
-              <RequirementBadge
-                isRequired={subcase.IsExplanationRequired}
-                icon={<MessageSquare size={12} />}
-                label="Explanation"
-                color="#ed8936" // orange
-              />
-            </div>
-          )}
+        <div className="flex justify-end space-x-2">
+          <button
+            onClick={handleCancelEdit}
+            className="px-3 py-1 text-sm rounded"
+            style={{
+              backgroundColor: themeColors.background,
+              border: `1px solid ${themeColors.border}`,
+              color: themeColors.textLight,
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSaveEdit}
+            className="px-3 py-1 text-sm rounded"
+            style={{
+              backgroundColor: themeColors.primary,
+              color: "white",
+            }}
+          >
+            Save
+          </button>
         </div>
       </div>
+    );
+  }
 
-      {/* External Delete Confirmation Modal */}
-      <DeleteConfirmationModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        onConfirm={() => handleConfirmDelete(subcase.Id)}
-        title="Delete Subcase"
-        message="Are you sure you want to delete this subcase? This action cannot be undone."
-        itemType="subcase"
-      />
-    </>
+  // Render view mode
+  return (
+    <div
+      className={`p-4 rounded-lg transition-all duration-200 hover:shadow-md ${
+        isSelected ? "ring-2" : ""
+      }`}
+      style={{
+        backgroundColor: themeColors.background,
+        border: `1px solid ${themeColors.border}`,
+        boxShadow: `0 1px 3px ${themeColors.shadowLight}`,
+        ringColor: themeColors.primaryLight,
+      }}
+      onClick={() => setSelectedSubCase(subcase)}
+    >
+      <div className="flex justify-between">
+        <div className="flex-1">
+          <div className="flex items-center">
+            <p style={{ color: themeColors.text }}>{subcase.Description}</p>
+          </div>
+          {renderRequirementBadges()}
+        </div>
+
+        {/* Only show edit/delete buttons if user has permission */}
+        {hasPermission && (
+          <div className="flex space-x-1 ml-2 self-start">
+            <button
+              onClick={handleEditClick}
+              className="p-1.5 rounded hover:bg-gray-100"
+              style={{ color: themeColors.textLight }}
+            >
+              <Edit3 size={16} strokeWidth={1.5} />
+            </button>
+            <button
+              onClick={handleDeleteClick}
+              className="p-1.5 rounded hover:bg-red-50"
+            >
+              <Trash2
+                size={16}
+                strokeWidth={1.5}
+                className="text-red-400 hover:text-red-600"
+              />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Component for requirement toggle buttons
+const RequirementToggle = ({ label, icon, isActive, onClick, color }) => {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-center rounded-md px-2 py-1 text-xs font-medium transition-colors duration-200 hover:opacity-80`}
+      style={{
+        backgroundColor: isActive ? color : `${color}20`,
+        color: isActive ? "white" : color,
+        border: `1px solid ${isActive ? color : "transparent"}`,
+      }}
+    >
+      <span className="mr-1">{icon}</span>
+      {label}
+    </button>
   );
 };
 

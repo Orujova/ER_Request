@@ -8,7 +8,7 @@ import {
   setCurrentPage,
   clearFilters,
   updateSorting,
-  fetchTotalStats, // Import the fetchTotalStats action
+  fetchTotalStats,
 } from "../redux/slices/dashboardSlice";
 import { fetchERMembers } from "../redux/slices/erMembersSlice";
 
@@ -124,7 +124,7 @@ const Dashboard = () => {
                   Export
                 </button>
 
-                {/* Sort dropdown */}
+                {/* Sort dropdown - Add duration sorting options */}
                 <div className="relative">
                   <select
                     value={orderBy}
@@ -136,6 +136,9 @@ const Dashboard = () => {
                     <option value="createddate">Date (Oldest)</option>
                     <option value="ermember">ER Member (A-Z)</option>
                     <option value="ermember_desc">ER Member (Z-A)</option>
+                    {/* Add new duration sorting options */}
+                    <option value="duration">Duration (Shortest)</option>
+                    <option value="duration_desc">Duration (Longest)</option>
                   </select>
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                     <ArrowUpDownIcon className="h-4 w-4 text-gray-400" />

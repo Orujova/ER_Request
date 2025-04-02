@@ -1,5 +1,5 @@
 // src/components/layout/Navbar.jsx
-import { Link, useLocation } from "react-router-dom"; // Add useLocation import
+import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import {
   Flex,
@@ -32,6 +32,14 @@ import NavButton from "./NavButton";
 import NotificationBadge from "../common/NotificationBadge";
 import UserMenuContent from "../auth/UserMenuContent";
 import AppLogo from "./AppLogo";
+// Import role utilities
+import {
+  ROLES,
+  hasRole,
+  hasAdminAccess,
+  hasAccess,
+  canAccessRoute,
+} from "../../utils/roles";
 
 function Navbar() {
   const isAuthenticated = useIsAuthenticated();
@@ -101,6 +109,7 @@ function Navbar() {
       await instance.logoutRedirect({
         postLogoutRedirectUri: window.location.origin + "/login",
       });
+      localStorage.removeItem("rols");
     } catch (error) {
       console.error("Logout failed:", error);
     }
@@ -115,6 +124,13 @@ function Navbar() {
   // Use graph data display name if available
   const graphDisplayName = userData?.displayName || displayName;
 
+  // Check user permissions for specific routes
+  const canAccessAdmin = hasAdminAccess();
+  const canAccess = hasAccess();
+  const canAccessMatrix = canAccessRoute("/request-matrix");
+  const canAccessDashboard = canAccessRoute("/");
+  const isRegularUser = hasRole(ROLES.USER);
+
   return (
     <AuthenticatedTemplate>
       <Box
@@ -127,8 +143,17 @@ function Navbar() {
       >
         <Box className="mx-auto px-4 md:px-6 max-w-layout">
           <Flex py="4" justify="between" align="center">
-            {/* Logo & App Name */}
-            <AppLogo isAuthenticated={isAuthenticated} />
+            {/* Logo & App Name - Not clickable for regular users */}
+            <Box
+              style={{
+                pointerEvents:
+                  isRegularUser && currentPath !== "/" ? "none" : "auto",
+              }}
+            >
+              <AppLogo
+                isAuthenticated={isAuthenticated && canAccessDashboard}
+              />
+            </Box>
 
             {/* Desktop Navigation */}
             <Flex
@@ -136,22 +161,29 @@ function Navbar() {
               align="center"
               display={{ initial: "none", md: "flex" }}
             >
-              <NavButton
-                to="/admin"
-                icon={Settings2}
-                isActive={currentPath === "/admin"}
-              >
-                Admin
-              </NavButton>
+              {/* Only show Admin button if user has admin access */}
+              {canAccessAdmin && (
+                <NavButton
+                  to="/admin"
+                  icon={Settings2}
+                  isActive={currentPath === "/admin"}
+                >
+                  Admin
+                </NavButton>
+              )}
 
-              <NavButton
-                to="/request-matrix"
-                icon={LayoutGrid}
-                isActive={currentPath === "/request-matrix"}
-              >
-                Matrix
-              </NavButton>
+              {/* Only show Matrix button if user has access */}
+              {canAccessMatrix && (
+                <NavButton
+                  to="/request-matrix"
+                  icon={LayoutGrid}
+                  isActive={currentPath === "/request-matrix"}
+                >
+                  Matrix
+                </NavButton>
+              )}
 
+              {/* Always show New Request button */}
               <NavButton
                 to="/create-request"
                 icon={PlusCircle}
@@ -169,21 +201,24 @@ function Navbar() {
               />
 
               <Flex gap="4" align="center">
-                <Tooltip content={`${notificationCount} notifications`}>
-                  <Box className="relative">
-                    <IconButton
-                      variant="ghost"
-                      size="2"
-                      style={{ color: themeColors.textLight }}
-                      className="hover:bg-slate-50 transition-colors rounded-full p-2"
-                    >
-                      <BellIcon size={19} />
-                    </IconButton>
-                    {notificationCount > 0 && (
-                      <NotificationBadge count={notificationCount} />
-                    )}
-                  </Box>
-                </Tooltip>
+                {/* Show notifications only for non-regular users */}
+                {!isRegularUser && (
+                  <Tooltip content={`${notificationCount} notifications`}>
+                    <Box className="relative">
+                      <IconButton
+                        variant="ghost"
+                        size="2"
+                        style={{ color: themeColors.textLight }}
+                        className="hover:bg-slate-50 transition-colors rounded-full p-2"
+                      >
+                        <BellIcon size={19} />
+                      </IconButton>
+                      {notificationCount > 0 && (
+                        <NotificationBadge count={notificationCount} />
+                      )}
+                    </Box>
+                  </Tooltip>
+                )}
 
                 <DropdownMenu.Root>
                   <DropdownMenu.Trigger>
@@ -219,21 +254,24 @@ function Navbar() {
             {/* Mobile Navigation */}
             <Box display={{ initial: "block", md: "none" }}>
               <Flex gap="4" align="center">
-                <Tooltip content={`${notificationCount} notifications`}>
-                  <Box className="relative">
-                    <IconButton
-                      variant="ghost"
-                      size="2"
-                      style={{ color: themeColors.textLight }}
-                      className="rounded-full p-2 hover:bg-slate-50 transition-colors"
-                    >
-                      <BellIcon size={19} />
-                    </IconButton>
-                    {notificationCount > 0 && (
-                      <NotificationBadge count={notificationCount} />
-                    )}
-                  </Box>
-                </Tooltip>
+                {/* Show notifications only for non-regular users */}
+                {!isRegularUser && (
+                  <Tooltip content={`${notificationCount} notifications`}>
+                    <Box className="relative">
+                      <IconButton
+                        variant="ghost"
+                        size="2"
+                        style={{ color: themeColors.textLight }}
+                        className="rounded-full p-2 hover:bg-slate-50 transition-colors"
+                      >
+                        <BellIcon size={19} />
+                      </IconButton>
+                      {notificationCount > 0 && (
+                        <NotificationBadge count={notificationCount} />
+                      )}
+                    </Box>
+                  </Tooltip>
+                )}
 
                 <DropdownMenu.Root>
                   <DropdownMenu.Trigger>
@@ -286,28 +324,38 @@ function Navbar() {
                       </Flex>
                     </DropdownMenu.Label>
                     <DropdownMenu.Separator style={{ margin: "6px 0" }} />
-                    <DropdownMenu.Item className="py-1.5 rounded-md">
-                      <Link
-                        to="/admin"
-                        className="no-underline text-inherit w-full"
-                      >
-                        <Flex gap="2" align="center">
-                          <Settings2 size={16} />
-                          Admin Panel
-                        </Flex>
-                      </Link>
-                    </DropdownMenu.Item>
-                    <DropdownMenu.Item className="py-1.5 rounded-md">
-                      <Link
-                        to="/request-matrix"
-                        className="no-underline text-inherit w-full"
-                      >
-                        <Flex gap="2" align="center">
-                          <LayoutGrid size={16} />
-                          Request Matrix
-                        </Flex>
-                      </Link>
-                    </DropdownMenu.Item>
+
+                    {/* Only show Admin option if user has admin access */}
+                    {canAccessAdmin && (
+                      <DropdownMenu.Item className="py-1.5 rounded-md">
+                        <Link
+                          to="/admin"
+                          className="no-underline text-inherit w-full"
+                        >
+                          <Flex gap="2" align="center">
+                            <Settings2 size={16} />
+                            Admin Panel
+                          </Flex>
+                        </Link>
+                      </DropdownMenu.Item>
+                    )}
+
+                    {/* Only show Matrix option if user has access */}
+                    {canAccessMatrix && (
+                      <DropdownMenu.Item className="py-1.5 rounded-md">
+                        <Link
+                          to="/request-matrix"
+                          className="no-underline text-inherit w-full"
+                        >
+                          <Flex gap="2" align="center">
+                            <LayoutGrid size={16} />
+                            Request Matrix
+                          </Flex>
+                        </Link>
+                      </DropdownMenu.Item>
+                    )}
+
+                    {/* Always show Create Request option */}
                     <DropdownMenu.Item
                       className="py-1.5 rounded-md"
                       style={{

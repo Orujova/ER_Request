@@ -84,15 +84,14 @@ const CopyEmployees = ({
     const timer = setTimeout(async () => {
       try {
         setIsSearching(true);
-        const { token } = getStoredTokens();
+        const { jwtToken } = getStoredTokens();
 
         const response = await fetch(
           `${API_BASE_URL}/api/Employee?searchTerm=${searchTerm}`,
           {
             headers: {
-              "ngrok-skip-browser-warning": "narmin",
               accept: "*/*",
-              Authorization: `Bearer ${token}`,
+              Authorization: `Bearer ${jwtToken}`,
             },
           }
         );
@@ -191,7 +190,7 @@ const CopyEmployees = ({
 
     try {
       setLoading(true);
-      const { token } = getStoredTokens();
+      const { jwtToken } = getStoredTokens();
 
       const requestBody = {
         ParentId: parseInt(id),
@@ -207,9 +206,8 @@ const CopyEmployees = ({
         {
           method: "POST",
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${jwtToken}`,
           },
           body: JSON.stringify(requestBody),
         }

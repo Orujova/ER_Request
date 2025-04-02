@@ -12,7 +12,6 @@ export const fetchERMembers = createAsyncThunk(
         `${API_BASE_URL}/api/AdminApplicationUser/GetAllERMemberUser`,
         {
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
             Authorization: `Bearer ${jwtToken}`,
           },
         }

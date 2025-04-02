@@ -71,14 +71,13 @@ function RequestDetail() {
   // Fetch request data
   const fetchRequestData = async () => {
     try {
-      const { token } = getStoredTokens();
+      const { jwtToken } = getStoredTokens();
 
       const response = await fetch(`${API_BASE_URL}/api/ERRequest/${id}`, {
         method: "GET",
         headers: {
-          "ngrok-skip-browser-warning": "narmin",
           accept: "*/*",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${jwtToken}`,
         },
       });
 
@@ -169,15 +168,14 @@ function RequestDetail() {
   // Fetch messages for a request
   const fetchMessages = async (requestId) => {
     try {
-      const { token } = getStoredTokens();
+      const { jwtToken } = getStoredTokens();
       const response = await fetch(
         `${API_BASE_URL}/api/ERRequestMessage?ERRequestId=${requestId}`,
         {
           method: "GET",
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
             accept: "*/*",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${jwtToken}`,
           },
         }
       );
@@ -225,15 +223,14 @@ function RequestDetail() {
   // Fetch child requests
   const fetchChildRequests = async (parentId) => {
     try {
-      const { token } = getStoredTokens();
+      const { jwtToken } = getStoredTokens();
       const response = await fetch(
         `${API_BASE_URL}/api/ERRequest/GetAllChildRequest?ParentId=${parentId}`,
         {
           method: "GET",
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
             accept: "*/*",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${jwtToken}`,
           },
         }
       );
@@ -257,15 +254,14 @@ function RequestDetail() {
   // Fetch ER members for @mention feature
   const fetchERMembers = async () => {
     try {
-      const { token } = getStoredTokens();
+      const { jwtToken } = getStoredTokens();
       const response = await fetch(
         `${API_BASE_URL}/api/AdminApplicationUser/GetAllERMemberUser`,
         {
           method: "GET",
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
             accept: "*/*",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${jwtToken}`,
           },
         }
       );
@@ -289,7 +285,7 @@ function RequestDetail() {
       // Only proceed if we have message IDs
       if (!messageIds || messageIds.length === 0) return;
 
-      const { token } = getStoredTokens();
+      const { jwtToken } = getStoredTokens();
       const currentUserId = getUserId();
 
       if (!currentUserId) return;
@@ -301,9 +297,8 @@ function RequestDetail() {
         {
           method: "GET",
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
             accept: "*/*",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${jwtToken}`,
           },
         }
       );
@@ -325,7 +320,7 @@ function RequestDetail() {
   // Send a new message
   const handleSendMessage = async (messageText) => {
     try {
-      const { token } = getStoredTokens();
+      const { jwtToken } = getStoredTokens();
       const userId = getUserId();
 
       if (!userId) {
@@ -342,8 +337,7 @@ function RequestDetail() {
         {
           method: "POST",
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${jwtToken}`,
           },
           body: formData,
         }
@@ -366,7 +360,7 @@ function RequestDetail() {
   // Edit an existing message
   const handleEditMessage = async (messageId, newContent) => {
     try {
-      const { token } = getStoredTokens();
+      const { jwtToken } = getStoredTokens();
       const userId = getUserId();
 
       if (!userId) {
@@ -384,9 +378,8 @@ function RequestDetail() {
         {
           method: "PUT",
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${jwtToken}`,
           },
           body: JSON.stringify(updateData),
         }
@@ -409,7 +402,7 @@ function RequestDetail() {
   // Delete a message
   const handleDeleteMessage = async (messageId) => {
     try {
-      const { token } = getStoredTokens();
+      const { jwtToken } = getStoredTokens();
       const userId = getUserId();
 
       if (!userId) {
@@ -424,9 +417,8 @@ function RequestDetail() {
       const response = await fetch(`${API_BASE_URL}/api/ERRequestMessage`, {
         method: "DELETE",
         headers: {
-          "ngrok-skip-browser-warning": "narmin",
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${jwtToken}`,
         },
         body: JSON.stringify(deleteData),
       });

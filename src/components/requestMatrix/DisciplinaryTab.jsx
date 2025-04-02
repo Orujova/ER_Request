@@ -1,7 +1,12 @@
+// src/components/requestMatrix/DisciplinaryTab.jsx
 import React, { useState, useEffect } from "react";
-import { themeColors } from "../../styles/theme";
 import { API_BASE_URL } from "../../../apiConfig";
+import { themeColors } from "../../styles/theme";
 import { getStoredTokens } from "../../utils/authHandler";
+import {
+  canManageContent,
+  withPermissionCheck,
+} from "../../utils/permissionChecks";
 import {
   Plus,
   Search,
@@ -37,6 +42,9 @@ const DisciplinaryTab = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeSubTab, setActiveSubTab] = useState("actions");
 
+  // Check if user has permission to manage content
+  const hasPermission = canManageContent();
+
   // Delete modal states
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
@@ -61,6 +69,7 @@ const DisciplinaryTab = () => {
     }
   };
 
+  // Fetch all data methods (permitted for all roles)
   // API: Fetch all disciplinary actions
   const fetchDisciplinaryActions = async () => {
     setLoading(true);
@@ -125,8 +134,9 @@ const DisciplinaryTab = () => {
     }
   };
 
+  // Create/Update/Delete methods with permission checks
   // API: Create new disciplinary action
-  const createDisciplinaryAction = async (action) => {
+  const createDisciplinaryAction = withPermissionCheck(async (action) => {
     if (!action.Name.trim()) {
       showNotification("Name cannot be empty", true);
       return null;
@@ -159,10 +169,10 @@ const DisciplinaryTab = () => {
     } finally {
       setLoading(false);
     }
-  };
+  });
 
   // API: Create new disciplinary result
-  const createDisciplinaryResult = async (result) => {
+  const createDisciplinaryResult = withPermissionCheck(async (result) => {
     if (!result.Name.trim()) {
       showNotification("Name cannot be empty", true);
       return null;
@@ -197,10 +207,10 @@ const DisciplinaryTab = () => {
     } finally {
       setLoading(false);
     }
-  };
+  });
 
   // API: Create new disciplinary violation
-  const createDisciplinaryViolation = async (violation) => {
+  const createDisciplinaryViolation = withPermissionCheck(async (violation) => {
     if (!violation.Name.trim()) {
       showNotification("Name cannot be empty", true);
       return null;
@@ -236,10 +246,10 @@ const DisciplinaryTab = () => {
     } finally {
       setLoading(false);
     }
-  };
+  });
 
   // API: Update disciplinary action
-  const updateDisciplinaryAction = async (action) => {
+  const updateDisciplinaryAction = withPermissionCheck(async (action) => {
     if (!action.Name.trim()) {
       showNotification("Name cannot be empty", true);
       return;
@@ -271,10 +281,10 @@ const DisciplinaryTab = () => {
     } finally {
       setLoading(false);
     }
-  };
+  });
 
   // API: Update disciplinary result
-  const updateDisciplinaryResult = async (result) => {
+  const updateDisciplinaryResult = withPermissionCheck(async (result) => {
     if (!result.Name.trim()) {
       showNotification("Name cannot be empty", true);
       return;
@@ -308,10 +318,10 @@ const DisciplinaryTab = () => {
     } finally {
       setLoading(false);
     }
-  };
+  });
 
   // API: Update disciplinary violation
-  const updateDisciplinaryViolation = async (violation) => {
+  const updateDisciplinaryViolation = withPermissionCheck(async (violation) => {
     if (!violation.Name.trim()) {
       showNotification("Name cannot be empty", true);
       return;
@@ -346,17 +356,17 @@ const DisciplinaryTab = () => {
     } finally {
       setLoading(false);
     }
-  };
+  });
 
   // Handler for showing delete confirmation modal
-  const handleShowDeleteModal = (item, type) => {
+  const handleShowDeleteModal = withPermissionCheck((item, type) => {
     setItemToDelete(item);
     setDeleteType(type);
     setIsDeleteModalOpen(true);
-  };
+  });
 
   // Handler for confirming deletion
-  const handleConfirmDelete = async (id) => {
+  const handleConfirmDelete = withPermissionCheck(async (id) => {
     if (deleteType === "action") {
       await deleteDisciplinaryAction(id);
     } else if (deleteType === "result") {
@@ -364,10 +374,10 @@ const DisciplinaryTab = () => {
     } else if (deleteType === "violation") {
       await deleteDisciplinaryViolation(id);
     }
-  };
+  });
 
   // API: Delete disciplinary action
-  const deleteDisciplinaryAction = async (actionId) => {
+  const deleteDisciplinaryAction = withPermissionCheck(async (actionId) => {
     setLoading(true);
     try {
       const response = await fetch(`${API_BASE_URL}/DeleteDisciplinaryAction`, {
@@ -388,10 +398,10 @@ const DisciplinaryTab = () => {
     } finally {
       setLoading(false);
     }
-  };
+  });
 
   // API: Delete disciplinary result
-  const deleteDisciplinaryResult = async (resultId) => {
+  const deleteDisciplinaryResult = withPermissionCheck(async (resultId) => {
     setLoading(true);
     try {
       const response = await fetch(
@@ -415,35 +425,37 @@ const DisciplinaryTab = () => {
     } finally {
       setLoading(false);
     }
-  };
+  });
 
   // API: Delete disciplinary violation
-  const deleteDisciplinaryViolation = async (violationId) => {
-    setLoading(true);
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/DeleteDisciplinaryViolation`,
-        {
-          method: "DELETE",
-          headers: getRequestHeaders(),
-          body: JSON.stringify({
-            Id: violationId,
-          }),
-        }
-      );
+  const deleteDisciplinaryViolation = withPermissionCheck(
+    async (violationId) => {
+      setLoading(true);
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/DeleteDisciplinaryViolation`,
+          {
+            method: "DELETE",
+            headers: getRequestHeaders(),
+            body: JSON.stringify({
+              Id: violationId,
+            }),
+          }
+        );
 
-      if (!response.ok)
-        throw new Error("Failed to delete disciplinary violation");
+        if (!response.ok)
+          throw new Error("Failed to delete disciplinary violation");
 
-      // Update violations list
-      await fetchDisciplinaryViolations();
-      showNotification("Disciplinary violation deleted successfully");
-    } catch (err) {
-      showNotification(err.message, true);
-    } finally {
-      setLoading(false);
+        // Update violations list
+        await fetchDisciplinaryViolations();
+        showNotification("Disciplinary violation deleted successfully");
+      } catch (err) {
+        showNotification(err.message, true);
+      } finally {
+        setLoading(false);
+      }
     }
-  };
+  );
 
   // Load initial data
   useEffect(() => {
@@ -641,9 +653,10 @@ const DisciplinaryTab = () => {
           buttonAction={
             searchTerm
               ? () => setSearchTerm("")
-              : () => setActiveView("createAction")
+              : () => hasPermission && setActiveView("createAction")
           }
           searchTerm={searchTerm}
+          hideButton={!searchTerm && !hasPermission}
         />
       );
     }
@@ -677,13 +690,15 @@ const DisciplinaryTab = () => {
               >
                 Result
               </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider"
-                style={{ color: themeColors.textLight }}
-              >
-                Actions
-              </th>
+              {hasPermission && (
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider"
+                  style={{ color: themeColors.textLight }}
+                >
+                  Actions
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -718,25 +733,27 @@ const DisciplinaryTab = () => {
                     {getResultNameById(action.DisciplinaryActionResultId)}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button
-                    onClick={() => {
-                      setSelectedAction(action);
-                      setActiveView("editAction");
-                    }}
-                    style={{ color: themeColors.primary }}
-                  >
-                    <Edit3 size={16} className="inline mr-1" />
-                  </button>
-                  <button
-                    onClick={() => handleShowDeleteModal(action, "action")}
-                  >
-                    <Trash2
-                      size={16}
-                      className="inline ml-1  text-red-600 hover:bg-red-50"
-                    />
-                  </button>
-                </td>
+                {hasPermission && (
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button
+                      onClick={() => {
+                        setSelectedAction(action);
+                        setActiveView("editAction");
+                      }}
+                      style={{ color: themeColors.primary }}
+                    >
+                      <Edit3 size={16} className="inline mr-1" />
+                    </button>
+                    <button
+                      onClick={() => handleShowDeleteModal(action, "action")}
+                    >
+                      <Trash2
+                        size={16}
+                        className="inline ml-1 text-red-600 hover:bg-red-50"
+                      />
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -763,9 +780,10 @@ const DisciplinaryTab = () => {
           buttonAction={
             searchTerm
               ? () => setSearchTerm("")
-              : () => setActiveView("createResult")
+              : () => hasPermission && setActiveView("createResult")
           }
           searchTerm={searchTerm}
+          hideButton={!searchTerm && !hasPermission}
         />
       );
     }
@@ -792,13 +810,15 @@ const DisciplinaryTab = () => {
               >
                 Name
               </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider"
-                style={{ color: themeColors.textLight }}
-              >
-                Actions
-              </th>
+              {hasPermission && (
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider"
+                  style={{ color: themeColors.textLight }}
+                >
+                  Actions
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -822,25 +842,27 @@ const DisciplinaryTab = () => {
                     {result.Name}
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button
-                    onClick={() => {
-                      setSelectedAction(result);
-                      setActiveView("editResult");
-                    }}
-                    style={{ color: themeColors.primary }}
-                  >
-                    <Edit3 size={16} className="inline mr-1" />
-                  </button>
-                  <button
-                    onClick={() => handleShowDeleteModal(result, "result")}
-                  >
-                    <Trash2
-                      size={16}
-                      className="inline ml-1  text-red-600 hover:bg-red-50"
-                    />
-                  </button>
-                </td>
+                {hasPermission && (
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button
+                      onClick={() => {
+                        setSelectedResult(result);
+                        setActiveView("editResult");
+                      }}
+                      style={{ color: themeColors.primary }}
+                    >
+                      <Edit3 size={16} className="inline mr-1" />
+                    </button>
+                    <button
+                      onClick={() => handleShowDeleteModal(result, "result")}
+                    >
+                      <Trash2
+                        size={16}
+                        className="inline ml-1 text-red-600 hover:bg-red-50"
+                      />
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -871,9 +893,10 @@ const DisciplinaryTab = () => {
           buttonAction={
             searchTerm
               ? () => setSearchTerm("")
-              : () => setActiveView("createViolation")
+              : () => hasPermission && setActiveView("createViolation")
           }
           searchTerm={searchTerm}
+          hideButton={!searchTerm && !hasPermission}
         />
       );
     }
@@ -900,13 +923,15 @@ const DisciplinaryTab = () => {
               >
                 Name
               </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider"
-                style={{ color: themeColors.textLight }}
-              >
-                Actions
-              </th>
+              {hasPermission && (
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider"
+                  style={{ color: themeColors.textLight }}
+                >
+                  Actions
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -930,27 +955,29 @@ const DisciplinaryTab = () => {
                     {violation.Name}
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button
-                    onClick={() => {
-                      setSelectedViolation(violation);
-                      setActiveView("editViolation");
-                    }}
-                    style={{ color: themeColors.primary }}
-                  >
-                    <Edit3 size={16} className="inline mr-1" />
-                  </button>
-                  <button
-                    onClick={() =>
-                      handleShowDeleteModal(violation, "violation")
-                    }
-                  >
-                    <Trash2
-                      size={16}
-                      className="inline ml-1  text-red-600 hover:bg-red-50"
-                    />
-                  </button>
-                </td>
+                {hasPermission && (
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button
+                      onClick={() => {
+                        setSelectedViolation(violation);
+                        setActiveView("editViolation");
+                      }}
+                      style={{ color: themeColors.primary }}
+                    >
+                      <Edit3 size={16} className="inline mr-1" />
+                    </button>
+                    <button
+                      onClick={() =>
+                        handleShowDeleteModal(violation, "violation")
+                      }
+                    >
+                      <Trash2
+                        size={16}
+                        className="inline ml-1 text-red-600 hover:bg-red-50"
+                      />
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -997,47 +1024,52 @@ const DisciplinaryTab = () => {
             </p>
           </div>
 
-          {activeSubTab === "actions" && (
-            <button
-              onClick={() => setActiveView("createAction")}
-              className="px-4 py-2.5 rounded-lg flex items-center space-x-2 transition-all duration-200"
-              style={{
-                background: `linear-gradient(to right, ${themeColors.gradientStart}, ${themeColors.gradientEnd})`,
-                color: themeColors.background,
-                boxShadow: `0 2px 8px ${themeColors.primaryDark}30`,
-              }}
-            >
-              <Plus size={20} strokeWidth={2.5} />
-              <span className="font-medium">Add Disciplinary Action</span>
-            </button>
-          )}
-          {activeSubTab === "results" && (
-            <button
-              onClick={() => setActiveView("createResult")}
-              className="px-4 py-2.5 rounded-lg flex items-center space-x-2 transition-all duration-200"
-              style={{
-                background: `linear-gradient(to right, ${themeColors.gradientStart}, ${themeColors.gradientEnd})`,
-                color: themeColors.background,
-                boxShadow: `0 2px 8px ${themeColors.primaryDark}30`,
-              }}
-            >
-              <Plus size={20} strokeWidth={2.5} />
-              <span className="font-medium">Add Action Result</span>
-            </button>
-          )}
-          {activeSubTab === "violations" && (
-            <button
-              onClick={() => setActiveView("createViolation")}
-              className="px-4 py-2.5 rounded-lg flex items-center space-x-2 transition-all duration-200"
-              style={{
-                background: `linear-gradient(to right, ${themeColors.gradientStart}, ${themeColors.gradientEnd})`,
-                color: themeColors.background,
-                boxShadow: `0 2px 8px ${themeColors.primaryDark}30`,
-              }}
-            >
-              <Plus size={20} strokeWidth={2.5} />
-              <span className="font-medium">Add Policy Violation</span>
-            </button>
+          {/* Only show create buttons if user has permission */}
+          {hasPermission && (
+            <>
+              {activeSubTab === "actions" && (
+                <button
+                  onClick={() => setActiveView("createAction")}
+                  className="px-4 py-2.5 rounded-lg flex items-center space-x-2 transition-all duration-200"
+                  style={{
+                    background: `linear-gradient(to right, ${themeColors.gradientStart}, ${themeColors.gradientEnd})`,
+                    color: themeColors.background,
+                    boxShadow: `0 2px 8px ${themeColors.primaryDark}30`,
+                  }}
+                >
+                  <Plus size={20} strokeWidth={2.5} />
+                  <span className="font-medium">Add Disciplinary Action</span>
+                </button>
+              )}
+              {activeSubTab === "results" && (
+                <button
+                  onClick={() => setActiveView("createResult")}
+                  className="px-4 py-2.5 rounded-lg flex items-center space-x-2 transition-all duration-200"
+                  style={{
+                    background: `linear-gradient(to right, ${themeColors.gradientStart}, ${themeColors.gradientEnd})`,
+                    color: themeColors.background,
+                    boxShadow: `0 2px 8px ${themeColors.primaryDark}30`,
+                  }}
+                >
+                  <Plus size={20} strokeWidth={2.5} />
+                  <span className="font-medium">Add Action Result</span>
+                </button>
+              )}
+              {activeSubTab === "violations" && (
+                <button
+                  onClick={() => setActiveView("createViolation")}
+                  className="px-4 py-2.5 rounded-lg flex items-center space-x-2 transition-all duration-200"
+                  style={{
+                    background: `linear-gradient(to right, ${themeColors.gradientStart}, ${themeColors.gradientEnd})`,
+                    color: themeColors.background,
+                    boxShadow: `0 2px 8px ${themeColors.primaryDark}30`,
+                  }}
+                >
+                  <Plus size={20} strokeWidth={2.5} />
+                  <span className="font-medium">Add Policy Violation</span>
+                </button>
+              )}
+            </>
           )}
         </div>
 
@@ -1120,7 +1152,7 @@ const DisciplinaryTab = () => {
       <DeleteConfirmationModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
-        onConfirm={handleConfirmDelete}
+        onConfirm={() => handleConfirmDelete(itemToDelete?.Id)}
         title={`Delete ${
           deleteType === "action"
             ? "Disciplinary Action"

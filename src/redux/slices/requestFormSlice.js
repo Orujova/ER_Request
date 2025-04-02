@@ -18,7 +18,6 @@ export const fetchDependencies = createAsyncThunk(
 
       const fetchOptions = {
         headers: {
-          "ngrok-skip-browser-warning": "narmin",
           Authorization: `Bearer ${jwtToken}`,
           Accept: "application/json",
         },
@@ -295,7 +294,6 @@ export const submitRequest = createAsyncThunk(
         {
           method: "POST",
           headers: {
-            "ngrok-skip-browser-warning": "narmin",
             Authorization: `Bearer ${jwtToken}`,
           },
           body: formDataObj,

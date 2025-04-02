@@ -2,13 +2,7 @@ import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { reassignERMember } from "../../redux/slices/dashboardSlice";
 import StatusBadge from "../common/StatusBadge";
-import {
-  EyeIcon,
-  CalendarIcon,
-  UserIcon,
-  CheckIcon,
-  XIcon,
-} from "lucide-react";
+import { EyeIcon, CalendarIcon, ClockIcon, XIcon } from "lucide-react";
 
 const RequestsTable = ({ requests, onViewDetails }) => {
   const dispatch = useDispatch();
@@ -47,6 +41,23 @@ const RequestsTable = ({ requests, onViewDetails }) => {
           // Error handling is done in the Redux slice
         });
     }
+  };
+
+  // Helper function to format duration display
+  const formatDuration = (days) => {
+    if (days === null || days === undefined) return "N/A";
+    return days === 1 ? `${days} day` : `${days} days`;
+  };
+
+  // Helper function to determine duration text color
+  const getDurationColor = (request) => {
+    // If status is 4 (Decision Communicated) or higher, the duration is final
+    if (request.statusCode >= 4) {
+      return request.duration > 14 ? "text-amber-600" : "text-gray-500";
+    }
+
+    // For ongoing requests, highlight in red if exceeding 14 days
+    return request.duration > 14 ? "text-red-600 font-medium" : "text-gray-500";
   };
 
   return (
@@ -92,6 +103,13 @@ const RequestsTable = ({ requests, onViewDetails }) => {
                 >
                   Date
                 </th>
+                {/* New duration column */}
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Duration
+                </th>
                 <th
                   scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -110,7 +128,7 @@ const RequestsTable = ({ requests, onViewDetails }) => {
               {requests.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="8"
+                    colSpan="9"
                     className="px-6 py-8 text-center text-sm text-gray-500"
                   >
                     No requests found
@@ -160,7 +178,16 @@ const RequestsTable = ({ requests, onViewDetails }) => {
                         <p className="text-sm text-gray-500">{request.date}</p>
                       </div>
                     </td>
+                    {/* New duration cell */}
                     <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <ClockIcon className="h-4 w-4 text-gray-400 mr-2" />
+                        <p className={`text-sm ${getDurationColor(request)}`}>
+                          {formatDuration(request.duration)}
+                        </p>
+                      </div>
+                    </td>
+                    <td className="px-3 py-4 whitespace-nowrap">
                       <StatusBadge statusCode={request.statusCode} />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
