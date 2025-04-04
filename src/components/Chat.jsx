@@ -9,6 +9,7 @@ import {
   CircleUser,
 } from "lucide-react";
 import MessageBubble from "./MessageBubble";
+import { formatMessageDate } from "../utils/dateFormatters";
 
 // Chat Panel Component
 const ChatPanel = ({
@@ -27,10 +28,36 @@ const ChatPanel = ({
   const [showMentionDropdown, setShowMentionDropdown] = useState(false);
   const [filteredMembers, setFilteredMembers] = useState([]);
   const [mentionQuery, setMentionQuery] = useState("");
+  const [groupedMessages, setGroupedMessages] = useState({});
 
   const messageEndRef = useRef(null);
   const mentionInputRef = useRef(null);
   const messageContainerRef = useRef(null);
+
+  // Group messages by date
+  useEffect(() => {
+    if (!messages || messages.length === 0) {
+      setGroupedMessages({});
+      return;
+    }
+
+    const groups = {};
+
+    messages.forEach((msg) => {
+      // Use formattedTimestamp if available, otherwise fall back to timestamp
+      const date = new Date(msg.formattedTimestamp || msg.timestamp);
+
+      // Format as YYYY-MM-DD for grouping
+      const dateKey = date.toISOString().split("T")[0];
+
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(msg);
+    });
+
+    setGroupedMessages(groups);
+  }, [messages]);
 
   // Handle message change and mention functionality
   const handleMessageChange = (e) => {
@@ -149,19 +176,43 @@ const ChatPanel = ({
           </div>
         ) : (
           <div className="flex flex-col">
-            {messages.map((msg) => (
-              <MessageBubble
-                key={`msg-${msg.id}`}
-                message={msg}
-                currentUserId={currentUserId}
-                onEdit={setEditingMessageId}
-                onDelete={handleDeleteMessage}
-                editingMessageId={editingMessageId}
-                editMessageText={editMessageText}
-                setEditMessageText={setEditMessageText}
-                handleEditMessage={editMessage}
-              />
-            ))}
+            {Object.keys(groupedMessages)
+              .sort()
+              .map((dateKey) => {
+                const dateGroup = groupedMessages[dateKey];
+                const firstMsg = dateGroup[0];
+                // Get nice date format for the header
+                const dateLabel = formatMessageDate(
+                  firstMsg.formattedTimestamp || firstMsg.timestamp
+                );
+
+                return (
+                  <div key={`date-${dateKey}`} className="mb-4">
+                    {/* Date Header */}
+                    <div className="flex justify-center mb-3">
+                      <div className="bg-slate-100 px-3 py-1 rounded-full text-xs text-slate-600 font-medium">
+                        {dateLabel.split(",")[0]}{" "}
+                        {/* Just take the date part */}
+                      </div>
+                    </div>
+
+                    {/* Messages for this date */}
+                    {dateGroup.map((msg) => (
+                      <MessageBubble
+                        key={`msg-${msg.id}`}
+                        message={msg}
+                        currentUserId={currentUserId}
+                        onEdit={setEditingMessageId}
+                        onDelete={handleDeleteMessage}
+                        editingMessageId={editingMessageId}
+                        editMessageText={editMessageText}
+                        setEditMessageText={setEditMessageText}
+                        handleEditMessage={editMessage}
+                      />
+                    ))}
+                  </div>
+                );
+              })}
             <div ref={messageEndRef} />
           </div>
         )}

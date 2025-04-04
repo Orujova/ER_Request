@@ -101,3 +101,76 @@ export const formatDuration = (startDate, endDate = null) => {
     return `${diffYears} ${diffYears === 1 ? "year" : "years"}`;
   }
 };
+
+// dateUtils.js - Add this as a separate utility file
+
+/**
+ * Format a timestamp in WhatsApp style (Today, Yesterday, or Date)
+ * @param {string} timestamp - The timestamp to format
+ * @returns {string} Formatted date label
+ */
+export const formatMessageDate = (timestamp) => {
+  // Parse the date from the timestamp
+  const messageDate = new Date(timestamp);
+
+  // Handle invalid dates
+  if (isNaN(messageDate.getTime())) {
+    return "";
+  }
+
+  // Current date for comparison
+  const today = new Date();
+
+  // Set to start of day for date comparison
+  const todayStart = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate()
+  );
+  const yesterdayStart = new Date(todayStart);
+  yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+
+  // Set message date to start of day for comparison
+  const messageStart = new Date(
+    messageDate.getFullYear(),
+    messageDate.getMonth(),
+    messageDate.getDate()
+  );
+
+  // Format options
+  const timeOptions = { hour: "2-digit", minute: "2-digit", hour12: false };
+  const dateOptions = { day: "numeric", month: "short", year: "numeric" };
+
+  // Get time string
+  const timeString = messageDate.toLocaleTimeString([], timeOptions);
+
+  // Compare dates and return appropriate format
+  if (messageStart.getTime() === todayStart.getTime()) {
+    return `Today, ${timeString}`;
+  } else if (messageStart.getTime() === yesterdayStart.getTime()) {
+    return `Yesterday, ${timeString}`;
+  } else {
+    // For older messages, show the full date
+    const dateString = messageDate.toLocaleDateString([], dateOptions);
+    return `${dateString}, ${timeString}`;
+  }
+};
+
+/**
+ * Extract time from a full datetime string
+ * @param {string} formattedDateTime - The datetime string (e.g., "2025-04-02 12:27:44")
+ * @returns {string} Time portion (HH:MM)
+ */
+export const extractTimeFromFormattedDate = (formattedDateTime) => {
+  if (!formattedDateTime) return "";
+
+  // Try to extract the time portion from a formatted date
+  const parts = formattedDateTime.split(" ");
+  if (parts.length >= 2) {
+    // Get the time part and return just hours and minutes
+    const timePart = parts[1].substring(0, 5);
+    return timePart;
+  }
+
+  return "";
+};

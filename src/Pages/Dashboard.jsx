@@ -29,6 +29,8 @@ const Dashboard = () => {
 
   // Add state for export modal
   const [showExportModal, setShowExportModal] = useState(false);
+  // Add state to track if filters have been applied
+  const [filtersApplied, setFiltersApplied] = useState(false);
 
   // Get state from Redux store
   const {
@@ -62,10 +64,16 @@ const Dashboard = () => {
         filters: activeFilters,
       })
     );
+
+    // If this request was triggered by a filter change, set filtersApplied flag
+    if (currentPage === 1) {
+      setFiltersApplied(true);
+    }
   }, [dispatch, currentPage, itemsPerPage, orderBy, activeFilters]);
 
   // Fetch total stats when filters change but not when pagination changes
   useEffect(() => {
+    // Always fetch total stats when filters or sorting changes
     dispatch(fetchTotalStats());
   }, [dispatch, activeFilters, orderBy]); // Don't include currentPage or itemsPerPage
 
@@ -79,6 +87,14 @@ const Dashboard = () => {
 
   const handleClearFilters = () => {
     dispatch(clearFilters());
+    setFiltersApplied(false);
+  };
+
+  // Apply filters from FiltersPanel
+  const handleApplyFilters = () => {
+    setFiltersApplied(true);
+    // No need to dispatch any actions here as the filter values are already in Redux
+    // and will trigger the useEffect for fetching data automatically
   };
 
   // View details handler
@@ -91,13 +107,17 @@ const Dashboard = () => {
     setShowExportModal(true);
   };
 
-  // Choose which stats to display
-  const displayStats = totalStatsLoading || !totalStats ? stats : totalStats;
+  // Choose which stats to display - always use totalStats when filters are applied
+  const displayStats = totalStatsLoading
+    ? stats // Use page stats while total stats are loading
+    : filtersApplied
+    ? totalStats
+    : stats; // Use totalStats if filters are applied, else use page stats
 
   return (
     <div className="space-y-6 p-1 bg-gray-50 min-h-screen">
-      {/* Status Overview Cards - Use totalStats when available, fallback to stats */}
-      <StatusOverview stats={displayStats} />
+      {/* Status Overview Cards - Pass the loading state */}
+      <StatusOverview stats={displayStats} isLoading={totalStatsLoading} />
 
       {/* Main Dashboard Content */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -156,11 +176,12 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* Filters panel */}
+            {/* Filters panel - Add onApply prop */}
             {showFilters ? (
               <FiltersPanel
                 key={`filters-panel-${showFilters}`}
                 onClearFilters={handleClearFilters}
+                onApply={handleApplyFilters}
               />
             ) : null}
 

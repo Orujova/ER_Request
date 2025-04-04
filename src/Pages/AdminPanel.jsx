@@ -5,8 +5,6 @@ import { getStoredTokens } from "../utils/authHandler";
 import Alert from "../components/common/Alert";
 import SearchableProjectDropdown from "../components/common/SearchableProjectDropdown";
 
-const { jwtToken } = getStoredTokens();
-
 const AdminPanel = () => {
   // Data states
   const [projects, setProjects] = useState([]);
@@ -26,6 +24,7 @@ const AdminPanel = () => {
   const [success, setSuccess] = useState("");
   const [activeTab, setActiveTab] = useState("assign");
 
+  const { jwtToken } = getStoredTokens();
   // Fetch all initial data
   const fetchAllData = async () => {
     setLoading(true);

@@ -164,7 +164,8 @@ function RequestDetail() {
     }
   };
 
-  // Fetch messages for a request
+  // Update the fetchMessages function in RequestDetail.jsx
+
   const fetchMessages = async (requestId) => {
     try {
       const { jwtToken } = getStoredTokens();
@@ -192,7 +193,8 @@ function RequestDetail() {
           senderId: msg.AppuserId,
           sender: msg.SenderFullName,
           message: msg.MessageContent,
-          timestamp: msg.CreatedDate, // Keep the original timestamp format
+          timestamp: msg.CreatedDate, // Keep original timestamp
+          formattedTimestamp: msg.FormattedCreatedDate, // Add the formatted timestamp from API
           isRead: Boolean(msg.IsRead), // Ensure boolean type
           isEdited: Boolean(msg.IsEdit || msg.IsEdited), // Check both possible field names
         }));
@@ -381,7 +383,8 @@ function RequestDetail() {
     }
   };
 
-  // Edit an existing message
+  // In RequestDetail.jsx, update the handleEditMessage function:
+
   const handleEditMessage = async (messageId, newContent) => {
     try {
       const { jwtToken } = getStoredTokens();
@@ -389,6 +392,14 @@ function RequestDetail() {
 
       if (!userId) {
         throw new Error("User ID not found");
+      }
+
+      // Check if the message is already read before sending the request
+      const messageToEdit = messages.find((msg) => msg.id === messageId);
+      if (messageToEdit && messageToEdit.isRead) {
+        console.log("Cannot edit message: The message has already been read");
+        // Return false to indicate the operation failed
+        return Promise.resolve(false);
       }
 
       // Convert params to the exact format the API expects
@@ -415,13 +426,13 @@ function RequestDetail() {
         }
       );
 
-      // Enhanced error handling
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Error response from server:", errorText);
-        throw new Error(
-          `Error updating message: ${response.status} - ${errorText}`
-        );
+      // Parse the response JSON
+      const responseData = await response.json();
+
+      // Check if the operation was successful based on the API response
+      if (!responseData.IsSuccess) {
+        console.error("API reported error:", responseData.Message);
+        return Promise.resolve(false);
       }
 
       // Refresh messages to get the correct data from the server
@@ -430,7 +441,6 @@ function RequestDetail() {
       return true;
     } catch (err) {
       console.error("Error editing message:", err);
-      alert(`Failed to edit message: ${err.message}`);
       return false;
     }
   };

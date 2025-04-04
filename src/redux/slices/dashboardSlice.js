@@ -19,9 +19,6 @@ const calculateDuration = (request) => {
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 };
 
-// Status enum mapping from backend:
-// Pending = 0, UnderReview = 1, DesicionMade = 2, ReAssigned = 3, DecisionCommunicated = 4, Completed = 5
-
 export const fetchTotalStats = createAsyncThunk(
   "dashboard/fetchTotalStats",
   async (_, { rejectWithValue, getState }) => {
@@ -38,44 +35,54 @@ export const fetchTotalStats = createAsyncThunk(
         url.searchParams.append("UserId", userId);
       }
 
-      // Add filters (but skip pagination-related params)
-      if (activeFilters.erMember) {
-        url.searchParams.append("ERMember", activeFilters.erMember);
-      }
-      if (activeFilters.projectId) {
-        url.searchParams.append("ProjectId", activeFilters.projectId);
-      }
-      if (activeFilters.employeeId) {
-        url.searchParams.append("EmployeeId", activeFilters.employeeId);
-      }
-      if (activeFilters.caseId) {
-        url.searchParams.append("CaseId", activeFilters.caseId);
-      }
-      if (activeFilters.subCaseId) {
-        url.searchParams.append("SubCaseId", activeFilters.subCaseId);
-      }
-      if (activeFilters.status !== "") {
-        url.searchParams.append("ERRequestStatus", activeFilters.status);
-      }
-      if (
-        activeFilters.isCanceled === "true" ||
-        activeFilters.isCanceled === "false"
-      ) {
-        url.searchParams.append("IsCanceled", activeFilters.isCanceled);
-      }
-      if (activeFilters.startDate) {
-        url.searchParams.append("StartedDate", activeFilters.startDate);
-      }
-      if (activeFilters.endDate) {
-        url.searchParams.append("EndDate", activeFilters.endDate);
-      }
-      // Add duration filters if present
-      if (activeFilters.durationMin) {
-        url.searchParams.append("DurationMin", activeFilters.durationMin);
-      }
-      if (activeFilters.durationMax) {
-        url.searchParams.append("DurationMax", activeFilters.durationMax);
-      }
+      // Add all filters without pagination params
+      Object.entries(activeFilters).forEach(([key, value]) => {
+        if (value && key !== "projectSearch" && key !== "employeeSearch") {
+          // Convert filter key to backend parameter name
+          let paramName;
+          switch (key) {
+            case "erMember":
+              paramName = "ERMember";
+              break;
+            case "projectId":
+              paramName = "ProjectId";
+              break;
+            case "employeeId":
+              paramName = "EmployeeId";
+              break;
+            case "caseId":
+              paramName = "CaseId";
+              break;
+            case "subCaseId":
+              paramName = "SubCaseId";
+              break;
+            case "status":
+              paramName = "ERRequestStatus";
+              break;
+            case "isCanceled":
+              paramName = "IsCanceled";
+              break;
+            case "startDate":
+              paramName = "StartedDate";
+              break;
+            case "endDate":
+              paramName = "EndDate";
+              break;
+            case "durationMin":
+              paramName = "DurationMin";
+              break;
+            case "durationMax":
+              paramName = "DurationMax";
+              break;
+            default:
+              paramName = key;
+          }
+          url.searchParams.append(paramName, value);
+        }
+      });
+
+      // Add a flag to get all items without pagination
+      url.searchParams.append("GetAll", "true");
 
       const response = await fetch(url.toString(), {
         method: "GET",
@@ -591,7 +598,6 @@ const dashboardSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      // Add to extraReducers:
       .addCase(fetchTotalStats.pending, (state) => {
         state.totalStatsLoading = true;
         state.totalStatsError = null;

@@ -347,7 +347,7 @@ const UpdateRequestForm = ({
 
     try {
       setLoading(true);
-      const { token } = getStoredTokens();
+      const { jwtToken } = getStoredTokens();
 
       // Get the query parameters from the formData
       const params = new URLSearchParams();

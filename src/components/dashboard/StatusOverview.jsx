@@ -1,6 +1,6 @@
 import React from "react";
 
-const StatusOverview = ({ stats }) => {
+const StatusOverview = ({ stats, isLoading = false }) => {
   const safeStats = stats || {};
 
   const displayStats = {
@@ -30,9 +30,14 @@ const StatusOverview = ({ stats }) => {
   // Calculate finalized (completed + canceled)
   const finalized = displayStats.completed + displayStats.canceled;
 
+  // Loading animation class
+  const loadingClass = isLoading ? "animate-pulse" : "";
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div
+        className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 ${loadingClass}`}
+      >
         <h3 className="text-sm font-semibold text-gray-700 mb-3">
           Status Overview
         </h3>
@@ -65,7 +70,9 @@ const StatusOverview = ({ stats }) => {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div
+        className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 ${loadingClass}`}
+      >
         <h3 className="text-sm font-semibold text-gray-700 mb-3">
           Request Process
         </h3>
@@ -109,7 +116,9 @@ const StatusOverview = ({ stats }) => {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div
+        className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 ${loadingClass}`}
+      >
         <h3 className="text-sm font-semibold text-gray-700 mb-2">
           Quick Stats
         </h3>
