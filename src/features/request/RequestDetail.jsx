@@ -510,43 +510,63 @@ function RequestDetail() {
   const renderActiveTabContent = () => {
     switch (activeTab) {
       case "case":
-        return <CaseInfoTab request={request} />;
+        return (
+          <div className="p-6">
+            <CaseInfoTab request={request} />
+          </div>
+        );
       case "employee":
-        return <EmployeeInfoTab request={request} />;
+        return (
+          <div className="p-6">
+            <EmployeeInfoTab request={request} />
+          </div>
+        );
       case "mail":
-        return <MailInfoTab request={request} />;
+        return <MailInfoTab request={request} requestid={id} />;
       case "attachments":
         return (
-          <AttachmentsTab
-            requestId={id}
-            presentationAttachments={request?.attachments?.presentation || []}
-            actAttachments={request?.attachments?.act || []}
-            explanationAttachments={request?.attachments?.explanation || []}
-            generalAttachments={request?.attachments?.general || []}
-            hyperLinks={request?.hyperLinks || []}
-            onAttachmentsUpdated={handleAttachmentsUpdated}
-          />
+          <div className="p-6">
+            <AttachmentsTab
+              requestId={id}
+              presentationAttachments={request?.attachments?.presentation || []}
+              actAttachments={request?.attachments?.act || []}
+              explanationAttachments={request?.attachments?.explanation || []}
+              generalAttachments={request?.attachments?.general || []}
+              hyperLinks={request?.hyperLinks || []}
+              onAttachmentsUpdated={handleAttachmentsUpdated}
+            />
+          </div>
         );
       case "disciplinary":
-        return <DisciplinaryTab request={request} />;
+        return (
+          <div className="p-6">
+            <DisciplinaryTab request={request} />
+          </div>
+        );
       case "related":
         return (
-          <RelatedRequestsTab
-            request={request}
-            childRequests={childRequests}
-            handleNavigationToChild={handleNavigationToChild}
-            navigateToParent={navigateToParent}
-          />
+          <div className="p-6">
+            <RelatedRequestsTab
+              request={request}
+              childRequests={childRequests}
+              handleNavigationToChild={handleNavigationToChild}
+              navigateToParent={navigateToParent}
+            />
+          </div>
         );
       default:
-        return <CaseInfoTab request={request} />;
+        return (
+          <div className="p-6">
+            <CaseInfoTab request={request} />
+          </div>
+        );
     }
   };
 
   // Main component render
   return (
     <div className="bg-slate-50 min-h-screen pb-20">
-      <div className="max-w-7xl mx-auto p-4 md:p-6">
+      <div className=" mx-auto py-4 md:py-6">
         {/* Header Section */}
         <RequestHeader
           id={id}
@@ -572,7 +592,7 @@ function RequestDetail() {
 
           {/* Tab Content */}
           <div className="bg-white rounded-b-xl mb-6 overflow-hidden shadow-sm border border-slate-200 transition-all hover:shadow-md">
-            <div className="p-6">{renderActiveTabContent()}</div>
+            {renderActiveTabContent()}
           </div>
         </div>
 

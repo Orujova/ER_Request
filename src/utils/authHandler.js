@@ -11,7 +11,8 @@ export const verifyTokenWithBackend = async (msalAccessToken) => {
   try {
     // First store the MSAL token
     storeMsalToken(msalAccessToken);
-    console.log(msalAccessToken);
+    // console.log(msalAccessToken);
+    localStorage.setItem("access_token", msalAccessToken);
 
     const response = await fetch(
       `${API_BASE_URL}/api/AdminApplicationUser/verify-token`,
@@ -32,6 +33,7 @@ export const verifyTokenWithBackend = async (msalAccessToken) => {
 
     const data = await response.json();
     console.log(data);
+    localStorage.setItem("email", data.Email);
     localStorage.setItem("rols", data.RoleIds);
 
     if (!data.IsSuccess) {

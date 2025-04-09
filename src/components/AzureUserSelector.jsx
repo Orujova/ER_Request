@@ -47,7 +47,6 @@ const AzureUsers = ({ onSelect, selectedUsers = [], onRemove }) => {
 
         const response = await fetch(searchUrl, {
           headers: {
-           
             Authorization: `Bearer ${tokenResponse.accessToken}`,
           },
         });
@@ -216,9 +215,6 @@ const AzureUsers = ({ onSelect, selectedUsers = [], onRemove }) => {
               key={user.id}
               className="bg-sky-50 px-3 py-2 rounded-lg flex items-center gap-2 border border-sky-100 group transition-all"
             >
-              {/* <span className="text-sm font-medium text-sky-700">
-                {user.displayName}
-              </span> */}
               <span className="text-xs text-sky-500">
                 {user.userPrincipalName}
               </span>

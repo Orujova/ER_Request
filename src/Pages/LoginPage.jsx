@@ -6,6 +6,7 @@ import { HomeIcon } from "lucide-react";
 import { useEffect } from "react";
 import { getDefaultRedirect } from "../utils/roles";
 import { verifyTokenWithBackend } from "../utils/authHandler";
+import { getLoginParameters } from "../utils/authService";
 
 const LoginPage = () => {
   const isAuthenticated = useIsAuthenticated();

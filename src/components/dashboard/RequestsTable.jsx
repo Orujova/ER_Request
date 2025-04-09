@@ -75,7 +75,7 @@ const RequestsTable = ({ requests, onViewDetails }) => {
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
                   Project
                 </th>
@@ -87,13 +87,13 @@ const RequestsTable = ({ requests, onViewDetails }) => {
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
                   Case
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
                   Subcase
                 </th>
@@ -112,7 +112,7 @@ const RequestsTable = ({ requests, onViewDetails }) => {
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-1 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
                   Status
                 </th>
@@ -151,43 +151,43 @@ const RequestsTable = ({ requests, onViewDetails }) => {
                         Reassign
                       </button>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-2 py-4 whitespace-nowrap">
                       <div>
                         <p className="text-sm text-gray-900">
-                          {request.project}
-                        </p>
-                        <p className="text-xs text-gray-500">
                           {request.projectCode}
                         </p>
+                        {/* <p className="text-xs text-gray-500">
+                        {request.project}
+                        </p> */}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <p className="text-sm text-gray-900">
+                      <p className="text-xs text-gray-900">
                         {request.employee}
                       </p>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <p className="text-sm text-gray-900">{request.case}</p>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <p className="text-xs text-gray-900">{request.case}</p>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <p className="text-sm text-gray-900">{request.subcase}</p>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <p className="text-xs text-gray-900">{request.subcase}</p>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <CalendarIcon className="h-4 w-4 text-gray-400 mr-2" />
-                        <p className="text-sm text-gray-500">{request.date}</p>
+                        <CalendarIcon className="h-3 w-3 text-gray-400 mr-2" />
+                        <p className="text-xs text-gray-500">{request.date}</p>
                       </div>
                     </td>
                     {/* New duration cell */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <ClockIcon className="h-4 w-4 text-gray-400 mr-2" />
-                        <p className={`text-sm ${getDurationColor(request)}`}>
+                        <ClockIcon className="h-3 w-3 text-gray-400 mr-2" />
+                        <p className={`text-xs ${getDurationColor(request)}`}>
                           {formatDuration(request.duration)}
                         </p>
                       </div>
                     </td>
-                    <td className="px-3 py-4 whitespace-nowrap">
+                    <td className="px-1 py-4 whitespace-nowrap">
                       <StatusBadge statusCode={request.statusCode} />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">

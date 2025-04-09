@@ -92,6 +92,7 @@ const UserProfile = () => {
 
       const response = await instance.acquireTokenSilent(request);
       const data = await callMsGraph(response.accessToken);
+
       setProfileData(data);
       setLoadSuccess(true);
 
