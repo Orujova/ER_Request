@@ -1,15 +1,26 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+
+// Import selectors and thunks
 import {
-  setRequest,
-  setMessages,
-  setLoading,
-  setError,
-  clearRequest,
+  selectCurrentRequest,
+  selectMessages,
+  selectIsLoading,
+  selectError,
+  selectERMembers,
+  selectChildRequests,
+  selectIsMessagesLoading,
 } from "../../redux/slices/requestSlice";
-import { API_BASE_URL } from "../../../apiConfig";
-import { getStoredTokens, getUserId } from "../../utils/authHandler";
+
+import {
+  fetchRequestData,
+  fetchERMembers,
+  fetchChildRequests,
+  sendMessage,
+  editMessage,
+  deleteMessageThunk,
+} from "../../redux/slices/requestThunks";
 
 // Import components
 import RequestHeader from "./DetailHeader";
@@ -25,22 +36,27 @@ import DisciplinaryTab from "./DisciplinaryTab";
 import RelatedRequestsTab from "./RelatedRequestsTab";
 
 import StatusTimeline from "./StatusTimeline";
-
 import ChatPopup from "./ChatPopup";
+
+// Import user info utility
+import { getUserId } from "../../utils/authHandler";
 
 function RequestDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const request = useSelector((state) => state.request.currentRequest);
-  const messages = useSelector((state) => state.request.messages);
-  const loading = useSelector((state) => state.request.loading);
-  const error = useSelector((state) => state.request.error);
+
+  // Use selectors for Redux state
+  const request = useSelector(selectCurrentRequest);
+  const messages = useSelector(selectMessages);
+  const loading = useSelector(selectIsLoading);
+  const error = useSelector(selectError);
+  const erMembers = useSelector(selectERMembers);
+  const childRequests = useSelector(selectChildRequests);
+  const messagesLoading = useSelector(selectIsMessagesLoading);
 
   // State management
   const [activeTab, setActiveTab] = useState("case");
-  const [childRequests, setChildRequests] = useState([]);
-  const [erMembers, setErMembers] = useState([]);
 
   // Get current user ID
   const currentUserId = getUserId();
@@ -49,333 +65,31 @@ function RequestDetail() {
   useEffect(() => {
     const fetchAllData = async () => {
       try {
-        dispatch(setLoading(true));
-        dispatch(clearRequest());
-        await Promise.all([fetchRequestData(), fetchERMembers()]);
-        dispatch(setLoading(false));
+        // Fetch request data (which also fetches messages)
+        await dispatch(fetchRequestData(id)).unwrap();
+
+        // Fetch ER members for @mention feature
+        await dispatch(fetchERMembers()).unwrap();
+
+        // Fetch child requests if this is a parent request
+        await dispatch(fetchChildRequests(id)).unwrap();
       } catch (err) {
-        dispatch(setError(err.message));
-        dispatch(setLoading(false));
+        console.error("Error fetching initial data:", err);
       }
     };
 
     fetchAllData();
-
-    // Clean up when component unmounts
-    return () => {
-      dispatch(clearRequest());
-    };
   }, [id, dispatch]);
 
-  // Fetch request data
-  const fetchRequestData = async () => {
-    try {
-      const { jwtToken } = getStoredTokens();
-
-      const response = await fetch(`${API_BASE_URL}/api/ERRequest/${id}`, {
-        method: "GET",
-        headers: {
-          accept: "*/*",
-          Authorization: `Bearer ${jwtToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error fetching request data: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      // Transform API data to match our component structure
-      const transformedRequest = {
-        id: data.Id,
-        caseId: data.CaseId,
-        case: data.CaseName,
-        subCaseId: data.SubCaseId,
-        subCase: data.SubCaseDescription,
-        status: data.ERRequestStatus,
-        employeeInfo: {
-          id: data.EmployeeId,
-          name: data.EmployeeName,
-          badge: data.EmployeeBadge || "",
-          project: data.ProjectName,
-          projectId: data.ProjectId,
-          projectCode: data.ProjectCode,
-          position: data.PositionName || "",
-          positionId: data.PositionId,
-          section: data.SectionName || "",
-          sectionId: data.SectionId,
-          subSection: data.SubSectionName || "",
-          subSectionId: data.SubSectionId,
-        },
-        mailInfo: {
-          to: data.MailToAdresses || "",
-          cc: data.MailCcAddresses || "",
-          body: data.MailBody || "",
-        },
-        attachments: {
-          presentation: data.PresentationAttach || [],
-          act: data.ActAttach || [],
-          explanation: data.ExplanationAttach || [],
-          general: data.GeneralAttachments || [],
-        },
-        hyperLinks: (data.ERHyperLinks || []).map((link, index) => ({
-          id: data.ERHyperLinkIds?.[index] || index,
-          url: link,
-        })),
-        erMember: data.ERMember,
-        createdDate: data.CreatedDate,
-        parentId: data.ParentId,
-        requestType: data.RequestType,
-        orderNumber: data.OrderNumber,
-        note: data.Note,
-        reason: data.Reason,
-        disciplinaryAction: {
-          id: data.DisciplinaryActionId,
-          name: data.DisciplinaryActionName,
-          resultId: data.DisciplinaryActionResultId,
-          resultName: data.DisciplinaryActionResultName,
-          violationId: data.DisciplinaryViolationId,
-          violationName: data.DisciplinaryViolationName,
-        },
-        isEligible: data.IsEligible,
-        contractEndDate: data.ContractEndDate,
-        // Timeline dates
-        pendingDate: data.PendingDate,
-        underReviewDate: data.UnderReviewDate,
-        desicionMadeDate: data.DesicionMadeDate,
-        reAssignedDate: data.ReAssignedDate,
-        decisionCommunicatedDate: data.DecisionCommunicatedDate,
-        completedDate: data.CompletedDate,
-      };
-
-      dispatch(setRequest(transformedRequest));
-
-      // Fetch messages for this request
-      await fetchMessages(data.Id);
-
-      // Fetch child requests if this is a parent request
-      await fetchChildRequests(data.Id);
-
-      return data;
-    } catch (err) {
-      console.error("Error fetching request data:", err);
-      throw err;
-    }
-  };
-
-  // Update the fetchMessages function in RequestDetail.jsx
-
-  const fetchMessages = async (requestId) => {
-    try {
-      const { jwtToken } = getStoredTokens();
-      const response = await fetch(
-        `${API_BASE_URL}/api/ERRequestMessage?ERRequestId=${requestId}`,
-        {
-          method: "GET",
-          headers: {
-            accept: "*/*",
-            Authorization: `Bearer ${jwtToken}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Error fetching messages: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const messages = data[0]?.ERRequestMessages || [];
-
-      if (messages && messages.length > 0) {
-        const transformedMessages = messages.map((msg) => ({
-          id: msg.Id,
-          senderId: msg.AppuserId,
-          sender: msg.SenderFullName,
-          message: msg.MessageContent,
-          timestamp: msg.CreatedDate, // Keep original timestamp
-          formattedTimestamp: msg.FormattedCreatedDate, // Add the formatted timestamp from API
-          isRead: Boolean(msg.IsRead), // Ensure boolean type
-          isEdited: Boolean(msg.IsEdit || msg.IsEdited), // Check both possible field names
-        }));
-
-        dispatch(setMessages(transformedMessages));
-
-        // Mark unread messages as read
-        if (currentUserId) {
-          const unreadMsgIds = messages
-            .filter(
-              (msg) => !msg.IsRead && msg.AppuserId !== parseInt(currentUserId)
-            )
-            .map((msg) => msg.Id);
-
-          if (unreadMsgIds.length > 0) {
-            markMessagesAsRead(unreadMsgIds);
-          }
-        }
-      } else {
-        dispatch(setMessages([]));
-      }
-    } catch (err) {
-      console.error("Error fetching messages:", err);
-    }
-  };
-
-  // Fetch child requests
-  const fetchChildRequests = async (parentId) => {
-    try {
-      const { jwtToken } = getStoredTokens();
-      const response = await fetch(
-        `${API_BASE_URL}/api/ERRequest/GetAllChildRequest?ParentId=${parentId}`,
-        {
-          method: "GET",
-          headers: {
-            accept: "*/*",
-            Authorization: `Bearer ${jwtToken}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Error fetching child requests: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      if (data && data.length > 0 && data[0].ERRequests) {
-        setChildRequests(data[0].ERRequests);
-      } else {
-        setChildRequests([]);
-      }
-    } catch (err) {
-      console.error("Error fetching child requests:", err);
-    }
-  };
-
-  // Fetch ER members for @mention feature
-  const fetchERMembers = async () => {
-    try {
-      const { jwtToken } = getStoredTokens();
-      const response = await fetch(
-        `${API_BASE_URL}/api/AdminApplicationUser/GetAllERMemberUser`,
-        {
-          method: "GET",
-          headers: {
-            accept: "*/*",
-            Authorization: `Bearer ${jwtToken}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Error fetching ER members: ${response.status}`);
-      }
-
-      const data = await response.json();
-      if (data && data.length > 0 && data[0].AppUsers) {
-        setErMembers(data[0].AppUsers);
-      }
-    } catch (err) {
-      console.error("Error fetching ER members:", err);
-    }
-  };
-
-  // Mark messages as read
-  const markMessagesAsRead = async (messageIds) => {
-    try {
-      // Only proceed if we have message IDs
-      if (!messageIds || messageIds.length === 0) return;
-
-      const { jwtToken } = getStoredTokens();
-      const currentUserId = getUserId();
-
-      if (!currentUserId) return;
-
-      console.log(
-        `Marking messages as read: ${messageIds.join(
-          ","
-        )} for user ${currentUserId}`
-      );
-
-      // Create the correct URL format with query parameters
-      // The API expects currentUserId as a query param and ids as a comma-separated list
-      const url = new URL(
-        `${API_BASE_URL}/api/ERRequestMessage/IsReadMessages`
-      );
-      url.searchParams.append("currentUserId", currentUserId);
-
-      // Add each ID as an individual query parameter as seen in the curl example
-      messageIds.forEach((id) => {
-        url.searchParams.append("ids", id);
-      });
-
-      const response = await fetch(url.toString(), {
-        method: "GET",
-        headers: {
-          accept: "*/*",
-          Authorization: `Bearer ${jwtToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(
-          `Error marking messages as read: ${response.status}`,
-          errorText
-        );
-        return;
-      }
-
-      // Parse the response to update our local message state
-      const updatedMessages = await response.json();
-      console.log("Messages marked as read:", updatedMessages);
-
-      // Update local message state if needed
-      // fetchMessages(id); // Uncomment if you want to refresh messages after marking as read
-    } catch (err) {
-      console.error("Error marking messages as read:", err);
-    }
-  };
-
-  // Handle attachment updates
+  // Handle attachment updates - refreshes the request data
   const handleAttachmentsUpdated = () => {
-    // Refresh the request data to get updated attachments
-    fetchRequestData();
+    dispatch(fetchRequestData(id));
   };
 
-  // Send a new message
+  // Send a new message using the thunk
   const handleSendMessage = async (messageText) => {
     try {
-      const { jwtToken } = getStoredTokens();
-      const userId = getUserId();
-
-      if (!userId) {
-        throw new Error("User ID not found");
-      }
-
-      const formData = new FormData();
-      formData.append("ERRequestId", id);
-      formData.append("SenderId", userId);
-      formData.append("MessageContent", messageText);
-
-      const response = await fetch(
-        `${API_BASE_URL}/api/ERRequestMessage/AddERRequestMessage`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${jwtToken}`,
-          },
-          body: formData,
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Error sending message: ${response.status}`);
-      }
-
-      // Refresh messages after sending
-      await fetchMessages(id);
-
+      await dispatch(sendMessage({ requestId: id, messageText })).unwrap();
       return true;
     } catch (err) {
       console.error("Error sending message:", err);
@@ -383,60 +97,23 @@ function RequestDetail() {
     }
   };
 
-  // In RequestDetail.jsx, update the handleEditMessage function:
-
+  // Edit message using the thunk
   const handleEditMessage = async (messageId, newContent) => {
     try {
-      const { jwtToken } = getStoredTokens();
-      const userId = getUserId();
-
-      if (!userId) {
-        throw new Error("User ID not found");
-      }
-
       // Check if the message is already read before sending the request
       const messageToEdit = messages.find((msg) => msg.id === messageId);
       if (messageToEdit && messageToEdit.isRead) {
         console.log("Cannot edit message: The message has already been read");
-        // Return false to indicate the operation failed
-        return Promise.resolve(false);
+        return false;
       }
 
-      // Convert params to the exact format the API expects
-      const updateData = {
-        MessageId: parseInt(messageId), // Ensure this is a number, not a string
-        UserId: parseInt(userId), // Ensure this is a number, not a string
-        MessageContent: newContent,
-      };
-
-      console.log(
-        "Sending edit request with data:",
-        JSON.stringify(updateData)
-      );
-
-      const response = await fetch(
-        `${API_BASE_URL}/api/ERRequestMessage/UpdateERRequest`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${jwtToken}`,
-          },
-          body: JSON.stringify(updateData),
-        }
-      );
-
-      // Parse the response JSON
-      const responseData = await response.json();
-
-      // Check if the operation was successful based on the API response
-      if (!responseData.IsSuccess) {
-        console.error("API reported error:", responseData.Message);
-        return Promise.resolve(false);
-      }
-
-      // Refresh messages to get the correct data from the server
-      await fetchMessages(id);
+      await dispatch(
+        editMessage({
+          messageId,
+          newContent,
+          requestId: id,
+        })
+      ).unwrap();
 
       return true;
     } catch (err) {
@@ -445,36 +122,15 @@ function RequestDetail() {
     }
   };
 
-  // Delete a message
+  // Delete a message using the thunk
   const handleDeleteMessage = async (messageId) => {
     try {
-      const { jwtToken } = getStoredTokens();
-      const userId = getUserId();
-
-      if (!userId) {
-        throw new Error("User ID not found");
-      }
-
-      const deleteData = {
-        MessageId: messageId,
-        RequesterId: parseInt(userId),
-      };
-
-      const response = await fetch(`${API_BASE_URL}/api/ERRequestMessage`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${jwtToken}`,
-        },
-        body: JSON.stringify(deleteData),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error deleting message: ${response.status}`);
-      }
-
-      // Refresh messages after deletion
-      await fetchMessages(id);
+      await dispatch(
+        deleteMessageThunk({
+          messageId,
+          requestId: id,
+        })
+      ).unwrap();
 
       return true;
     } catch (err) {
@@ -566,7 +222,7 @@ function RequestDetail() {
   // Main component render
   return (
     <div className="bg-slate-50 min-h-screen pb-20">
-      <div className=" mx-auto py-4 md:py-6">
+      <div className="mx-auto py-4 md:py-6">
         {/* Header Section */}
         <RequestHeader
           id={id}
@@ -604,6 +260,7 @@ function RequestDetail() {
           handleEditMessage={handleEditMessage}
           handleDeleteMessage={handleDeleteMessage}
           erMembers={erMembers}
+          isLoading={messagesLoading}
         />
       </div>
     </div>

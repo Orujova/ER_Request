@@ -19,7 +19,7 @@ export const ROLES = {
 // Role-based permissions
 export const ROLE_PERMISSIONS = {
   [ROLES.ADMIN]: {
-    allowedRoutes: ["*"], // Admin can access all routes
+    allowedRoutes: ["*"],
     defaultRedirect: "/",
   },
   [ROLES.ER_ADMIN]: {
@@ -28,7 +28,7 @@ export const ROLE_PERMISSIONS = {
   },
   [ROLES.ER_MEMBER]: {
     allowedRoutes: [
-      "/", // Dashboard
+      "/",
       "/profile",
       "/request",
       "/create-request",
@@ -37,7 +37,7 @@ export const ROLE_PERMISSIONS = {
     defaultRedirect: "/",
   },
   [ROLES.USER]: {
-    allowedRoutes: ["/profile", "/create-request"],
+    allowedRoutes: ["/profile", "/create-request", "/"],
     defaultRedirect: "/create-request",
   },
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { API_BASE_URL } from "../../apiConfig";
 import { themeColors } from "../styles/theme";
 import { getStoredTokens } from "../utils/authHandler";
@@ -19,6 +19,7 @@ const RequestMatrix = () => {
   const [dataInitialized, setDataInitialized] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [dataVersion, setDataVersion] = useState(0); // Used to trigger refetches
 
   // Selected items state
   const [selectedCase, setSelectedCase] = useState(null);
@@ -26,15 +27,21 @@ const RequestMatrix = () => {
   const [expandedCases, setExpandedCases] = useState({});
 
   // API request headers with authentication
-  const getRequestHeaders = () => {
+  const getRequestHeaders = useCallback(() => {
+    const currentToken = getStoredTokens().jwtToken; // Get fresh token on each request
     return {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${jwtToken}`,
+      Authorization: `Bearer ${currentToken}`,
     };
-  };
+  }, []);
+
+  // Function to trigger data refresh
+  const refreshData = useCallback(() => {
+    setDataVersion((prev) => prev + 1);
+  }, []);
 
   // API: Fetch all cases
-  const fetchCases = async () => {
+  const fetchCases = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch(`${API_BASE_URL}/api/Case`, {
@@ -50,10 +57,10 @@ const RequestMatrix = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getRequestHeaders]);
 
   // API: Fetch all subcases
-  const fetchAllSubCases = async () => {
+  const fetchAllSubCases = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch(`${API_BASE_URL}/api/SubCase`, {
@@ -66,9 +73,9 @@ const RequestMatrix = () => {
       // Create initial expanded state for all cases
       const initialExpandedState = {};
       cases.forEach((caseItem) => {
-        initialExpandedState[caseItem.Id] = false;
+        initialExpandedState[caseItem.Id] = expandedCases[caseItem.Id] || false;
       });
-      setExpandedCases(initialExpandedState);
+      setExpandedCases((prev) => ({ ...prev, ...initialExpandedState }));
 
       return data[0].SubCases;
     } catch (err) {
@@ -77,7 +84,7 @@ const RequestMatrix = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getRequestHeaders, cases, expandedCases]);
 
   // API: Create new case
   const createCase = async (newCase) => {
@@ -99,19 +106,16 @@ const RequestMatrix = () => {
       if (!response.ok) throw new Error("Failed to create case");
       const createdCase = await response.json();
 
-      // Update cases list
-      setCases((prevCases) => [...prevCases, createdCase]);
-
-      // Add to expanded cases state
+      // Auto-expand the new case
       setExpandedCases((prev) => ({
         ...prev,
         [createdCase.Id]: true,
       }));
 
-      showToast(
-        `Case "${createdCase.CaseName}" created successfully`,
-        "success"
-      );
+      showToast(`Case  created successfully`, "success");
+
+      // Refresh data after successful creation
+      refreshData();
       return createdCase;
     } catch (err) {
       showToast(err.message, "error");
@@ -150,8 +154,11 @@ const RequestMatrix = () => {
       if (!response.ok) throw new Error("Failed to create subcase");
       const createdSubCase = await response.json();
 
-      // Update subcases list
-      setSubCases((prevSubCases) => [...prevSubCases, createdSubCase]);
+      // Auto-expand the parent case
+      setExpandedCases((prev) => ({
+        ...prev,
+        [newSubCase.caseId]: true,
+      }));
 
       // Show success message with info about required documents
       const requiredDocs = [];
@@ -168,9 +175,8 @@ const RequestMatrix = () => {
 
       showToast(message, "success");
 
-      // Refresh data
-      await fetchAllSubCases();
-
+      // Refresh data after successful creation
+      refreshData();
       return createdSubCase;
     } catch (err) {
       showToast(err.message, "error");
@@ -205,15 +211,15 @@ const RequestMatrix = () => {
 
       if (!response.ok) throw new Error("Failed to update case");
 
-      // Refetch all cases to ensure data consistency
-      await fetchCases();
-
       // Update the selected case if it was the one being edited
       if (selectedCase?.Id === caseData.Id) {
         setSelectedCase({ ...selectedCase, CaseName: caseData.CaseName });
       }
 
-      showToast(`Case "${caseData.CaseName}" updated successfully`, "success");
+      showToast(`Case  updated successfully`, "success");
+
+      // Refresh data after successful update
+      refreshData();
     } catch (err) {
       showToast(err.message, "error");
     } finally {
@@ -250,27 +256,12 @@ const RequestMatrix = () => {
 
       if (!response.ok) throw new Error("Failed to update subcase");
 
-      // Update subcases list
-      setSubCases((prevSubCases) =>
-        prevSubCases.map((sc) =>
-          sc.Id === subcaseData.Id
-            ? {
-                ...sc,
-                Description: subcaseData.Description,
-                CaseId: subcaseData.CaseId,
-                IsPresentationRequired: subcaseData.IsPresentationRequired,
-                IsActRequired: subcaseData.IsActRequired,
-                IsExplanationRequired: subcaseData.IsExplanationRequired,
-              }
-            : sc
-        )
-      );
-
+      // Clear selected subcase after update
       setSelectedSubCase(null);
       showToast("SubCase updated successfully", "success");
 
-      // Refresh data
-      await fetchAllSubCases();
+      // Refresh data after successful update
+      refreshData();
     } catch (err) {
       showToast(err.message, "error");
     } finally {
@@ -322,10 +313,10 @@ const RequestMatrix = () => {
         return newState;
       });
 
-      // Refetch all cases to ensure data consistency
-      await fetchCases();
-
       showToast("Case deleted successfully", "success");
+
+      // Refresh data after successful deletion
+      refreshData();
     } catch (err) {
       showToast(err.message, "error");
     } finally {
@@ -359,8 +350,11 @@ const RequestMatrix = () => {
         showToast("SubCase deleted successfully", "success");
       }
 
-      // Always refetch all subcases to ensure data consistency
-      await fetchAllSubCases();
+      // Refresh data after successful deletion
+      if (showMessages) {
+        // Only trigger refresh for non-silent deletes
+        refreshData();
+      }
     } catch (err) {
       if (showMessages) {
         showToast(err.message, "error");
@@ -382,31 +376,25 @@ const RequestMatrix = () => {
   const filteredCases = cases.filter(
     (caseItem) =>
       caseItem.CaseName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      false ||
-      caseItem.Id?.toString().includes(searchTerm) ||
-      false
+      String(caseItem.Id).includes(searchTerm)
   );
 
-  // Load initial data
+  // Load data when dataVersion changes (our refresh trigger)
   useEffect(() => {
-    const loadInitialData = async () => {
+    const loadData = async () => {
       try {
-        await fetchCases();
+        const fetchedCases = await fetchCases();
         await fetchAllSubCases();
         setDataInitialized(true);
       } catch (err) {
-        console.error("Error loading initial data:", err);
-        showToast(
-          "Failed to load initial data. Please refresh the page.",
-          "error"
-        );
-        // Still mark as initialized to prevent render errors
+        console.error("Error loading data:", err);
+        showToast("Failed to load data. Please try again.", "error");
         setDataInitialized(true);
       }
     };
 
-    loadInitialData();
-  }, []);
+    loadData();
+  }, [dataVersion, fetchCases, fetchAllSubCases]);
 
   // If data isn't initialized yet, show a loading screen
   if (!dataInitialized) {
@@ -459,6 +447,7 @@ const RequestMatrix = () => {
               createSubCase={createSubCase}
               updateSubCase={updateSubCase}
               deleteSubCase={deleteSubCase}
+              loading={loading}
             />
           )}
 

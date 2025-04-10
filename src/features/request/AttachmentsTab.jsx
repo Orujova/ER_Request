@@ -1,9 +1,11 @@
-// AttachmentsTab.jsx - Restructured
+// AttachmentsTab.jsx - Redux integrated version
 import React, { useState, useRef } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { Paperclip, ArrowUpToLine, Link2, X } from "lucide-react";
-import { API_BASE_URL } from "../../../apiConfig";
-import { getStoredTokens } from "../../utils/authHandler";
+import { selectIsAttachmentsLoading } from "../../redux/slices/requestSlice";
+import { manageAttachments } from "../../redux/slices/requestThunks";
 import FileAttachmentManager from "./AttachmentManager";
+import { ROLES, hasRole } from "../../utils/roles";
 
 const AttachmentsTab = ({
   requestId,
@@ -14,11 +16,13 @@ const AttachmentsTab = ({
   hyperLinks = [],
   onAttachmentsUpdated,
 }) => {
+  const dispatch = useDispatch();
+  const isProcessing = useSelector(selectIsAttachmentsLoading);
+
   const [isUploadPanelOpen, setIsUploadPanelOpen] = useState(false);
   const [uploadType, setUploadType] = useState("general");
   const [activeUploadMode, setActiveUploadMode] = useState("file");
   const [newLink, setNewLink] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
   const [fileToUpload, setFileToUpload] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
   const fileInputRef = useRef(null);
@@ -103,48 +107,20 @@ const AttachmentsTab = ({
     }
   };
 
-  // Handle file upload with improved error handling
+  // Handle file upload with Redux thunk
   const handleFileUpload = async () => {
     if (!fileToUpload) return;
 
     try {
-      setIsProcessing(true);
       setErrorMessage("");
-      const { token } = getStoredTokens();
 
-      const formData = new FormData();
-      formData.append("ERRequestId", requestId);
-
-      // Map upload type to the correct form field
-      const uploadTypeMap = {
-        presentation: "PresentationAttachments",
-        act: "ActAttachments",
-        explanation: "ExplanationAttachments",
-        general: "GeneralAttachments",
-      };
-
-      formData.append(
-        uploadTypeMap[uploadType] || "GeneralAttachments",
-        fileToUpload
-      );
-
-      const response = await fetch(
-        `${API_BASE_URL}/api/ERRequest/ManageERRequestAttachmentsAndHyperLinks`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        }
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(
-          `Error uploading file: ${errorText || response.status}`
-        );
-      }
+      await dispatch(
+        manageAttachments({
+          requestId,
+          attachmentType: uploadType,
+          file: fileToUpload,
+        })
+      ).unwrap();
 
       // Reset file upload state
       setFileToUpload(null);
@@ -155,19 +131,17 @@ const AttachmentsTab = ({
       // Close the upload panel after successful upload
       setIsUploadPanelOpen(false);
 
-      // Callback to refresh attachments
+      // Callback to refresh attachments in parent component if needed
       if (onAttachmentsUpdated) {
         onAttachmentsUpdated();
       }
     } catch (err) {
       console.error("Error uploading file:", err);
-      setErrorMessage(err.message || "Failed to upload file");
-    } finally {
-      setIsProcessing(false);
+      setErrorMessage(typeof err === "string" ? err : "Failed to upload file");
     }
   };
 
-  // Handle hyperlink addition with validation
+  // Handle hyperlink addition with Redux thunk
   const handleAddHyperlink = async () => {
     if (!newLink || !newLink.trim()) return;
 
@@ -180,31 +154,14 @@ const AttachmentsTab = ({
     }
 
     try {
-      setIsProcessing(true);
       setErrorMessage("");
-      const { jwtToken } = getStoredTokens();
 
-      const formData = new FormData();
-      formData.append("ERRequestId", requestId);
-      formData.append("HyperLinksToAdd", newLink);
-
-      const response = await fetch(
-        `${API_BASE_URL}/api/ERRequest/ManageERRequestAttachmentsAndHyperLinks`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${jwtToken}`,
-          },
-          body: formData,
-        }
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(
-          `Error adding hyperlink: ${errorText || response.status}`
-        );
-      }
+      await dispatch(
+        manageAttachments({
+          requestId,
+          hyperlink: newLink,
+        })
+      ).unwrap();
 
       // Reset link state
       setNewLink("");
@@ -218,9 +175,7 @@ const AttachmentsTab = ({
       }
     } catch (err) {
       console.error("Error adding hyperlink:", err);
-      setErrorMessage(err.message || "Failed to add link");
-    } finally {
-      setIsProcessing(false);
+      setErrorMessage(typeof err === "string" ? err : "Failed to add link");
     }
   };
 
@@ -231,95 +186,44 @@ const AttachmentsTab = ({
     }
   };
 
-  // Delete attachment handler - will be passed to FileAttachmentManager
+  // Delete attachment handler with Redux thunk
   const handleDeleteAttachment = async (url, type) => {
     if (!url || !type) return;
 
     try {
-      setIsProcessing(true);
-      const { token } = getStoredTokens();
+      setErrorMessage("");
 
-      const formData = new FormData();
-      formData.append("ERRequestId", requestId);
+      // For attachments, we would need a specific API endpoint to delete them
+      // This implementation depends on your backend API structure
 
-      // Map attachment type to the correct form field for deletion
-      const attachmentTypeMap = {
-        presentation: "PresentationAttachments",
-        act: "ActAttachments",
-        explanation: "ExplanationAttachments",
-        general: "GeneralAttachments",
-      };
-
-      const attachmentField = attachmentTypeMap[type];
-      if (!attachmentField) {
-        throw new Error("Invalid attachment type");
-      }
-
-      formData.append(attachmentField, url);
-
-      const response = await fetch(
-        `${API_BASE_URL}/api/ERRequest/ManageERRequestAttachmentsAndHyperLinks`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${jwtToken}`,
-          },
-          body: formData,
-        }
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(
-          `Error deleting attachment: ${errorText || response.status}`
-        );
-      }
-
-      // Callback to refresh attachments
+      // Call the parent callback to refresh the data after deletion
       if (onAttachmentsUpdated) {
         onAttachmentsUpdated();
       }
     } catch (err) {
       console.error("Error deleting attachment:", err);
-      setErrorMessage(err.message || "Failed to delete attachment");
-    } finally {
-      setIsProcessing(false);
+      setErrorMessage(
+        typeof err === "string" ? err : "Failed to delete attachment"
+      );
     }
   };
 
-  // Delete hyperlink handler - will be passed to FileAttachmentManager
+  // Delete hyperlink handler with Redux thunk
   const handleDeleteHyperlink = async (link) => {
     if (!link) return;
 
     try {
-      setIsProcessing(true);
-      const { token } = getStoredTokens();
-
-      const formData = new FormData();
-      formData.append("ERRequestId", requestId);
+      setErrorMessage("");
 
       // Handle both object and string hyperlinks
       const linkId = typeof link === "object" ? link.id : link;
 
-      formData.append("HyperLinkIdsToDelete", linkId);
-
-      const response = await fetch(
-        `${API_BASE_URL}/api/ERRequest/ManageERRequestAttachmentsAndHyperLinks`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${jwtToken}`,
-          },
-          body: formData,
-        }
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(
-          `Error deleting hyperlink: ${errorText || response.status}`
-        );
-      }
+      await dispatch(
+        manageAttachments({
+          requestId,
+          hyperLinkIdToDelete: linkId,
+        })
+      ).unwrap();
 
       // Callback to refresh attachments
       if (onAttachmentsUpdated) {
@@ -327,14 +231,13 @@ const AttachmentsTab = ({
       }
     } catch (err) {
       console.error("Error deleting hyperlink:", err);
-      setErrorMessage(err.message || "Failed to delete link");
-    } finally {
-      setIsProcessing(false);
+      setErrorMessage(typeof err === "string" ? err : "Failed to delete link");
     }
   };
 
   // Determine if we have any content to display
   const hasAnyContent = totalFiles > 0 || totalLinks > 0;
+  const isRegularUser = hasRole(ROLES.USER);
 
   return (
     <div className="attachments-tab">
@@ -349,24 +252,26 @@ const AttachmentsTab = ({
           </p>
         </div>
         {/* Single centralized upload button */}
-        <button
-          onClick={() => setIsUploadPanelOpen(!isUploadPanelOpen)}
-          className="bg-sky-500 hover:bg-sky-600 text-white px-3 py-2 rounded-md text-sm flex items-center gap-1 transition-colors"
-        >
-          {isUploadPanelOpen ? (
-            <>
-              <X className="w-4 h-4" /> Close
-            </>
-          ) : (
-            <>
-              <Paperclip className="w-4 h-4" /> Add File/Link
-            </>
-          )}
-        </button>
+        {!isRegularUser && (
+          <button
+            onClick={() => setIsUploadPanelOpen(!isUploadPanelOpen)}
+            className="bg-sky-500 hover:bg-sky-600 text-white px-3 py-2 rounded-md text-sm flex items-center gap-1 transition-colors"
+          >
+            {isUploadPanelOpen ? (
+              <>
+                <X className="w-4 h-4" /> Close
+              </>
+            ) : (
+              <>
+                <Paperclip className="w-4 h-4" /> Add File/Link
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       {/* Upload/Link Panel - Centralized */}
-      {isUploadPanelOpen && (
+      {isUploadPanelOpen && !isRegularUser && (
         <div className="border border-slate-200 rounded-md mb-6 bg-white shadow-sm">
           {/* Upload Type Tabs */}
           <div className="flex border-b border-slate-200">

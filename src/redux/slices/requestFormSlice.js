@@ -306,7 +306,7 @@ export const submitRequest = createAsyncThunk(
       let responseData;
       try {
         responseData = JSON.parse(responseText);
-        console.log("Parsed API response:", responseData);
+        // console.log("Parsed API response:", responseData);
       } catch (e) {
         console.error("Failed to parse response as JSON:", e);
         responseData = { message: responseText };

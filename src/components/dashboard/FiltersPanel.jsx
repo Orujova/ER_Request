@@ -35,6 +35,8 @@ const FiltersPanel = ({ onClearFilters }) => {
   const handleFilterChange = (key, value) => {
     dispatch(updateFilterValue({ key, value }));
 
+    
+
     if (key === "caseId") {
       dispatch(updateFilteredSubCases());
     }
@@ -99,20 +101,20 @@ const FiltersPanel = ({ onClearFilters }) => {
         {/* ER Member Filter */}
         <div>
           <label
-            htmlFor="erMemberId"
+            htmlFor="erMember"
             className="block text-xs font-medium text-gray-700 mb-1"
           >
             ER Member
           </label>
           <select
-            id="erMemberId"
+            id="erMember"
             className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#06b6d4] focus:border-[#06b6d4]"
-            value={activeFilters.erMemberId}
-            onChange={(e) => handleFilterChange("erMemberId", e.target.value)}
+            value={activeFilters.erMember}
+            onChange={(e) => handleFilterChange("erMember", e.target.value)}
           >
             <option value="">All ER Members</option>
             {erMembers.map((member) => (
-              <option key={member.Id} value={member.Id}>
+              <option key={member.Id} value={member.FullName}>
                 {member.FullName}
               </option>
             ))}

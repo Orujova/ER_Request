@@ -19,8 +19,6 @@ const CACHE_EXPIRATION_MS = 5 * 60 * 1000;
 
 export async function callMsGraph(accessToken) {
   if (isFetchingGraph) {
-    console.log("Graph API request already in progress, waiting...");
-
     return new Promise((resolve) => {
       const checkCache = setInterval(() => {
         if (!isFetchingGraph && cachedGraphData) {
@@ -34,7 +32,6 @@ export async function callMsGraph(accessToken) {
   // If we have cached data that's not expired, use it
   const now = Date.now();
   if (cachedGraphData && now - lastFetchTime < CACHE_EXPIRATION_MS) {
-    console.log("Using cached Graph data");
     return cachedGraphData;
   }
 
@@ -80,7 +77,7 @@ export async function callApi(accessToken, endpoint = apiConfig.endpoint) {
   headers.append("Authorization", bearer);
   headers.append("Content-Type", "application/json");
 
-  console.log(endpoint);
+  // console.log(endpoint);
 
   const options = {
     method: "GET",

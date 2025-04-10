@@ -31,10 +31,10 @@ const AttachmentSection = ({
   const handleFileChange = (e) => {
     if (e.target.files?.length > 0) {
       try {
-        console.log(
-          `Files selected for ${title}:`,
-          Array.from(e.target.files).map((f) => f.name)
-        );
+        // console.log(
+        //   `Files selected for ${title}:`,
+        //   Array.from(e.target.files).map((f) => f.name)
+        // );
 
         // Convert FileList to array of files
         const fileArray = Array.from(e.target.files);
@@ -53,9 +53,9 @@ const AttachmentSection = ({
               file,
               type: fileType, // Store the file type explicitly
             });
-            console.log(
-              `Cached file with ID: ${id}, name: ${file.name}, type: ${fileType}`
-            );
+            // console.log(
+            //   `Cached file with ID: ${id}, name: ${file.name}, type: ${fileType}`
+            // );
           } else {
             console.warn("fileCache not available");
           }
@@ -162,7 +162,7 @@ const AttachmentSection = ({
 // Creating a local storage mechanism if fileCache is not available
 const createLocalStorage = () => {
   const storage = new Map();
-  console.log("Created local file storage as fallback");
+  // console.log("Created local file storage as fallback");
   return { current: storage };
 };
 
@@ -173,7 +173,7 @@ const AttachmentsSection = ({ fileCache }) => {
   const [localFileCache] = useState(createLocalStorage());
   const effectiveFileCache = fileCache || localFileCache;
 
-  console.log("AttachmentsSection rendered, fileCache available:", !!fileCache);
+  // console.log("AttachmentsSection rendered, fileCache available:", !!fileCache);
 
   // Get data from Redux store with fallbacks
   const formData = useSelector((state) => state.formData || {});
@@ -185,22 +185,22 @@ const AttachmentsSection = ({ fileCache }) => {
   const otherFiles = formData.otherFiles || [];
 
   // Log the current files for debugging
-  useEffect(() => {
-    console.log("Files in state:", {
-      act: actFiles.length,
-      presentation: presentationFiles.length,
-      explanation: explanationFiles.length,
-      other: otherFiles.length,
-    });
+  // useEffect(() => {
+  //   console.log("Files in state:", {
+  //     act: actFiles.length,
+  //     presentation: presentationFiles.length,
+  //     explanation: explanationFiles.length,
+  //     other: otherFiles.length,
+  //   });
 
-    console.log("Files in cache:", effectiveFileCache.current.size);
-  }, [
-    actFiles,
-    presentationFiles,
-    explanationFiles,
-    otherFiles,
-    effectiveFileCache,
-  ]);
+  //   console.log("Files in cache:", effectiveFileCache.current.size);
+  // }, [
+  //   actFiles,
+  //   presentationFiles,
+  //   explanationFiles,
+  //   otherFiles,
+  //   effectiveFileCache,
+  // ]);
 
   const requestType = formData.requestType || "";
   const subCase = formData.subCase || "";
@@ -235,22 +235,22 @@ const AttachmentsSection = ({ fileCache }) => {
 
   // Handle adding files
   const handleActFileUpload = (fileMetadata) => {
-    console.log("Adding act files:", fileMetadata.length);
+   
     dispatch(addActFile(fileMetadata));
   };
 
   const handlePresentationFileUpload = (fileMetadata) => {
-    console.log("Adding presentation files:", fileMetadata.length);
+   
     dispatch(addPresentationFile(fileMetadata));
   };
 
   const handleExplanationFileUpload = (fileMetadata) => {
-    console.log("Adding explanation files:", fileMetadata.length);
+ 
     dispatch(addExplanationFile(fileMetadata));
   };
 
   const handleOtherFileUpload = (fileMetadata) => {
-    console.log("Adding other files:", fileMetadata.length);
+    
     dispatch(addOtherFile(fileMetadata));
   };
 
@@ -259,7 +259,7 @@ const AttachmentsSection = ({ fileCache }) => {
     const fileToRemove = actFiles[index];
     if (fileToRemove?.id && effectiveFileCache.current) {
       effectiveFileCache.current.delete(fileToRemove.id);
-      console.log(`Removed file from cache: ${fileToRemove.id}`);
+      
     }
     dispatch(removeActFile(index));
   };
@@ -268,7 +268,7 @@ const AttachmentsSection = ({ fileCache }) => {
     const fileToRemove = presentationFiles[index];
     if (fileToRemove?.id && effectiveFileCache.current) {
       effectiveFileCache.current.delete(fileToRemove.id);
-      console.log(`Removed file from cache: ${fileToRemove.id}`);
+     
     }
     dispatch(removePresentationFile(index));
   };
@@ -277,7 +277,7 @@ const AttachmentsSection = ({ fileCache }) => {
     const fileToRemove = explanationFiles[index];
     if (fileToRemove?.id && effectiveFileCache.current) {
       effectiveFileCache.current.delete(fileToRemove.id);
-      console.log(`Removed file from cache: ${fileToRemove.id}`);
+      
     }
     dispatch(removeExplanationFile(index));
   };
@@ -286,7 +286,7 @@ const AttachmentsSection = ({ fileCache }) => {
     const fileToRemove = otherFiles[index];
     if (fileToRemove?.id && effectiveFileCache.current) {
       effectiveFileCache.current.delete(fileToRemove.id);
-      console.log(`Removed file from cache: ${fileToRemove.id}`);
+     
     }
     dispatch(removeOtherFile(index));
   };

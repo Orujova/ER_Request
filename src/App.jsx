@@ -60,9 +60,7 @@ function App() {
             <Route
               path="/"
               element={
-                <AuthGuard
-                  requiredRoles={[ROLES.ADMIN, ROLES.ER_ADMIN, ROLES.ER_MEMBER]}
-                >
+                <AuthGuard>
                   <Dashboard />
                 </AuthGuard>
               }

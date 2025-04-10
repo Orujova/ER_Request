@@ -11,11 +11,11 @@ const uiSlice = createSlice({
     openTemplatePanel: (state, action) => {
       state.isTemplatePanelOpen = true;
       state.activeTemplateType = action.payload; // 'act', 'presentation', or 'explanation'
-      console.log(`Template panel opened with type: ${action.payload}`);
+      // console.log(`Template panel opened with type: ${action.payload}`);
     },
     closeTemplatePanel: (state) => {
       state.isTemplatePanelOpen = false;
-      console.log("Template panel closed");
+   
     },
   },
 });

@@ -1,7 +1,7 @@
 import React from "react";
 import { DropdownMenu, Flex, Text, Box } from "@radix-ui/themes";
 import { Link } from "react-router-dom";
-import { UserCircle, Settings2, LogOut } from "lucide-react";
+import { UserCircle, LogOut } from "lucide-react";
 import { themeColors } from "../../styles/theme";
 
 const UserMenuContent = ({ userData, graphDisplayName, handleLogout }) => {
@@ -14,6 +14,7 @@ const UserMenuContent = ({ userData, graphDisplayName, handleLogout }) => {
         padding: "4px",
         backgroundColor: "rgba(255, 255, 255, 0.98)",
         backdropFilter: "blur(8px)",
+        maxWidth: "280px", // Added max width to ensure the dropdown has consistent sizing
       }}
     >
       <DropdownMenu.Label>
@@ -32,6 +33,10 @@ const UserMenuContent = ({ userData, graphDisplayName, handleLogout }) => {
             style={{
               color: themeColors.text,
               letterSpacing: "-0.01em",
+              maxWidth: "220px",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap", // Prevents text from wrapping
             }}
           >
             {graphDisplayName}
@@ -44,6 +49,7 @@ const UserMenuContent = ({ userData, graphDisplayName, handleLogout }) => {
                 maxWidth: "220px",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
+                whiteSpace: "nowrap", // Ensures email stays on one line
               }}
             >
               {userData.mail}
@@ -76,23 +82,6 @@ const UserMenuContent = ({ userData, graphDisplayName, handleLogout }) => {
             <Text style={{ color: themeColors.text }}>Profile</Text>
           </Flex>
         </Link>
-      </DropdownMenu.Item>
-
-      <DropdownMenu.Item className="py-2 rounded-lg hover:bg-sky-50 transition-colors duration-150">
-        <Flex gap="2" align="center">
-          <Box
-            style={{
-              borderRadius: "6px",
-              padding: "4px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Settings2 size={16} style={{ color: themeColors.primary }} />
-          </Box>
-          <Text style={{ color: themeColors.text }}>Settings</Text>
-        </Flex>
       </DropdownMenu.Item>
 
       <DropdownMenu.Separator

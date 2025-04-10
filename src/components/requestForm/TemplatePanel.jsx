@@ -45,12 +45,9 @@ const TemplatePanel = () => {
     try {
       // Create the full URL using the current origin
       const fullUrl = window.location.origin + template.path;
-      console.log(`Downloading from URL: ${fullUrl}`);
 
       // Open the file in a new tab
       window.open(fullUrl, "_blank");
-
-      console.log(`Template download initiated: ${template.file}`);
     } catch (error) {
       console.error("Error downloading template:", error);
       alert(`Failed to download template. Error: ${error.message}`);

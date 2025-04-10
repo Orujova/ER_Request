@@ -1,37 +1,78 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useIsAuthenticated } from "@azure/msal-react";
-import { isAuthenticated as isJwtAuthenticated } from "../../utils/authHandler";
 import {
-  ROLES,
+  isAuthenticated as isJwtAuthenticated,
+  getUserInfo,
+  checkInitialAuthState,
+} from "../../utils/authHandler";
+import {
   canAccessRoute,
   getDefaultRedirect,
   hasRole,
   hasAdminAccess,
 } from "../../utils/roles";
+import { useEffect, useState } from "react";
 
 export const AuthGuard = ({ children, requiredRoles = [] }) => {
   const location = useLocation();
   const isMsalAuthenticated = useIsAuthenticated();
+  const [isChecking, setIsChecking] = useState(true);
+  const [isAuth, setIsAuth] = useState(false);
 
-  // Check both MSAL and JWT authentication
-  if (!isMsalAuthenticated || !isJwtAuthenticated()) {
+  useEffect(() => {
+    const checkAuth = () => {
+      setIsChecking(true);
+
+      // First, check initial auth state which is based on cookies
+      // This prevents unnecessary redirects when opening a new tab
+      if (checkInitialAuthState()) {
+        setIsAuth(true);
+        setIsChecking(false);
+        return;
+      }
+
+      // If initial check fails, verify with both MSAL and JWT
+      const isJwtAuth = isJwtAuthenticated();
+      const userInfo = getUserInfo();
+
+      if (isMsalAuthenticated && isJwtAuth && userInfo) {
+        setIsAuth(true);
+      } else {
+        setIsAuth(false);
+      }
+
+      setIsChecking(false);
+    };
+
+    // Small delay to ensure authentication state is updated
+    const timer = setTimeout(checkAuth, 50);
+    return () => clearTimeout(timer);
+  }, [isMsalAuthenticated, location.pathname]);
+
+  // Return a loading state while checking
+  if (isChecking) {
+    return <div className="p-4 flex justify-center">Verifying access...</div>;
+  }
+
+  // Redirect to login if not authenticated
+  if (!isAuth) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // If specific roles are required for this route, check those
-  if (
-    requiredRoles.length > 0 &&
-    !requiredRoles.some((role) => hasRole(role))
-  ) {
-    return <Navigate to={getDefaultRedirect()} replace />;
+  // If specific roles are required, check access
+  if (requiredRoles.length > 0) {
+    const hasRequiredRole = requiredRoles.some((role) => hasRole(role));
+    if (!hasRequiredRole) {
+      return <Navigate to={getDefaultRedirect()} replace />;
+    }
   }
 
-  // Check if user can access the current route based on their roleAs
+  // Check if user can access the current route path
   if (!canAccessRoute(location.pathname)) {
     return <Navigate to={getDefaultRedirect()} replace />;
   }
 
-  // User is authenticated and authorized to access the route
+  // User is authenticated and authorized
   return children;
 };
 
@@ -39,18 +80,67 @@ export const AuthGuard = ({ children, requiredRoles = [] }) => {
 export const AdminGuard = ({ children }) => {
   const location = useLocation();
   const isMsalAuthenticated = useIsAuthenticated();
-  const isJwtAuth = isJwtAuthenticated();
+  const [isChecking, setIsChecking] = useState(true);
+  const [isAuth, setIsAuth] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  // Check authentication
-  if (!isMsalAuthenticated || !isJwtAuth) {
+  useEffect(() => {
+    const checkAdmin = () => {
+      setIsChecking(true);
+
+      // First check initial auth state
+      if (checkInitialAuthState()) {
+        setIsAuth(true);
+
+        // Check admin status separately
+        const hasAdmin = hasAdminAccess();
+        setIsAdmin(hasAdmin);
+
+        setIsChecking(false);
+        return;
+      }
+
+      // If initial check fails, verify authentication fully
+      const isJwtAuth = isJwtAuthenticated();
+      const userInfo = getUserInfo();
+
+      if (isMsalAuthenticated && isJwtAuth && userInfo) {
+        setIsAuth(true);
+
+        // Check for admin access
+        const hasAdmin = hasAdminAccess();
+        setIsAdmin(hasAdmin);
+      } else {
+        setIsAuth(false);
+        setIsAdmin(false);
+      }
+
+      setIsChecking(false);
+    };
+
+    // Small delay to ensure authentication state is updated
+    const timer = setTimeout(checkAdmin, 50);
+    return () => clearTimeout(timer);
+  }, [isMsalAuthenticated]);
+
+  // Return a loading state while checking
+  if (isChecking) {
+    return (
+      <div className="p-4 flex justify-center">Verifying admin access...</div>
+    );
+  }
+
+  // Redirect to login if not authenticated
+  if (!isAuth) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Only admin (3) and ER admin (14) can access
-  if (!hasAdminAccess()) {
+  // Redirect to home if not admin
+  if (!isAdmin) {
     return <Navigate to="/" replace />;
   }
 
+  // User is authenticated and has admin access
   return children;
 };
 

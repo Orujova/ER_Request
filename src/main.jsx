@@ -32,7 +32,7 @@ const handleRedirectPromise = async () => {
   try {
     const response = await msalInstance.handleRedirectPromise();
     if (response) {
-      console.log("Redirect response received", response);
+      // console.log("Redirect response received", response);
       await handleAuthSuccess(response);
     }
   } catch (error) {
@@ -44,7 +44,6 @@ const handleRedirectPromise = async () => {
 msalInstance
   .initialize()
   .then(() => {
-    console.log("MSAL initialized successfully");
     return handleRedirectPromise();
   })
   .catch((err) => {

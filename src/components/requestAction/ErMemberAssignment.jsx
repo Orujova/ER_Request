@@ -27,7 +27,6 @@ const ErMemberAssignment = ({
     );
     return member ? member.FullName : "";
   };
-  console.log(request);
 
   // Extract previous ER member details from the request
   const previousErMember = request?.UserFullName || request?.erMember;

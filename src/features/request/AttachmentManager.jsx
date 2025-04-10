@@ -86,7 +86,7 @@ const AttachmentCardGroup = ({
         <ul className="divide-y divide-slate-200">
           {attachments.map((url, index) => {
             // Convert erReq paths to erfile paths for download
-            const downloadUrl = url.replace("erReq", "erfile");
+            const downloadUrl = url.replace("erfile", "uploads/erfile");
             const isDeleting = confirmDelete === url;
 
             return (

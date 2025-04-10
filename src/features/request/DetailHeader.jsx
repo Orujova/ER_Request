@@ -2,6 +2,7 @@ import React from "react";
 import { Clock, User, ArrowLeft, ExternalLink } from "lucide-react";
 import StatusBadge from "../../components/common/StatusBadge";
 import { formatDate } from "../../utils/dateFormatters";
+import { ROLES, hasRole } from "../../utils/roles";
 
 const RequestHeader = ({ id, request, handleGoBack, navigateToAction }) => {
   // Check if request is null or undefined
@@ -23,6 +24,7 @@ const RequestHeader = ({ id, request, handleGoBack, navigateToAction }) => {
       </div>
     );
   }
+  const isRegularUser = hasRole(ROLES.USER);
 
   return (
     <div className="bg-white rounded-xl mb-6 overflow-hidden shadow-sm border border-slate-200">
@@ -71,14 +73,16 @@ const RequestHeader = ({ id, request, handleGoBack, navigateToAction }) => {
               Back
             </button>
 
-            <button
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md transition-colors w-full lg:w-auto bg-cyan-600 text-white hover:bg-cyan-700 focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:outline-none"
-              style={{ backgroundColor: "#0891b2" }}
-              onClick={navigateToAction}
-            >
-              <ExternalLink className="w-4 h-4" />
-              Go to Action
-            </button>
+            {!isRegularUser && (
+              <button
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md transition-colors w-full lg:w-auto bg-cyan-600 text-white hover:bg-cyan-700 focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:outline-none"
+                style={{ backgroundColor: "#0891b2" }}
+                onClick={navigateToAction}
+              >
+                <ExternalLink className="w-4 h-4" />
+                Go to Action
+              </button>
+            )}
           </div>
         </div>
       </div>

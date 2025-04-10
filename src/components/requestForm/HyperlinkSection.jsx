@@ -21,15 +21,11 @@ const HyperlinkSection = () => {
       ? formData.hyperlinks
       : [""];
 
-  // Debug the current state
-  console.log("Hyperlinks in current state:", hyperlinks);
-
   const handleAddHyperlink = () => {
     dispatch(addHyperlink());
   };
 
   const handleUpdateHyperlink = (index, value) => {
-    console.log(`Updating hyperlink at index ${index} to: ${value}`);
     dispatch(updateHyperlink({ index, value }));
   };
 
