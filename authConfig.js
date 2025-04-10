@@ -3,11 +3,10 @@
 // import { LogLevel } from "@azure/msal-browser";
 export const msalConfig = {
   auth: {
-    clientId: "0148bfb9-635c-44d4-997d-42a69c30d111",
-    authority:
-      "https://login.microsoftonline.com/c660a74e-c1ac-4c58-81cb-e2654148fcb7",
-    redirectUri: "http://localhost:3015",
-    postLogoutRedirectUri: "http://localhost:3015",
+    clientId: import.meta.env.VITE_AZURE_CLIENT_ID,
+    authority: import.meta.env.VITE_AUTHORITY,
+    redirectUri: import.meta.env.VITE_REDIRECT_URI,
+    postLogoutRedirectUri: import.meta.env.VITE_POST_LOGOUT_REDIRECT_URI,
   },
   cache: {
     cacheLocation: "sessionStorage",
@@ -40,7 +39,7 @@ export const graphConfig = {
 
 // Add your API endpoints
 export const apiConfig = {
-  endpoint: "http://localhost:3015/api",
-  backendEndpoint: "http://127.0.0.1:8000/api",
-  backendEndpoint2: "http://127.0.0.1:8000",
+  endpoint: import.meta.env.VITE_API_ENDPOINT,
+  backendEndpoint: import.meta.env.VITE_BACKEND_API_ENDPOINT,
+  backendEndpoint2: import.meta.env.VITE_BACKEND_API_ENDPOINT2,
 };

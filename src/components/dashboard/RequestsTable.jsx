@@ -161,7 +161,7 @@ const RequestsTable = ({ requests, onViewDetails }) => {
                         </p> */}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-4 whitespace-nowrap">
                       <p className="text-xs text-gray-900">
                         {request.employee}
                       </p>
