@@ -15,6 +15,8 @@ import Alert from "../components/common/Alert";
 import SearchableProjectDropdown from "../components/common/SearchableProjectDropdown";
 import ProjectAreaManagerTable from "../components/ProjectAreaManagerTable";
 import AreaManagerErMemberTable from "../components/AreaManagerErMemberTable";
+import BulkUploadAreaManagerProjects from "../components/BulkUploadAreaManagerProjects";
+import { showToast } from "../toast/toast";
 
 const AdminPanel = () => {
   // Data states
@@ -148,7 +150,7 @@ const AdminPanel = () => {
 
       if (!response.ok) throw new Error("Failed to assign area manager");
 
-      setSuccess("Area Manager assigned successfully");
+      showToast("Area Manager assigned successfully", "success");
       await fetchAllData();
       setSelectedProject(null);
       setSelectedEmployee(null);
@@ -218,7 +220,7 @@ const AdminPanel = () => {
 
       if (!response.ok) throw new Error("Failed to update area manager");
 
-      setSuccess("Area Manager updated successfully");
+      showToast("Area Manager updated successfully", "success");
       await fetchAllData();
       setEditMode(false);
       setEditingAreaManager(null);
@@ -272,6 +274,7 @@ const AdminPanel = () => {
       if (!response.ok) throw new Error("Failed to link ER member");
 
       setSuccess("ER Member updated successfully");
+      setSuccess("ER Member  updated successfully");
       await fetchAllData();
       setSelectedAreaManager(null);
       setSelectedErMember(null);
@@ -567,6 +570,13 @@ const AdminPanel = () => {
                     {editMode ? "Update Area Manager" : "Assign Area Manager"}
                   </button>
                 </div>
+
+                {/* Bulk Upload Component */}
+                <BulkUploadAreaManagerProjects
+                  onSuccessfulUpload={fetchAllData}
+                  projects={projects}
+                  employees={employees}
+                />
               </form>
             )}
 
