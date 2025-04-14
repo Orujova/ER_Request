@@ -98,13 +98,11 @@ const BulkUploadAreaManagerProjects = ({
   };
 
   const handleDownloadTemplate = () => {
-    // First try to download the public template
     downloadPublicTemplate();
   };
 
   return (
     <div className="mt-6 bg-gray-50 p-5 rounded-md">
-      {/* Error and Success Alerts */}
       <Alert variant="error" message={error} onDismiss={() => setError(null)} />
       <Alert
         variant="success"
@@ -113,7 +111,6 @@ const BulkUploadAreaManagerProjects = ({
       />
 
       <div className="flex flex-col md:flex-row gap-4 items-center">
-        {/* Download Template Button */}
         <button
           type="button"
           onClick={handleDownloadTemplate}

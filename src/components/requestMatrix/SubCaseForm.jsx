@@ -1,12 +1,5 @@
-import React, { useState } from "react";
-import {
-  Plus,
-  Check,
-  X,
-  FileText,
-  FileCheck,
-  MessageSquare,
-} from "lucide-react";
+import React from "react";
+import { Plus, Check, FileText, FileCheck, MessageSquare } from "lucide-react";
 import { themeColors } from "../../styles/theme";
 
 const SubCaseForm = ({
@@ -15,33 +8,32 @@ const SubCaseForm = ({
   setNewSubCase,
   onCreateSubCase,
 }) => {
-  // Check if this form is for the current case
-  const isCurrentCase = caseId === newSubCase.caseId;
-
-  // Initialize the form state if it's a new form for this case
-  if (caseId !== newSubCase.caseId) {
-    setNewSubCase({
-      description: "",
-      caseId: caseId,
-      IsPresentationRequired: false,
-      IsActRequired: false,
-      IsExplanationRequired: false,
-    });
-  }
+  // Check if this form is for the current case and initialize if needed
+  React.useEffect(() => {
+    if (caseId !== newSubCase.caseId) {
+      setNewSubCase({
+        description: "",
+        caseId: caseId,
+        IsPresentationRequired: false,
+        IsActRequired: false,
+        IsExplanationRequired: false,
+      });
+    }
+  }, [caseId, newSubCase.caseId, setNewSubCase]);
 
   const handleChange = (e) => {
     const { name, type, value, checked } = e.target;
-    setNewSubCase({
-      ...newSubCase,
+    setNewSubCase((prev) => ({
+      ...prev,
       [name]: type === "checkbox" ? checked : value,
-    });
+    }));
   };
 
   const toggleRequirement = (field) => {
-    setNewSubCase({
-      ...newSubCase,
-      [field]: !newSubCase[field],
-    });
+    setNewSubCase((prev) => ({
+      ...prev,
+      [field]: !prev[field],
+    }));
   };
 
   return (

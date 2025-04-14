@@ -9,38 +9,31 @@ import Loading from "../components/common/LoadingScreen";
 import { showToast } from "../toast/toast";
 
 const RequestMatrix = () => {
-  // Authentication
   const { jwtToken } = getStoredTokens();
 
-  // Main state
   const [activeTab, setActiveTab] = useState("cases");
   const [cases, setCases] = useState([]);
   const [subCases, setSubCases] = useState([]);
   const [dataInitialized, setDataInitialized] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [dataVersion, setDataVersion] = useState(0); // Used to trigger refetches
-
-  // Selected items state
+  const [dataVersion, setDataVersion] = useState(0); // Reinstated for refresh
   const [selectedCase, setSelectedCase] = useState(null);
   const [selectedSubCase, setSelectedSubCase] = useState(null);
   const [expandedCases, setExpandedCases] = useState({});
 
-  // API request headers with authentication
   const getRequestHeaders = useCallback(() => {
-    const currentToken = getStoredTokens().jwtToken; // Get fresh token on each request
     return {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${currentToken}`,
+      Authorization: `Bearer ${jwtToken}`,
     };
-  }, []);
+  }, [jwtToken]);
 
   // Function to trigger data refresh
   const refreshData = useCallback(() => {
     setDataVersion((prev) => prev + 1);
   }, []);
 
-  // API: Fetch all cases
   const fetchCases = useCallback(async () => {
     setLoading(true);
     try {
@@ -59,7 +52,6 @@ const RequestMatrix = () => {
     }
   }, [getRequestHeaders]);
 
-  // API: Fetch all subcases
   const fetchAllSubCases = useCallback(async () => {
     setLoading(true);
     try {
@@ -69,14 +61,6 @@ const RequestMatrix = () => {
       if (!response.ok) throw new Error("Failed to fetch subcases");
       const data = await response.json();
       setSubCases(data[0].SubCases);
-
-      // Create initial expanded state for all cases
-      const initialExpandedState = {};
-      cases.forEach((caseItem) => {
-        initialExpandedState[caseItem.Id] = expandedCases[caseItem.Id] || false;
-      });
-      setExpandedCases((prev) => ({ ...prev, ...initialExpandedState }));
-
       return data[0].SubCases;
     } catch (err) {
       showToast(err.message, "error");
@@ -84,9 +68,8 @@ const RequestMatrix = () => {
     } finally {
       setLoading(false);
     }
-  }, [getRequestHeaders, cases, expandedCases]);
+  }, [getRequestHeaders]);
 
-  // API: Create new case
   const createCase = async (newCase) => {
     if (!newCase.caseName.trim()) {
       showToast("Case name cannot be empty", "error");
@@ -106,16 +89,13 @@ const RequestMatrix = () => {
       if (!response.ok) throw new Error("Failed to create case");
       const createdCase = await response.json();
 
-      // Auto-expand the new case
       setExpandedCases((prev) => ({
         ...prev,
         [createdCase.Id]: true,
       }));
 
-      showToast(`Case  created successfully`, "success");
-
-      // Refresh data after successful creation
-      refreshData();
+      showToast(`Case created successfully`, "success");
+      refreshData(); // Trigger refetch after creation
       return createdCase;
     } catch (err) {
       showToast(err.message, "error");
@@ -125,7 +105,6 @@ const RequestMatrix = () => {
     }
   };
 
-  // API: Create new subcase
   const createSubCase = async (newSubCase) => {
     if (!newSubCase.description.trim()) {
       showToast(
@@ -154,13 +133,11 @@ const RequestMatrix = () => {
       if (!response.ok) throw new Error("Failed to create subcase");
       const createdSubCase = await response.json();
 
-      // Auto-expand the parent case
       setExpandedCases((prev) => ({
         ...prev,
         [newSubCase.caseId]: true,
       }));
 
-      // Show success message with info about required documents
       const requiredDocs = [];
       if (createdSubCase.IsPresentationRequired)
         requiredDocs.push("Presentation");
@@ -174,9 +151,7 @@ const RequestMatrix = () => {
           : "SubCase created successfully";
 
       showToast(message, "success");
-
-      // Refresh data after successful creation
-      refreshData();
+      refreshData(); // Trigger refetch after creation
       return createdSubCase;
     } catch (err) {
       showToast(err.message, "error");
@@ -186,7 +161,6 @@ const RequestMatrix = () => {
     }
   };
 
-  // API: Update case
   const updateCase = async (caseData) => {
     if (!caseData || !caseData.Id) {
       showToast("Invalid case data", "error");
@@ -211,15 +185,17 @@ const RequestMatrix = () => {
 
       if (!response.ok) throw new Error("Failed to update case");
 
-      // Update the selected case if it was the one being edited
+      setCases((prev) =>
+        prev.map((c) =>
+          c.Id === caseData.Id ? { ...c, CaseName: caseData.CaseName } : c
+        )
+      );
+
       if (selectedCase?.Id === caseData.Id) {
         setSelectedCase({ ...selectedCase, CaseName: caseData.CaseName });
       }
 
-      showToast(`Case  updated successfully`, "success");
-
-      // Refresh data after successful update
-      refreshData();
+      showToast(`Case updated successfully`, "success");
     } catch (err) {
       showToast(err.message, "error");
     } finally {
@@ -227,7 +203,6 @@ const RequestMatrix = () => {
     }
   };
 
-  // API: Update subcase
   const updateSubCase = async (subcaseData) => {
     if (!subcaseData || !subcaseData.Id) {
       showToast("Invalid subcase data", "error");
@@ -256,12 +231,14 @@ const RequestMatrix = () => {
 
       if (!response.ok) throw new Error("Failed to update subcase");
 
-      // Clear selected subcase after update
+      setSubCases((prev) =>
+        prev.map((sc) =>
+          sc.Id === subcaseData.Id ? { ...sc, ...subcaseData } : sc
+        )
+      );
+
       setSelectedSubCase(null);
       showToast("SubCase updated successfully", "success");
-
-      // Refresh data after successful update
-      refreshData();
     } catch (err) {
       showToast(err.message, "error");
     } finally {
@@ -269,9 +246,7 @@ const RequestMatrix = () => {
     }
   };
 
-  // API: Delete case
   const deleteCase = async (caseId) => {
-    // Check if case has subcases
     const relatedSubcases = subCases.filter((sc) => sc.CaseId === caseId);
 
     if (relatedSubcases.length > 0) {
@@ -283,9 +258,8 @@ const RequestMatrix = () => {
         return;
       }
 
-      // Delete all subcases first
       for (const subCase of relatedSubcases) {
-        await deleteSubCase(subCase.Id, false); // silent delete
+        await deleteSubCase(subCase.Id, false);
       }
     }
 
@@ -301,12 +275,12 @@ const RequestMatrix = () => {
 
       if (!response.ok) throw new Error("Failed to delete case");
 
-      // Clear selection if it was the deleted case
+      setCases((prev) => prev.filter((c) => c.Id !== caseId));
+
       if (selectedCase?.Id === caseId) {
         setSelectedCase(null);
       }
 
-      // Remove from expanded cases state
       setExpandedCases((prev) => {
         const newState = { ...prev };
         delete newState[caseId];
@@ -314,9 +288,6 @@ const RequestMatrix = () => {
       });
 
       showToast("Case deleted successfully", "success");
-
-      // Refresh data after successful deletion
-      refreshData();
     } catch (err) {
       showToast(err.message, "error");
     } finally {
@@ -324,7 +295,6 @@ const RequestMatrix = () => {
     }
   };
 
-  // API: Delete subcase
   const deleteSubCase = async (subCaseId, showMessages = true) => {
     const subcaseToDelete = subCases.find((sc) => sc.Id === subCaseId);
     if (!subcaseToDelete) return;
@@ -341,19 +311,14 @@ const RequestMatrix = () => {
 
       if (!response.ok) throw new Error("Failed to delete subcase");
 
-      // Clear selection if it was the deleted subcase
+      setSubCases((prev) => prev.filter((sc) => sc.Id !== subCaseId));
+
       if (selectedSubCase?.Id === subCaseId) {
         setSelectedSubCase(null);
       }
 
       if (showMessages) {
         showToast("SubCase deleted successfully", "success");
-      }
-
-      // Refresh data after successful deletion
-      if (showMessages) {
-        // Only trigger refresh for non-silent deletes
-        refreshData();
       }
     } catch (err) {
       if (showMessages) {
@@ -364,7 +329,6 @@ const RequestMatrix = () => {
     }
   };
 
-  // Toggle case expansion in accordion view
   const toggleCaseExpansion = (caseId) => {
     setExpandedCases((prev) => ({
       ...prev,
@@ -372,19 +336,25 @@ const RequestMatrix = () => {
     }));
   };
 
-  // Filter cases based on search term
   const filteredCases = cases.filter(
     (caseItem) =>
       caseItem.CaseName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       String(caseItem.Id).includes(searchTerm)
   );
 
-  // Load data when dataVersion changes (our refresh trigger)
   useEffect(() => {
     const loadData = async () => {
       try {
         const fetchedCases = await fetchCases();
         await fetchAllSubCases();
+
+        const initialExpandedState = {};
+        fetchedCases.forEach((caseItem) => {
+          initialExpandedState[caseItem.Id] =
+            expandedCases[caseItem.Id] || false;
+        });
+        setExpandedCases((prev) => ({ ...prev, ...initialExpandedState }));
+
         setDataInitialized(true);
       } catch (err) {
         console.error("Error loading data:", err);
@@ -396,7 +366,6 @@ const RequestMatrix = () => {
     loadData();
   }, [dataVersion, fetchCases, fetchAllSubCases]);
 
-  // If data isn't initialized yet, show a loading screen
   if (!dataInitialized) {
     return <Loading />;
   }
@@ -407,7 +376,6 @@ const RequestMatrix = () => {
       style={{ backgroundColor: themeColors.secondary }}
     >
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
         <header className="mb-6">
           <div className="flex items-center p-4 rounded-lg">
             <div>
@@ -424,10 +392,8 @@ const RequestMatrix = () => {
           </div>
         </header>
 
-        {/* Tab Navigation */}
         <TabNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
 
-        {/* Main content */}
         <div className="mt-6">
           {activeTab === "cases" && (
             <CaseTab

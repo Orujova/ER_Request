@@ -13,7 +13,8 @@ const DisciplinaryActionForm = ({
   const [formData, setFormData] = useState({
     Id: action?.Id || 0,
     Name: action?.Name || "",
-    DisciplinaryActionResultId: action?.DisciplinaryActionResultId || 0,
+    DisciplinaryActionResultId:
+      action?.DisciplinaryActionResultId || results[0]?.Id || 0,
   });
 
   // Update form data when props change
@@ -38,7 +39,7 @@ const DisciplinaryActionForm = ({
     }));
   };
 
-  // Handle form submission
+  // Handle form submission with proper event prevention
   const handleSubmit = (e) => {
     e.preventDefault();
     onSubmit(formData);
@@ -63,6 +64,7 @@ const DisciplinaryActionForm = ({
         <button
           onClick={onCancel}
           className="mr-4 p-2 rounded-full transition-colors duration-150 hover:bg-white hover:bg-opacity-50"
+          type="button"
         >
           <ArrowLeft
             size={22}
@@ -74,7 +76,7 @@ const DisciplinaryActionForm = ({
           <h2 className="text-xl font-bold" style={{ color: themeColors.text }}>
             {formTitle}
           </h2>
-          {action?.Id && (
+          {action?.Id > 0 && (
             <p
               className="text-sm mt-1"
               style={{ color: themeColors.textLight }}
