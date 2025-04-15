@@ -44,6 +44,8 @@ export const verifyTokenWithBackend = async (msalAccessToken) => {
 
     // Store JWT token and user info
     storeJwtToken(data.JwtToken);
+
+    localStorage.setItem("jwt", data.JwtToken);
     storeUserInfo({
       userId: data.UserId,
       fullName: data.FullName,

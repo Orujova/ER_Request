@@ -23,6 +23,7 @@ const AdminPanel = () => {
   const [projects, setProjects] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [areaManagers, setAreaManagers] = useState([]);
+  const [areaManagerOptions, setAreaManagerOptions] = useState([]); // New state for area manager options
   const [erMembers, setErMembers] = useState([]);
   const [areaManagerProjects, setAreaManagerProjects] = useState({});
 
@@ -55,56 +56,67 @@ const AdminPanel = () => {
         "Content-Type": "application/json",
       };
 
-      const [projectsRes, employeesRes, managersRes, erMembersRes] =
-        await Promise.all([
-          fetch(`${API_BASE_URL}/api/Project`, { headers }),
-          fetch(`${API_BASE_URL}/api/Employee`, { headers }),
-          fetch(`${API_BASE_URL}/api/Project/GetAllAreaManagerProject`, {
-            headers,
-          }),
-          fetch(`${API_BASE_URL}/api/AdminApplicationUser/GetAllERMemberUser`, {
-            headers,
-          }),
-        ]);
+      const [
+        projectsRes,
+        employeesRes,
+        areaManagerOptionsRes,
+        areaManagerProjectsRes,
+        erMembersRes,
+      ] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/Project`, { headers }),
+        fetch(`${API_BASE_URL}/api/Employee`, { headers }),
+        fetch(`${API_BASE_URL}/api/Project/GetAllAreaManager`, { headers }),
+        fetch(`${API_BASE_URL}/api/Project/GetAllAreaManagerProject`, {
+          headers,
+        }),
+        fetch(`${API_BASE_URL}/api/AdminApplicationUser/GetAllERMemberUser`, {
+          headers,
+        }),
+      ]);
 
-      const [projectsData, employeesData, managersData, erMembersData] =
-        await Promise.all([
-          projectsRes.json(),
-          employeesRes.json(),
-          managersRes.json(),
-          erMembersRes.json(),
-        ]);
+      if (
+        !projectsRes.ok ||
+        !employeesRes.ok ||
+        !areaManagerOptionsRes.ok ||
+        !areaManagerProjectsRes.ok ||
+        !erMembersRes.ok
+      ) {
+        throw new Error("Failed to fetch data from one or more endpoints");
+      }
+
+      const projectsData = await projectsRes.json();
+      const employeesData = await employeesRes.json();
+      const areaManagerOptionsData = await areaManagerOptionsRes.json();
+      const areaManagerProjectsData = await areaManagerProjectsRes.json();
+      const erMembersData = await erMembersRes.json();
 
       const projectsList = projectsData[0]?.Projects || [];
       const employeesList = employeesData[0]?.Employees || [];
-      const areaManagersList = managersData[0]?.AreaManagerProjects || [];
+      const areaManagerOptionsList =
+        areaManagerOptionsData[0]?.AreaManagers || [];
+      const areaManagersList =
+        areaManagerProjectsData[0]?.AreaManagerProjects || [];
       const erMembersList = erMembersData[0]?.AppUsers || [];
 
       setProjects(projectsList);
       setEmployees(employeesList);
+      setAreaManagerOptions(areaManagerOptionsList);
       setAreaManagers(areaManagersList);
       setErMembers(erMembersList);
 
       // Map area managers to their assigned projects
       const projectsByManager = {};
 
-      // First, create a map from area manager name to EmployeeId
-      const managerNameToId = {};
+      // Create a map from area manager EmployeeId to their projects
       areaManagersList.forEach((manager) => {
-        if (manager.FullName) {
-          managerNameToId[manager.FullName] = manager.EmployeeId;
-        }
-      });
+        if (manager.EmployeeId) {
+          if (!projectsByManager[manager.EmployeeId]) {
+            projectsByManager[manager.EmployeeId] = [];
+          }
 
-      // Then, assign projects to corresponding area managers
-      projectsList.forEach((project) => {
-        if (project.AreaManager) {
-          const managerId = managerNameToId[project.AreaManager];
-          if (managerId) {
-            if (!projectsByManager[managerId]) {
-              projectsByManager[managerId] = [];
-            }
-            projectsByManager[managerId].push(project);
+          const project = projectsList.find((p) => p.Id === manager.ProjectId);
+          if (project) {
+            projectsByManager[manager.EmployeeId].push(project);
           }
         }
       });
@@ -246,8 +258,8 @@ const AdminPanel = () => {
     setError(null);
 
     try {
-      // Find the selected manager to get the correct Id (not EmployeeId)
-      const selectedManager = areaManagers.find(
+      // Find the selected manager to get the correct Id
+      const selectedManager = areaManagerOptions.find(
         (manager) => String(manager.EmployeeId) === selectedAreaManager
       );
 
@@ -264,7 +276,6 @@ const AdminPanel = () => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            // Use the actual Id field from the manager object, not the EmployeeId
             AreaManagerId: parseInt(selectedManager.Id),
             AppUserId: parseInt(selectedErMember),
           }),
@@ -273,8 +284,7 @@ const AdminPanel = () => {
 
       if (!response.ok) throw new Error("Failed to link ER member");
 
-      setSuccess("ER Member updated successfully");
-      setSuccess("ER Member  updated successfully");
+      setSuccess("ER Member linked successfully");
       await fetchAllData();
       setSelectedAreaManager(null);
       setSelectedErMember(null);
@@ -330,12 +340,12 @@ const AdminPanel = () => {
   const projectOptions = projects.map(
     (project) => project.ProjectCode || "Unnamed Project"
   );
-
   const employeeOptions = employees.map(
     (employee) => employee.FullName || "Unnamed Employee"
   );
 
-  const managerOptions = areaManagers.map(
+  // Use the new areaManagerOptions state for the dropdown
+  const managerOptions = areaManagerOptions.map(
     (manager) => manager.FullName || "Unnamed Manager"
   );
 
@@ -355,7 +365,7 @@ const AdminPanel = () => {
   };
 
   const getManagerIdByName = (name) => {
-    const manager = areaManagers.find((m) => m.FullName === name);
+    const manager = areaManagerOptions.find((m) => m.FullName === name);
     return manager ? String(manager.EmployeeId) : null;
   };
 
@@ -517,7 +527,7 @@ const AdminPanel = () => {
                                   className="mr-1.5 text-cyan-600 flex-shrink-0"
                                 />
                                 <span className="font-medium">
-                                  {project.ProjectCode}:
+                                  {project.ProjectCode}
                                 </span>
                               </div>
                             ))}
@@ -590,7 +600,7 @@ const AdminPanel = () => {
                     options={managerOptions}
                     value={
                       selectedAreaManager
-                        ? areaManagers.find(
+                        ? areaManagerOptions.find(
                             (m) => String(m.EmployeeId) === selectedAreaManager
                           )?.FullName
                         : null
