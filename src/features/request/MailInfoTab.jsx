@@ -1,4 +1,4 @@
-// File: components/email/EREmailInterface.jsx
+// File: components/request/MailInfoTab.jsx
 import React, { useState, useEffect } from "react";
 import { Mail } from "lucide-react";
 import { API_BASE_URL } from "../../../apiConfig";
@@ -13,7 +13,7 @@ import EmailReplyForm from "./EmailReplyForm";
 import StatusBar from "../../components/email/StatusBar";
 import FullScreenEmail from "../../components/email/FullScreenEmail";
 
-const EREmailInterface = ({ requestid }) => {
+const MailInfoTab = ({ request, requestid }) => {
   // State Management
   const [emails, setEmails] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,6 +27,7 @@ const EREmailInterface = ({ requestid }) => {
   const [showMoreTake, setShowMoreTake] = useState(10);
   const [downloadingAttachmentId, setDownloadingAttachmentId] = useState(null);
   const [fullScreenMode, setFullScreenMode] = useState(false);
+  const [expandedMode, setExpandedMode] = useState(false);
 
   // Email reply state
   const [replyMode, setReplyMode] = useState(null); // Can be "Reply", "ReplyAll", or "Forward"
@@ -38,6 +39,9 @@ const EREmailInterface = ({ requestid }) => {
   // Get tokens from auth handler
   const { jwtToken } = getStoredTokens();
   const accessToken = localStorage.getItem("access_token");
+
+  // Check if emails are enabled for this request
+  const emailsEnabled = request?.emailsEnabled || true; // Default to true if not specified
 
   // Colors theme for consistent styling
   const colors = {
@@ -250,6 +254,19 @@ const EREmailInterface = ({ requestid }) => {
     setFullScreenMode(!fullScreenMode);
   };
 
+  // Toggle expanded mode (fill entire RequestDetail page)
+  const toggleExpandedMode = () => {
+    setExpandedMode(!expandedMode);
+    // If going into expanded mode, exit full screen or reply mode
+    if (!expandedMode) {
+      setFullScreenMode(false);
+      if (showReplyForm) {
+        setShowReplyForm(false);
+        setReplyMode(null);
+      }
+    }
+  };
+
   // Separate inbox and sent emails if needed
   const inboxEmails = userEmail
     ? emails.filter((email) => email.Sender !== userEmail)
@@ -257,6 +274,37 @@ const EREmailInterface = ({ requestid }) => {
   const sentEmails = userEmail
     ? emails.filter((email) => email.Sender === userEmail)
     : [];
+
+  // If emails are not enabled
+  if (!emailsEnabled) {
+    return (
+      <div className="p-6">
+        <div className="bg-amber-50 border border-amber-200 rounded-md p-4 flex items-start">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5 text-amber-500 mr-3 mt-0.5"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fillRule="evenodd"
+              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+              clipRule="evenodd"
+            />
+          </svg>
+          <div>
+            <h3 className="text-sm font-medium text-amber-800">
+              Email Management Not Available
+            </h3>
+            <p className="mt-2 text-sm text-amber-700">
+              Email management is not enabled for this request. Please contact
+              your administrator if you believe this is an error.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Full screen email view
   if (fullScreenMode && selectedEmail) {
@@ -273,11 +321,21 @@ const EREmailInterface = ({ requestid }) => {
     );
   }
 
-  // Main UI Render (normal view)
+  // Main UI Render with expanded mode support
   return (
-    <div className="flex flex-col h-screen bg-slate-50 text-slate-700">
+    <div
+      className={`${
+        expandedMode ? "fixed inset-0 z-50 bg-white" : "relative"
+      } flex flex-col ${
+        expandedMode ? "h-screen" : "h-screen max-h-[700px]"
+      } bg-slate-50 text-slate-700 overflow-hidden`}
+    >
       {/* Top Bar */}
-      <EmailHeader colors={colors} />
+      <EmailHeader
+        colors={colors}
+        expandedMode={expandedMode}
+        toggleExpandedMode={toggleExpandedMode}
+      />
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
@@ -345,4 +403,4 @@ const EREmailInterface = ({ requestid }) => {
   );
 };
 
-export default EREmailInterface;
+export default MailInfoTab;

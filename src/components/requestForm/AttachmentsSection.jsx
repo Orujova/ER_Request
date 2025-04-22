@@ -1,4 +1,4 @@
-// src/components/RequestForm/AttachmentsSection.js
+// src/components/requestForm/AttachmentsSection.js
 import React, { useRef, useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -31,10 +31,10 @@ const AttachmentSection = ({
   const handleFileChange = (e) => {
     if (e.target.files?.length > 0) {
       try {
-        // console.log(
-        //   `Files selected for ${title}:`,
-        //   Array.from(e.target.files).map((f) => f.name)
-        // );
+        console.log(
+          `Files selected for ${title}:`,
+          Array.from(e.target.files).map((f) => f.name)
+        );
 
         // Convert FileList to array of files
         const fileArray = Array.from(e.target.files);
@@ -53,9 +53,9 @@ const AttachmentSection = ({
               file,
               type: fileType, // Store the file type explicitly
             });
-            // console.log(
-            //   `Cached file with ID: ${id}, name: ${file.name}, type: ${fileType}`
-            // );
+            console.log(
+              `Cached file with ID: ${id}, name: ${file.name}, type: ${fileType}`
+            );
           } else {
             console.warn("fileCache not available");
           }
@@ -79,6 +79,20 @@ const AttachmentSection = ({
         e.target.value = "";
       }
     }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFileChange({ target: { files: e.dataTransfer.files } });
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
   };
 
   const handleOpenTemplates = () => {
@@ -108,14 +122,17 @@ const AttachmentSection = ({
       </div>
 
       <div className="mb-2">
-        <button
-          type="button"
+        <div
+          className="w-full py-2 px-3 border border-dashed border-gray-300 rounded-md flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors text-sm cursor-pointer"
           onClick={() => fileInputRef.current?.click()}
-          className="w-full py-2 px-3 border border-dashed border-gray-300 rounded-md flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors text-sm"
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
         >
           <FileUp size={16} className="text-gray-400" />
-          <span className="text-gray-600">Add File</span>
-        </button>
+          <span className="text-gray-600">
+            Drag & drop files or click to browse
+          </span>
+        </div>
         <input
           type="file"
           ref={fileInputRef}
@@ -153,7 +170,9 @@ const AttachmentSection = ({
       )}
 
       {required && (!files || files.length === 0) && (
-        <p className="mt-1 text-xs text-red-500">Required</p>
+        <p className="mt-1 text-xs text-red-500">
+          Required for this request type
+        </p>
       )}
     </div>
   );
@@ -162,7 +181,7 @@ const AttachmentSection = ({
 // Creating a local storage mechanism if fileCache is not available
 const createLocalStorage = () => {
   const storage = new Map();
-  // console.log("Created local file storage as fallback");
+  console.log("Created local file storage as fallback");
   return { current: storage };
 };
 
@@ -173,7 +192,7 @@ const AttachmentsSection = ({ fileCache }) => {
   const [localFileCache] = useState(createLocalStorage());
   const effectiveFileCache = fileCache || localFileCache;
 
-  // console.log("AttachmentsSection rendered, fileCache available:", !!fileCache);
+  console.log("AttachmentsSection rendered, fileCache available:", !!fileCache);
 
   // Get data from Redux store with fallbacks
   const formData = useSelector((state) => state.formData || {});
@@ -185,22 +204,22 @@ const AttachmentsSection = ({ fileCache }) => {
   const otherFiles = formData.otherFiles || [];
 
   // Log the current files for debugging
-  // useEffect(() => {
-  //   console.log("Files in state:", {
-  //     act: actFiles.length,
-  //     presentation: presentationFiles.length,
-  //     explanation: explanationFiles.length,
-  //     other: otherFiles.length,
-  //   });
+  useEffect(() => {
+    console.log("Files in state:", {
+      act: actFiles.length,
+      presentation: presentationFiles.length,
+      explanation: explanationFiles.length,
+      other: otherFiles.length,
+    });
 
-  //   console.log("Files in cache:", effectiveFileCache.current.size);
-  // }, [
-  //   actFiles,
-  //   presentationFiles,
-  //   explanationFiles,
-  //   otherFiles,
-  //   effectiveFileCache,
-  // ]);
+    console.log("Files in cache:", effectiveFileCache.current.size);
+  }, [
+    actFiles,
+    presentationFiles,
+    explanationFiles,
+    otherFiles,
+    effectiveFileCache,
+  ]);
 
   const requestType = formData.requestType || "";
   const subCase = formData.subCase || "";
@@ -235,22 +254,18 @@ const AttachmentsSection = ({ fileCache }) => {
 
   // Handle adding files
   const handleActFileUpload = (fileMetadata) => {
-   
     dispatch(addActFile(fileMetadata));
   };
 
   const handlePresentationFileUpload = (fileMetadata) => {
-   
     dispatch(addPresentationFile(fileMetadata));
   };
 
   const handleExplanationFileUpload = (fileMetadata) => {
- 
     dispatch(addExplanationFile(fileMetadata));
   };
 
   const handleOtherFileUpload = (fileMetadata) => {
-    
     dispatch(addOtherFile(fileMetadata));
   };
 
@@ -259,7 +274,6 @@ const AttachmentsSection = ({ fileCache }) => {
     const fileToRemove = actFiles[index];
     if (fileToRemove?.id && effectiveFileCache.current) {
       effectiveFileCache.current.delete(fileToRemove.id);
-      
     }
     dispatch(removeActFile(index));
   };
@@ -268,7 +282,6 @@ const AttachmentsSection = ({ fileCache }) => {
     const fileToRemove = presentationFiles[index];
     if (fileToRemove?.id && effectiveFileCache.current) {
       effectiveFileCache.current.delete(fileToRemove.id);
-     
     }
     dispatch(removePresentationFile(index));
   };
@@ -277,7 +290,6 @@ const AttachmentsSection = ({ fileCache }) => {
     const fileToRemove = explanationFiles[index];
     if (fileToRemove?.id && effectiveFileCache.current) {
       effectiveFileCache.current.delete(fileToRemove.id);
-      
     }
     dispatch(removeExplanationFile(index));
   };
@@ -286,7 +298,6 @@ const AttachmentsSection = ({ fileCache }) => {
     const fileToRemove = otherFiles[index];
     if (fileToRemove?.id && effectiveFileCache.current) {
       effectiveFileCache.current.delete(fileToRemove.id);
-     
     }
     dispatch(removeOtherFile(index));
   };

@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
-import { ChevronDown, Search, X } from "lucide-react";
 
-// Enhanced SearchableDropdown component
+import React, { useState, useEffect, useRef } from "react";
+import { ChevronDown, Search, X, Loader2 } from "lucide-react";
+
+// Enhanced SearchableDropdown component with loading state
 const SearchableDropdown = ({
   label,
   placeholder,
@@ -13,6 +14,7 @@ const SearchableDropdown = ({
   searchQuery = "",
   setSearchQuery,
   allowClear = true,
+  isLoading = false, // Added loading state
 }) => {
   const [showResults, setShowResults] = useState(false);
   const dropdownRef = useRef(null);
@@ -45,11 +47,11 @@ const SearchableDropdown = ({
           <input
             type="text"
             className={`w-full px-4 py-3 pl-10 pr-10 rounded-xl border-2 border-gray-200 focus:border-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-100 transition-all ${
-              disabled
+              disabled || isLoading
                 ? "bg-gray-100 text-gray-500 cursor-not-allowed"
                 : "bg-white"
             }`}
-            placeholder={placeholder}
+            placeholder={isLoading ? "Loading options..." : placeholder}
             value={value || searchQuery}
             onChange={(e) => {
               if (setSearchQuery) {
@@ -57,18 +59,23 @@ const SearchableDropdown = ({
               }
               onSearch(e.target.value);
             }}
-            onFocus={() => !disabled && setShowResults(true)}
-            disabled={disabled}
+            onFocus={() => !disabled && !isLoading && setShowResults(true)}
+            disabled={disabled || isLoading}
           />
           <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-            <Search size={18} />
+            {isLoading ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              <Search size={18} />
+            )}
           </div>
           <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
-            {allowClear && (value || searchQuery) && (
+            {allowClear && !isLoading && (value || searchQuery) && (
               <button
                 type="button"
                 onClick={handleClear}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
+                disabled={isLoading}
               >
                 <X size={18} />
               </button>
@@ -82,28 +89,26 @@ const SearchableDropdown = ({
           </div>
         </div>
 
-        {showResults && options.length > 0 && (
+        {showResults && !isLoading && (
           <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-50 animate-slideDown">
-            {options.map((option, index) => (
-              <div
-                key={index}
-                onClick={() => {
-                  onSelect(option);
-                  setShowResults(false);
-                }}
-                className="px-4 py-3 cursor-pointer hover:bg-gray-50 transition-all text-sm"
-              >
-                {option}
+            {options.length > 0 ? (
+              options.map((option, index) => (
+                <div
+                  key={index}
+                  onClick={() => {
+                    onSelect(option);
+                    setShowResults(false);
+                  }}
+                  className="px-4 py-3 cursor-pointer hover:bg-gray-50 transition-all text-sm"
+                >
+                  {option}
+                </div>
+              ))
+            ) : (
+              <div className="px-4 py-3 text-gray-500 text-center text-sm">
+                No options available
               </div>
-            ))}
-          </div>
-        )}
-
-        {showResults && options.length === 0 && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 animate-slideDown">
-            <div className="px-4 py-3 text-gray-500 text-center text-sm">
-              No options available
-            </div>
+            )}
           </div>
         )}
       </div>

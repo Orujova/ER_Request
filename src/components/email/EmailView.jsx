@@ -100,11 +100,16 @@ const EmailView = ({
 
       {/* Attachments */}
       {selectedEmail.HasAttachments && selectedEmail.Attachments && (
-        <AttachmentList
-          attachments={selectedEmail.Attachments}
-          downloadAttachment={downloadAttachment}
-          downloadingAttachmentId={downloadingAttachmentId}
-        />
+        <div className="border-t border-slate-200 p-3">
+          <h3 className="text-xs font-medium text-slate-700 mb-2">
+            Attachments:
+          </h3>
+          <AttachmentList
+            attachments={selectedEmail.Attachments}
+            onDownloadAttachment={downloadAttachment}
+            downloadingAttachmentId={downloadingAttachmentId}
+          />
+        </div>
       )}
     </>
   );

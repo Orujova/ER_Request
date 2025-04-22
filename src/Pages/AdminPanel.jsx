@@ -12,7 +12,7 @@ import {
 import { API_BASE_URL } from "../../apiConfig";
 import { getStoredTokens } from "../utils/authHandler";
 import Alert from "../components/common/Alert";
-import SearchableProjectDropdown from "../components/common/SearchableProjectDropdown";
+import SearchableDropdown from "../components/common/SearchableDropdown";
 import ProjectAreaManagerTable from "../components/ProjectAreaManagerTable";
 import AreaManagerErMemberTable from "../components/AreaManagerErMemberTable";
 import BulkUploadAreaManagerProjects from "../components/BulkUploadAreaManagerProjects";
@@ -23,15 +23,25 @@ const AdminPanel = () => {
   const [projects, setProjects] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [areaManagers, setAreaManagers] = useState([]);
-  const [areaManagerOptions, setAreaManagerOptions] = useState([]); // New state for area manager options
+  const [areaManagerOptions, setAreaManagerOptions] = useState([]); // State for area manager options
   const [erMembers, setErMembers] = useState([]);
   const [areaManagerProjects, setAreaManagerProjects] = useState({});
 
   // Form states
   const [selectedProject, setSelectedProject] = useState(null);
+  const [selectedProjectName, setSelectedProjectName] = useState(""); // Visible name for project
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [selectedEmployeeName, setSelectedEmployeeName] = useState(""); // Visible name for employee
   const [selectedAreaManager, setSelectedAreaManager] = useState(null);
+  const [selectedAreaManagerName, setSelectedAreaManagerName] = useState(""); // Visible name for area manager
   const [selectedErMember, setSelectedErMember] = useState(null);
+  const [selectedErMemberName, setSelectedErMemberName] = useState(""); // Visible name for ER member
+
+  // Search states
+  const [projectSearchQuery, setProjectSearchQuery] = useState("");
+  const [employeeSearchQuery, setEmployeeSearchQuery] = useState("");
+  const [areaManagerSearchQuery, setAreaManagerSearchQuery] = useState("");
+  const [erMemberSearchQuery, setErMemberSearchQuery] = useState("");
 
   // Edit states
   const [editMode, setEditMode] = useState(false);
@@ -44,84 +54,157 @@ const AdminPanel = () => {
   const [success, setSuccess] = useState("");
   const [activeTab, setActiveTab] = useState("assign");
 
+  // Specific loading states for dropdowns
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
+  const [areaManagersLoading, setAreaManagersLoading] = useState(false);
+  const [erMembersLoading, setErMembersLoading] = useState(false);
+
   const { jwtToken } = getStoredTokens();
+
+  // Filter options for dropdowns
+  const filteredProjectOptions = projects
+    .filter((project) =>
+      project.ProjectCode?.toLowerCase().includes(
+        projectSearchQuery.toLowerCase()
+      )
+    )
+    .map((project) => project.ProjectCode || "Unnamed Project");
+
+  const filteredEmployeeOptions = employees
+    .filter((employee) =>
+      employee.FullName?.toLowerCase().includes(
+        employeeSearchQuery.toLowerCase()
+      )
+    )
+    .map((employee) => employee.FullName || "Unnamed Employee");
+
+  const filteredAreaManagerOptions = areaManagerOptions
+    .filter((manager) =>
+      manager.FullName?.toLowerCase().includes(
+        areaManagerSearchQuery.toLowerCase()
+      )
+    )
+    .map((manager) => manager.FullName || "Unnamed Manager");
+
+  const filteredErMemberOptions = erMembers
+    .filter((member) =>
+      member.FullName?.toLowerCase().includes(erMemberSearchQuery.toLowerCase())
+    )
+    .map((member) => member.FullName || "Unnamed Member");
 
   // Fetch all initial data
   const fetchAllData = async () => {
     setLoading(true);
     setError(null);
+
+    // Set specific loading states
+    setProjectsLoading(true);
+    setEmployeesLoading(true);
+    setAreaManagersLoading(true);
+    setErMembersLoading(true);
+
     try {
       const headers = {
         Authorization: `Bearer ${jwtToken}`,
         "Content-Type": "application/json",
       };
 
-      const [
-        projectsRes,
-        employeesRes,
-        areaManagerOptionsRes,
-        areaManagerProjectsRes,
-        erMembersRes,
-      ] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/Project`, { headers }),
-        fetch(`${API_BASE_URL}/api/Employee`, { headers }),
-        fetch(`${API_BASE_URL}/api/Project/GetAllAreaManager`, { headers }),
-        fetch(`${API_BASE_URL}/api/Project/GetAllAreaManagerProject`, {
+      // Using individual promises to handle separate loading states
+      try {
+        const projectsRes = await fetch(`${API_BASE_URL}/api/Project`, {
           headers,
-        }),
-        fetch(`${API_BASE_URL}/api/AdminApplicationUser/GetAllERMemberUser`, {
-          headers,
-        }),
-      ]);
-
-      if (
-        !projectsRes.ok ||
-        !employeesRes.ok ||
-        !areaManagerOptionsRes.ok ||
-        !areaManagerProjectsRes.ok ||
-        !erMembersRes.ok
-      ) {
-        throw new Error("Failed to fetch data from one or more endpoints");
+        });
+        if (!projectsRes.ok) throw new Error("Failed to fetch projects");
+        const projectsData = await projectsRes.json();
+        const projectsList = projectsData[0]?.Projects || [];
+        setProjects(projectsList);
+      } catch (err) {
+        console.error("Failed to fetch projects:", err);
+        setError("Failed to fetch projects");
+      } finally {
+        setProjectsLoading(false);
       }
 
-      const projectsData = await projectsRes.json();
-      const employeesData = await employeesRes.json();
-      const areaManagerOptionsData = await areaManagerOptionsRes.json();
-      const areaManagerProjectsData = await areaManagerProjectsRes.json();
-      const erMembersData = await erMembersRes.json();
+      try {
+        const employeesRes = await fetch(`${API_BASE_URL}/api/Employee`, {
+          headers,
+        });
+        if (!employeesRes.ok) throw new Error("Failed to fetch employees");
+        const employeesData = await employeesRes.json();
+        const employeesList = employeesData[0]?.Employees || [];
+        setEmployees(employeesList);
+      } catch (err) {
+        console.error("Failed to fetch employees:", err);
+        setError("Failed to fetch employees");
+      } finally {
+        setEmployeesLoading(false);
+      }
 
-      const projectsList = projectsData[0]?.Projects || [];
-      const employeesList = employeesData[0]?.Employees || [];
-      const areaManagerOptionsList =
-        areaManagerOptionsData[0]?.AreaManagers || [];
-      const areaManagersList =
-        areaManagerProjectsData[0]?.AreaManagerProjects || [];
-      const erMembersList = erMembersData[0]?.AppUsers || [];
+      try {
+        const areaManagerOptionsRes = await fetch(
+          `${API_BASE_URL}/api/Project/GetAllAreaManager`,
+          { headers }
+        );
+        const areaManagerProjectsRes = await fetch(
+          `${API_BASE_URL}/api/Project/GetAllAreaManagerProject`,
+          { headers }
+        );
 
-      setProjects(projectsList);
-      setEmployees(employeesList);
-      setAreaManagerOptions(areaManagerOptionsList);
-      setAreaManagers(areaManagersList);
-      setErMembers(erMembersList);
-
-      // Map area managers to their assigned projects
-      const projectsByManager = {};
-
-      // Create a map from area manager EmployeeId to their projects
-      areaManagersList.forEach((manager) => {
-        if (manager.EmployeeId) {
-          if (!projectsByManager[manager.EmployeeId]) {
-            projectsByManager[manager.EmployeeId] = [];
-          }
-
-          const project = projectsList.find((p) => p.Id === manager.ProjectId);
-          if (project) {
-            projectsByManager[manager.EmployeeId].push(project);
-          }
+        if (!areaManagerOptionsRes.ok || !areaManagerProjectsRes.ok) {
+          throw new Error("Failed to fetch area manager data");
         }
-      });
 
-      setAreaManagerProjects(projectsByManager);
+        const areaManagerOptionsData = await areaManagerOptionsRes.json();
+        const areaManagerProjectsData = await areaManagerProjectsRes.json();
+
+        const areaManagerOptionsList =
+          areaManagerOptionsData[0]?.AreaManagers || [];
+        const areaManagersList =
+          areaManagerProjectsData[0]?.AreaManagerProjects || [];
+
+        setAreaManagerOptions(areaManagerOptionsList);
+        setAreaManagers(areaManagersList);
+
+        // Map area managers to their assigned projects
+        const projectsByManager = {};
+
+        areaManagersList.forEach((manager) => {
+          if (manager.EmployeeId) {
+            if (!projectsByManager[manager.EmployeeId]) {
+              projectsByManager[manager.EmployeeId] = [];
+            }
+
+            const project = projects.find((p) => p.Id === manager.ProjectId);
+            if (project) {
+              projectsByManager[manager.EmployeeId].push(project);
+            }
+          }
+        });
+
+        setAreaManagerProjects(projectsByManager);
+      } catch (err) {
+        console.error("Failed to fetch area manager data:", err);
+        setError("Failed to fetch area manager data");
+      } finally {
+        setAreaManagersLoading(false);
+      }
+
+      try {
+        const erMembersRes = await fetch(
+          `${API_BASE_URL}/api/AdminApplicationUser/GetAllERMemberUser`,
+          { headers }
+        );
+        if (!erMembersRes.ok) throw new Error("Failed to fetch ER members");
+        const erMembersData = await erMembersRes.json();
+        const erMembersList = erMembersData[0]?.AppUsers || [];
+        setErMembers(erMembersList);
+      } catch (err) {
+        console.error("Failed to fetch ER members:", err);
+        setError("Failed to fetch ER members");
+      } finally {
+        setErMembersLoading(false);
+      }
     } catch (err) {
       setError("Failed to fetch data. Please try again.");
       console.error("Fetch error:", err);
@@ -165,9 +248,12 @@ const AdminPanel = () => {
       showToast("Area Manager assigned successfully", "success");
       await fetchAllData();
       setSelectedProject(null);
+      setSelectedProjectName("");
       setSelectedEmployee(null);
+      setSelectedEmployeeName("");
 
       // Auto-dismiss success message after 3 seconds
+      setSuccess("Area Manager assigned successfully");
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
       setError(err.message || "Failed to assign area manager");
@@ -237,8 +323,10 @@ const AdminPanel = () => {
       setEditMode(false);
       setEditingAreaManager(null);
       setSelectedEmployee(null);
+      setSelectedEmployeeName("");
 
       // Auto-dismiss success message after 3 seconds
+      setSuccess("Area Manager updated successfully");
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
       setError(err.message || "Failed to update area manager");
@@ -287,7 +375,9 @@ const AdminPanel = () => {
       setSuccess("ER Member linked successfully");
       await fetchAllData();
       setSelectedAreaManager(null);
+      setSelectedAreaManagerName("");
       setSelectedErMember(null);
+      setSelectedErMemberName("");
       setEditMode(false);
       setEditingErMember(null);
 
@@ -303,14 +393,19 @@ const AdminPanel = () => {
   const handleEditAreaManager = (areaManager) => {
     setEditMode(true);
     setEditingAreaManager(areaManager.Id);
+
     // Pre-select the current employee
     const employee = employees.find((e) => e.Id === areaManager.EmployeeId);
-    setSelectedEmployee(employee ? String(employee.Id) : null);
+    if (employee) {
+      setSelectedEmployee(String(employee.Id));
+      setSelectedEmployeeName(employee.FullName || "");
+    }
 
     // Get the associated projects
     const projects = areaManagerProjects[areaManager.EmployeeId] || [];
     if (projects.length > 0) {
       setSelectedProject(String(projects[0].Id));
+      setSelectedProjectName(projects[0].ProjectCode || "");
     }
 
     setActiveTab("assign");
@@ -319,11 +414,25 @@ const AdminPanel = () => {
   const handleEditErMember = (areaManager) => {
     setEditMode(true);
     setEditingErMember(areaManager.Id);
+
+    // Pre-select the current area manager
     setSelectedAreaManager(String(areaManager.EmployeeId));
-    // Pre-select the current ER member
-    setSelectedErMember(
-      areaManager.AppUserId ? String(areaManager.AppUserId) : null
+    const manager = areaManagerOptions.find(
+      (m) => m.EmployeeId === areaManager.EmployeeId
     );
+    if (manager) {
+      setSelectedAreaManagerName(manager.FullName || "");
+    }
+
+    // Pre-select the current ER member
+    if (areaManager.AppUserId) {
+      setSelectedErMember(String(areaManager.AppUserId));
+      const member = erMembers.find((m) => m.Id === areaManager.AppUserId);
+      if (member) {
+        setSelectedErMemberName(member.FullName || "");
+      }
+    }
+
     setActiveTab("link");
   };
 
@@ -332,28 +441,16 @@ const AdminPanel = () => {
     setEditingAreaManager(null);
     setEditingErMember(null);
     setSelectedEmployee(null);
+    setSelectedEmployeeName("");
     setSelectedAreaManager(null);
+    setSelectedAreaManagerName("");
     setSelectedErMember(null);
+    setSelectedErMemberName("");
+    setSelectedProject(null);
+    setSelectedProjectName("");
   };
 
-  // Prepare options for select components
-  const projectOptions = projects.map(
-    (project) => project.ProjectCode || "Unnamed Project"
-  );
-  const employeeOptions = employees.map(
-    (employee) => employee.FullName || "Unnamed Employee"
-  );
-
-  // Use the new areaManagerOptions state for the dropdown
-  const managerOptions = areaManagerOptions.map(
-    (manager) => manager.FullName || "Unnamed Manager"
-  );
-
-  const erMemberOptions = erMembers.map(
-    (member) => member.FullName || "Unnamed Member"
-  );
-
-  // Function to get ID from name (for SearchableProjectDropdown)
+  // Functions to get ID from name
   const getProjectIdByName = (name) => {
     const project = projects.find((p) => p.ProjectCode === name);
     return project ? String(project.Id) : null;
@@ -432,16 +529,20 @@ const AdminPanel = () => {
             </div>
 
             {/* Messages */}
-            <Alert
-              variant="error"
-              message={error}
-              onDismiss={() => setError(null)}
-            />
-            <Alert
-              variant="success"
-              message={success}
-              onDismiss={() => setSuccess("")}
-            />
+            {error && (
+              <Alert
+                variant="error"
+                message={error}
+                onDismiss={() => setError(null)}
+              />
+            )}
+            {success && (
+              <Alert
+                variant="success"
+                message={success}
+                onDismiss={() => setSuccess("")}
+              />
+            )}
 
             {/* Forms */}
             {activeTab === "assign" && (
@@ -454,51 +555,48 @@ const AdminPanel = () => {
                 className="space-y-6"
               >
                 <div className="bg-gray-50 p-5 rounded-md space-y-5">
-                  <div className="md:space-y-0 md:grid md:grid-cols-2 md:gap-5">
+                  <div className="md:grid md:grid-cols-2 md:gap-5">
                     {!editMode && (
-                      <SearchableProjectDropdown
+                      <SearchableDropdown
                         label="Select Project"
                         placeholder="Choose a project"
-                        options={projectOptions}
-                        value={
-                          selectedProject
-                            ? projects.find(
-                                (p) => p.Id === parseInt(selectedProject)
-                              )?.ProjectCode
-                            : null
-                        }
-                        onChange={(projectCode) => {
+                        options={filteredProjectOptions}
+                        value={selectedProjectName}
+                        onSearch={setProjectSearchQuery}
+                        searchQuery={projectSearchQuery}
+                        setSearchQuery={setProjectSearchQuery}
+                        onSelect={(projectCode) => {
+                          setSelectedProjectName(projectCode || "");
                           setSelectedProject(
                             projectCode ? getProjectIdByName(projectCode) : null
                           );
                         }}
-                        nullable={true}
+                        isLoading={projectsLoading}
+                        disabled={editMode}
                       />
                     )}
 
-                    <SearchableProjectDropdown
+                    <SearchableDropdown
                       label={
                         editMode
                           ? "Select New Area Manager"
                           : "Select Area Manager"
                       }
                       placeholder="Choose an employee"
-                      options={employeeOptions}
-                      value={
-                        selectedEmployee
-                          ? employees.find(
-                              (e) => e.Id === parseInt(selectedEmployee)
-                            )?.FullName
-                          : null
-                      }
-                      onChange={(employeeName) => {
+                      options={filteredEmployeeOptions}
+                      value={selectedEmployeeName}
+                      onSearch={setEmployeeSearchQuery}
+                      searchQuery={employeeSearchQuery}
+                      setSearchQuery={setEmployeeSearchQuery}
+                      onSelect={(employeeName) => {
+                        setSelectedEmployeeName(employeeName || "");
                         setSelectedEmployee(
                           employeeName
                             ? getEmployeeIdByName(employeeName)
                             : null
                         );
                       }}
-                      nullable={true}
+                      isLoading={employeesLoading}
                     />
                   </div>
 
@@ -593,43 +691,40 @@ const AdminPanel = () => {
             {/* Form for ER Member tab */}
             {activeTab === "link" && (
               <form onSubmit={handleErMemberLink} className="space-y-6">
-                <div className="bg-gray-50 p-5 rounded-md space-y-5 md:space-y-0 md:grid md:grid-cols-2 md:gap-5">
-                  <SearchableProjectDropdown
+                <div className="bg-gray-50 p-5 rounded-md md:grid md:grid-cols-2 md:gap-5">
+                  <SearchableDropdown
                     label="Select Area Manager"
                     placeholder="Choose an area manager"
-                    options={managerOptions}
-                    value={
-                      selectedAreaManager
-                        ? areaManagerOptions.find(
-                            (m) => String(m.EmployeeId) === selectedAreaManager
-                          )?.FullName
-                        : null
-                    }
-                    onChange={(managerName) => {
+                    options={filteredAreaManagerOptions}
+                    value={selectedAreaManagerName}
+                    onSearch={setAreaManagerSearchQuery}
+                    searchQuery={areaManagerSearchQuery}
+                    setSearchQuery={setAreaManagerSearchQuery}
+                    onSelect={(managerName) => {
+                      setSelectedAreaManagerName(managerName || "");
                       setSelectedAreaManager(
                         managerName ? getManagerIdByName(managerName) : null
                       );
                     }}
-                    nullable={true}
                     disabled={editMode}
+                    isLoading={areaManagersLoading}
                   />
-                  <SearchableProjectDropdown
+
+                  <SearchableDropdown
                     label="Select ER Member"
                     placeholder="Choose an ER member"
-                    options={erMemberOptions}
-                    value={
-                      selectedErMember
-                        ? erMembers.find(
-                            (m) => String(m.Id) === selectedErMember
-                          )?.FullName
-                        : null
-                    }
-                    onChange={(memberName) => {
+                    options={filteredErMemberOptions}
+                    value={selectedErMemberName}
+                    onSearch={setErMemberSearchQuery}
+                    searchQuery={erMemberSearchQuery}
+                    setSearchQuery={setErMemberSearchQuery}
+                    onSelect={(memberName) => {
+                      setSelectedErMemberName(memberName || "");
                       setSelectedErMember(
                         memberName ? getErMemberIdByName(memberName) : null
                       );
                     }}
-                    nullable={true}
+                    isLoading={erMembersLoading}
                   />
                 </div>
 
@@ -674,6 +769,7 @@ const AdminPanel = () => {
               <ProjectAreaManagerTable
                 projects={projects}
                 areaManagers={areaManagers}
+                loading={loading}
                 onEdit={(project, manager) => {
                   setSelectedProject(String(project.Id));
                   if (manager) {
@@ -688,6 +784,7 @@ const AdminPanel = () => {
             {activeTab === "link" && (
               <AreaManagerErMemberTable
                 areaManagers={areaManagers}
+                loading={loading}
                 onEdit={(manager) => handleEditErMember(manager)}
               />
             )}

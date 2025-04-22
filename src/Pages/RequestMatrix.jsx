@@ -250,14 +250,6 @@ const RequestMatrix = () => {
     const relatedSubcases = subCases.filter((sc) => sc.CaseId === caseId);
 
     if (relatedSubcases.length > 0) {
-      if (
-        !window.confirm(
-          `This case has ${relatedSubcases.length} subcases. Delete them all?`
-        )
-      ) {
-        return;
-      }
-
       for (const subCase of relatedSubcases) {
         await deleteSubCase(subCase.Id, false);
       }

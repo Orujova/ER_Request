@@ -4,6 +4,17 @@ import React from "react";
 const TipTapStyles = () => {
   return (
     <style jsx global>{`
+      /* Hide scrollbar for Chrome, Safari and Opera */
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+
+      /* Hide scrollbar for IE, Edge and Firefox */
+      .no-scrollbar {
+        -ms-overflow-style: none; /* IE and Edge */
+        scrollbar-width: none; /* Firefox */
+      }
+
       /* Basic editor styles */
       .ProseMirror {
         outline: none;
@@ -11,6 +22,9 @@ const TipTapStyles = () => {
         height: 100%;
         overflow-y: auto;
         padding: 1rem;
+        max-width: 100%;
+        width: 100%;
+        box-sizing: border-box;
       }
 
       /* Typography */
@@ -64,6 +78,44 @@ const TipTapStyles = () => {
       .ProseMirror a {
         color: #0891b2;
         text-decoration: underline;
+      }
+
+      /* Tables */
+      .ProseMirror table {
+        border-collapse: collapse;
+        table-layout: fixed;
+        width: 100%;
+        margin: 1em 0;
+        overflow: hidden;
+      }
+
+      .ProseMirror th {
+        background-color: #f8fafc;
+        font-weight: 600;
+      }
+
+      .ProseMirror th,
+      .ProseMirror td {
+        border: 1px solid #e2e8f0;
+        padding: 0.5em;
+        position: relative;
+        vertical-align: top;
+      }
+
+      /* Blockquotes */
+      .ProseMirror blockquote {
+        border-left: 4px solid #e5e7eb;
+        padding-left: 1em;
+        margin-left: 0;
+        margin-right: 0;
+      }
+
+      /* Preserve original email formatting */
+      .ProseMirror blockquote .original-email-content * {
+        font-family: inherit;
+        font-size: inherit;
+        line-height: inherit;
+        color: inherit;
       }
     `}</style>
   );

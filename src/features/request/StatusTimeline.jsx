@@ -4,8 +4,8 @@ import { Clock, CheckCircle, AlertCircle, Mail, Users } from "lucide-react";
 const StatusTimeline = ({ request }) => {
   if (!request) return null;
 
-  // Define the possible statuses and their configurations
-  let statuses = [
+  // Define the base statuses
+  const baseStatuses = [
     {
       id: 0,
       name: "Pending",
@@ -34,15 +34,6 @@ const StatusTimeline = ({ request }) => {
       date: request.decisionMadeDate,
     },
     {
-      id: 3,
-      name: "Reassigned",
-      icon: Users,
-      color: "text-purple-500",
-      bgColor: "bg-purple-50",
-      progressColor: "bg-purple-500",
-      date: request.reAssignedDate,
-    },
-    {
       id: 4,
       name: "Decision Communicated",
       icon: Mail,
@@ -64,9 +55,11 @@ const StatusTimeline = ({ request }) => {
 
   const currentStatus = request.status || 0;
 
-  // Check if the current status is "Reassigned" (id: 3)
+  // Create the final statuses array based on whether the request is reassigned or not
+  let statuses;
+
   if (currentStatus === 3) {
-    // Replace "Pending" with "Reassigned" at position 0
+    // If reassigned, replace Pending with Reassigned at the beginning
     statuses = [
       {
         id: 0,
@@ -77,9 +70,11 @@ const StatusTimeline = ({ request }) => {
         progressColor: "bg-purple-500",
         date: request.reAssignedDate,
       },
-      ...statuses.slice(1, 3), // Keep "Under Review" and "Decision Made"
-      ...statuses.slice(4), // Skip the original "Reassigned" and keep "Decision Communicated" and "Completed"
+      ...baseStatuses.slice(1), // Skip the original "Pending" and include all other statuses
     ];
+  } else {
+    // If not reassigned, use the original statuses
+    statuses = baseStatuses;
   }
 
   return (
@@ -101,19 +96,27 @@ const StatusTimeline = ({ request }) => {
           <div className="absolute left-0 right-0 top-6 h-0.5 bg-slate-200"></div>
 
           {statuses.map((status, index) => {
-            // If we're in "Reassigned" state, only the first status should be active
+            // For reassigned requests, we want to show the correct progress
             const isActive =
-              currentStatus === 3 ? index === 0 : currentStatus >= status.id;
+              currentStatus === 3
+                ? index === 0 ||
+                  (request.reassignedProgress &&
+                    index <= request.reassignedProgress)
+                : currentStatus >= status.id;
 
             const isLastActive =
-              currentStatus === 3 ? index === 0 : currentStatus === status.id;
+              currentStatus === 3
+                ? (request.reassignedProgress &&
+                    index === request.reassignedProgress) ||
+                  index === 0
+                : currentStatus === status.id;
 
             const StatusIcon = status.icon;
 
             return (
               <div
-                key={status.id}
-                className="relative flex flex-col items-center w-1/6 px-2"
+                key={index}
+                className="relative flex flex-col items-center w-1/5 px-2"
               >
                 {/* Progress indicator */}
                 <div
@@ -174,7 +177,8 @@ const StatusTimeline = ({ request }) => {
             <span className="font-medium text-emerald-600">
               {currentStatus === 3
                 ? "Reassigned"
-                : statuses[currentStatus].name}
+                : statuses.find((s) => currentStatus === s.id)?.name ||
+                  "Unknown"}
             </span>
           </div>
         </div>

@@ -13,44 +13,66 @@ const FullScreenEmail = ({
   downloadingAttachmentId,
   colors,
 }) => {
+  // Format date for display
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   return (
-    <div className="flex flex-col h-[950px] bg-white">
-      {/* Header for full screen */}
-      <div className="flex justify-between items-center px-3 py-2 bg-slate-50 border-b border-slate-200">
-        <h2 className="font-medium text-base text-slate-800">
+    <div className="fixed inset-0 z-50 bg-white flex flex-col">
+      {/* Header for full screen with gradient background */}
+      <div
+        className="flex justify-between items-center px-4 py-3 text-white shadow-md"
+        style={{
+          background: `linear-gradient(to right, ${colors.primaryGradientStart}, ${colors.primaryGradientEnd})`,
+        }}
+      >
+        <h2 className="font-medium text-lg truncate max-w-2xl">
           {selectedEmail.Subject}
         </h2>
         <button
           onClick={toggleFullScreen}
-          className="p-2 rounded-md hover:bg-slate-200"
+          className="p-2 rounded-md hover:bg-white hover:bg-opacity-20 transition-colors"
           title="Exit Full Screen"
         >
-          <Minimize2 className="h-5 w-5 text-slate-600" />
+          <Minimize2 className="h-5 w-5" />
         </button>
       </div>
 
       {/* Email info and actions */}
-      <div className="px-6 py-3 border-b border-slate-200 bg-white">
-        <div className="flex mb-3">
+      <div className="px-6 py-4 border-b border-slate-200 bg-white">
+        <div className="flex mb-4">
           <div
-            className="w-12 h-12 rounded-full text-white flex items-center justify-center text-sm font-medium mr-4"
+            className="w-12 h-12 rounded-full text-white flex items-center justify-center text-lg font-medium mr-4"
             style={{ backgroundColor: colors.primary }}
           >
-            {selectedEmail.SenderName.charAt(0)}
+            {selectedEmail.SenderName
+              ? selectedEmail.SenderName.charAt(0).toUpperCase()
+              : "?"}
           </div>
           <div className="flex-1">
-            <div className="font-medium text-sm">
+            <div className="font-medium text-base">
               {selectedEmail.SenderName}{" "}
               {selectedEmail.Sender === userEmail && " (You)"}
-              <span className="text-slate-500 ml-1 font-normal text-sm">
+              <span className="text-slate-500 ml-1 font-normal">
                 &lt;{selectedEmail.Sender}&gt;
               </span>
             </div>
-            <div className="text-xs text-slate-500 mt-1">
+            <div className="text-sm text-slate-500 mt-1">
               To: {selectedEmail.To.join(", ")}
               {selectedEmail.CC && selectedEmail.CC.length > 0 && (
                 <div className="mt-1">CC: {selectedEmail.CC.join(", ")}</div>
               )}
+            </div>
+            <div className="text-xs text-slate-500 mt-1">
+              {formatDate(selectedEmail.ReceivedDateTime)}
             </div>
           </div>
         </div>
@@ -58,31 +80,31 @@ const FullScreenEmail = ({
         {/* Action buttons */}
         <div className="flex space-x-3 py-1">
           <button
-            className="px-2 py-1 rounded-md font-medium text-xs flex items-center bg-cyan-50 hover:bg-cyan-100 text-cyan-700"
+            className="px-3 py-2 rounded-md font-medium text-sm flex items-center bg-cyan-50 hover:bg-cyan-100 text-cyan-700 transition-colors"
             onClick={() => handleReplyClick("Reply")}
           >
-            <Reply className="h-3 w-3 mr-2" />
+            <Reply className="h-4 w-4 mr-2" />
             <span>Reply</span>
           </button>
           <button
-            className="px-2 py-1 rounded-md font-medium text-xs flex items-center bg-cyan-50 hover:bg-cyan-100 text-cyan-700"
+            className="px-3 py-2 rounded-md font-medium text-sm flex items-center bg-cyan-50 hover:bg-cyan-100 text-cyan-700 transition-colors"
             onClick={() => handleReplyClick("ReplyAll")}
           >
-            <ReplyAll className="h-3 w-3 mr-2" />
+            <ReplyAll className="h-4 w-4 mr-2" />
             <span>Reply All</span>
           </button>
           <button
-            className="px-2 py-1 rounded-md font-medium text-xs flex items-center bg-cyan-50 hover:bg-cyan-100 text-cyan-700"
+            className="px-3 py-2 rounded-md font-medium text-sm flex items-center bg-cyan-50 hover:bg-cyan-100 text-cyan-700 transition-colors"
             onClick={() => handleReplyClick("Forward")}
           >
-            <Forward className="h-3 w-3 mr-2" />
+            <Forward className="h-4 w-4 mr-2" />
             <span>Forward</span>
           </button>
         </div>
       </div>
 
       {/* Email Body */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto bg-white">
         <EmailContent content={selectedEmail.Body} />
       </div>
 

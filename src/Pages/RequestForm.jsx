@@ -1,6 +1,6 @@
-// src/containers/RequestForm/index.js
 import React, { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import {
   fetchDependencies,
   submitRequest,
@@ -22,6 +22,7 @@ import { showToast } from "../toast/toast";
 
 const RequestForm = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { isFormValid } = useFormValidation();
 
   const fileCache = useRef(new Map());
@@ -84,6 +85,13 @@ const RequestForm = () => {
   // Fetch dependencies on mount
   useEffect(() => {
     dispatch(fetchDependencies());
+
+    // Clean up form when component unmounts
+    return () => {
+      dispatch(resetForm());
+      dispatch(resetSubmitStatus());
+      fileCache.current.clear();
+    };
   }, [dispatch]);
 
   const handleSubmit = (e) => {
@@ -174,6 +182,11 @@ const RequestForm = () => {
           // Clear the file cache after successful submission
           fileCache.current.clear();
           window.submissionFiles = null;
+
+          // Navigate to home page after a short delay
+          setTimeout(() => {
+            navigate("/"); // Navigate to home page
+          }, 1500);
         })
         .catch((error) => {
           showToast(error || "Failed to submit request", "error");
