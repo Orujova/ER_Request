@@ -72,6 +72,7 @@ const MailInfoTab = ({ request, requestid }) => {
         {
           headers: {
             Authorization: `Bearer ${jwtToken}`,
+
             Accept: "*/*",
           },
         }

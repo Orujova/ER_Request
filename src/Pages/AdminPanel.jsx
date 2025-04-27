@@ -54,6 +54,9 @@ const AdminPanel = () => {
   const [success, setSuccess] = useState("");
   const [activeTab, setActiveTab] = useState("assign");
 
+  // Refresh trigger for table updates
+  const [tableRefreshTrigger, setTableRefreshTrigger] = useState(0);
+
   // Specific loading states for dropdowns
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [employeesLoading, setEmployeesLoading] = useState(false);
@@ -217,6 +220,11 @@ const AdminPanel = () => {
     fetchAllData();
   }, []);
 
+  const refreshTable = () => {
+    // Increment the refresh trigger to trigger the useEffect in the table component
+    setTableRefreshTrigger((prev) => prev + 1);
+  };
+
   const handleAreaManagerAssignment = async (e) => {
     e.preventDefault();
     if (!selectedProject || !selectedEmployee) {
@@ -246,7 +254,10 @@ const AdminPanel = () => {
       if (!response.ok) throw new Error("Failed to assign area manager");
 
       showToast("Area Manager assigned successfully", "success");
-      await fetchAllData();
+
+      // Refresh the table without fetching all data
+      refreshTable();
+
       setSelectedProject(null);
       setSelectedProjectName("");
       setSelectedEmployee(null);
@@ -264,8 +275,8 @@ const AdminPanel = () => {
 
   const handleUpdateAreaManager = async (e) => {
     e.preventDefault();
-    if (!editingAreaManager || !selectedEmployee) {
-      setError("Please select both area manager and new employee");
+    if (!editingAreaManager || !selectedEmployee || !selectedProject) {
+      setError("Missing project or employee information");
       return;
     }
 
@@ -273,33 +284,7 @@ const AdminPanel = () => {
     setError(null);
 
     try {
-      // Get the current area manager
-      const selectedManager = areaManagers.find(
-        (manager) => manager.Id === editingAreaManager
-      );
-
-      if (!selectedManager) {
-        throw new Error("Selected area manager not found");
-      }
-
-      // Get the project IDs associated with this area manager
-      const managerProjects =
-        areaManagerProjects[selectedManager.EmployeeId] || [];
-      const projectIds = managerProjects.map((project) => project.Id);
-
-      // If no projects are found, use the selected project or a default
-      const finalProjectIds =
-        projectIds.length > 0
-          ? projectIds
-          : selectedProject
-          ? [parseInt(selectedProject)]
-          : [];
-
-      // Ensure we have at least one project ID
-      if (finalProjectIds.length === 0) {
-        throw new Error("No projects found for this area manager");
-      }
-
+      // The API expects Id, ProjectId, and EmployeeId (not ProjectIds array)
       const response = await fetch(
         `${API_BASE_URL}/api/Project/UpdateAreaManagerProjects`,
         {
@@ -310,8 +295,8 @@ const AdminPanel = () => {
           },
           body: JSON.stringify({
             Id: editingAreaManager,
+            ProjectId: parseInt(selectedProject),
             EmployeeId: parseInt(selectedEmployee),
-            ProjectIds: finalProjectIds,
           }),
         }
       );
@@ -319,11 +304,16 @@ const AdminPanel = () => {
       if (!response.ok) throw new Error("Failed to update area manager");
 
       showToast("Area Manager updated successfully", "success");
-      await fetchAllData();
+
+      // Refresh the table immediately
+      refreshTable();
+
       setEditMode(false);
       setEditingAreaManager(null);
       setSelectedEmployee(null);
       setSelectedEmployeeName("");
+      setSelectedProject(null);
+      setSelectedProjectName("");
 
       // Auto-dismiss success message after 3 seconds
       setSuccess("Area Manager updated successfully");
@@ -373,7 +363,10 @@ const AdminPanel = () => {
       if (!response.ok) throw new Error("Failed to link ER member");
 
       setSuccess("ER Member linked successfully");
-      await fetchAllData();
+
+      // Refresh the table
+      refreshTable();
+
       setSelectedAreaManager(null);
       setSelectedAreaManagerName("");
       setSelectedErMember(null);
@@ -390,22 +383,25 @@ const AdminPanel = () => {
     }
   };
 
-  const handleEditAreaManager = (areaManager) => {
+  const handleEditAreaManager = (project, areaManager) => {
     setEditMode(true);
     setEditingAreaManager(areaManager.Id);
 
-    // Pre-select the current employee
-    const employee = employees.find((e) => e.Id === areaManager.EmployeeId);
-    if (employee) {
-      setSelectedEmployee(String(employee.Id));
-      setSelectedEmployeeName(employee.FullName || "");
-    }
+    // Pre-select the current project
+    setSelectedProject(String(project.Id));
+    setSelectedProjectName(project.ProjectCode || "");
 
-    // Get the associated projects
-    const projects = areaManagerProjects[areaManager.EmployeeId] || [];
-    if (projects.length > 0) {
-      setSelectedProject(String(projects[0].Id));
-      setSelectedProjectName(projects[0].ProjectCode || "");
+    // Pre-select the current employee (area manager)
+    if (areaManager.EmployeeId) {
+      const employee = employees.find((e) => e.Id === areaManager.EmployeeId);
+      if (employee) {
+        setSelectedEmployee(String(employee.Id));
+        setSelectedEmployeeName(employee.FullName || "");
+      }
+    } else {
+      // Reset employee selection if no area manager is assigned
+      setSelectedEmployee(null);
+      setSelectedEmployeeName("");
     }
 
     setActiveTab("assign");
@@ -554,8 +550,64 @@ const AdminPanel = () => {
                 }
                 className="space-y-6"
               >
+                {/* Show edit section with current project and area manager if in edit mode */}
+                {editMode && editingAreaManager && (
+                  <div className="bg-gray-100 p-4 rounded-md mb-5 border border-gray-200">
+                    <h3 className="text-sm font-medium text-gray-700 mb-3">
+                      Editing Area Manager Assignment
+                    </h3>
+
+                    <div className="md:grid md:grid-cols-2 md:gap-5">
+                      {/* Show the selected project code - disabled but visible */}
+                      <div>
+                        <label
+                          htmlFor="current-project"
+                          className="block text-sm font-medium text-gray-700 mb-1"
+                        >
+                          Project Code
+                        </label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Building size={18} className="text-cyan-600" />
+                          </div>
+                          <input
+                            type="text"
+                            id="current-project"
+                            className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md bg-gray-50 text-gray-700"
+                            value={selectedProjectName}
+                            disabled
+                          />
+                        </div>
+                      </div>
+
+                      {/* Show current area manager if exists */}
+                      <div>
+                        <label
+                          htmlFor="current-manager"
+                          className="block text-sm font-medium text-gray-700 mb-1"
+                        >
+                          Current Area Manager
+                        </label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <User size={18} className="text-cyan-600" />
+                          </div>
+                          <input
+                            type="text"
+                            id="current-manager"
+                            className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md bg-gray-50 text-gray-700"
+                            value={selectedEmployeeName || "Not assigned"}
+                            disabled
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="bg-gray-50 p-5 rounded-md space-y-5">
                   <div className="md:grid md:grid-cols-2 md:gap-5">
+                    {/* Project selection dropdown (show only in non-edit mode) */}
                     {!editMode && (
                       <SearchableDropdown
                         label="Select Project"
@@ -572,10 +624,9 @@ const AdminPanel = () => {
                           );
                         }}
                         isLoading={projectsLoading}
-                        disabled={editMode}
                       />
                     )}
-
+                    {/* Employee/Area Manager selection dropdown */}
                     <SearchableDropdown
                       label={
                         editMode
@@ -599,48 +650,6 @@ const AdminPanel = () => {
                       isLoading={employeesLoading}
                     />
                   </div>
-
-                  {editMode && editingAreaManager && (
-                    <div className="mt-4 border-t pt-4">
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">
-                        Current Assigned Projects:
-                      </h3>
-                      <div className="bg-white p-3 rounded border border-gray-200 max-h-32 overflow-y-auto">
-                        {areaManagerProjects[
-                          areaManagers.find((m) => m.Id === editingAreaManager)
-                            ?.EmployeeId
-                        ]?.length > 0 ? (
-                          <div className="grid gap-2">
-                            {areaManagerProjects[
-                              areaManagers.find(
-                                (m) => m.Id === editingAreaManager
-                              )?.EmployeeId
-                            ].map((project, idx) => (
-                              <div
-                                key={idx}
-                                className="flex items-center text-sm"
-                              >
-                                <Building
-                                  size={14}
-                                  className="mr-1.5 text-cyan-600 flex-shrink-0"
-                                />
-                                <span className="font-medium">
-                                  {project.ProjectCode}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-gray-500 text-sm">
-                            No projects currently assigned
-                          </p>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Note: These projects will remain assigned after update
-                      </p>
-                    </div>
-                  )}
                 </div>
 
                 <div className="flex justify-end gap-3">
@@ -681,7 +690,10 @@ const AdminPanel = () => {
 
                 {/* Bulk Upload Component */}
                 <BulkUploadAreaManagerProjects
-                  onSuccessfulUpload={fetchAllData}
+                  onSuccessfulUpload={() => {
+                    fetchAllData();
+                    refreshTable();
+                  }}
                   projects={projects}
                   employees={employees}
                 />
@@ -767,17 +779,10 @@ const AdminPanel = () => {
             {/* Tables based on active tab */}
             {activeTab === "assign" && (
               <ProjectAreaManagerTable
-                projects={projects}
-                areaManagers={areaManagers}
-                loading={loading}
                 onEdit={(project, manager) => {
-                  setSelectedProject(String(project.Id));
-                  if (manager) {
-                    handleEditAreaManager(manager);
-                  } else {
-                    setEditMode(false);
-                  }
+                  handleEditAreaManager(project, manager);
                 }}
+                refreshTrigger={tableRefreshTrigger}
               />
             )}
 
@@ -786,6 +791,7 @@ const AdminPanel = () => {
                 areaManagers={areaManagers}
                 loading={loading}
                 onEdit={(manager) => handleEditErMember(manager)}
+                refreshTrigger={tableRefreshTrigger}
               />
             )}
           </div>

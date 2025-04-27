@@ -4,7 +4,7 @@ import { API_BASE_URL } from "../../apiConfig";
 import { getStoredTokens } from "../utils/authHandler";
 
 // Project - Area Manager Table Component
-const ProjectAreaManagerTable = ({ onEdit }) => {
+const ProjectAreaManagerTable = ({ onEdit, refreshTrigger }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredData, setFilteredData] = useState([]);
   const [areaManagerProjects, setAreaManagerProjects] = useState([]);
@@ -45,10 +45,19 @@ const ProjectAreaManagerTable = ({ onEdit }) => {
     }
   };
 
+  // Fetch data on initial load
   useEffect(() => {
     fetchAreaManagerProjects();
   }, []);
 
+  // Refresh data when refreshTrigger changes
+  useEffect(() => {
+    if (refreshTrigger) {
+      fetchAreaManagerProjects();
+    }
+  }, [refreshTrigger]);
+
+  // Filter data when search term changes
   useEffect(() => {
     if (!searchTerm.trim()) {
       setFilteredData(areaManagerProjects);
@@ -115,12 +124,7 @@ const ProjectAreaManagerTable = ({ onEdit }) => {
                   >
                     Area Manager
                   </th>
-                  <th
-                    scope="col"
-                    className="px-5 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    ER Member
-                  </th>
+
                   <th
                     scope="col"
                     className="px-5 py-3.5 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -166,32 +170,21 @@ const ProjectAreaManagerTable = ({ onEdit }) => {
                           </span>
                         )}
                       </td>
-                      <td className="px-5 py-3.5 text-sm text-gray-900">
-                        {item.UserFullName ? (
-                          <div className="flex items-center">
-                            <User size={16} className="mr-2 text-cyan-600" />
-                            {item.UserFullName}
-                          </div>
-                        ) : (
-                          <span className="text-gray-400 flex items-center">
-                            <User size={16} className="mr-2 text-gray-300" />
-                            Not assigned
-                          </span>
-                        )}
-                      </td>
+
                       <td className="px-5 py-3.5 text-sm text-center">
                         <div className="flex justify-center gap-2">
                           <button
                             type="button"
-                            onClick={() =>
+                            onClick={() => {
+                              // Pass both project and manager data to the edit function
                               onEdit(
                                 {
                                   Id: item.ProjectId,
                                   ProjectCode: item.ProjectCode,
                                 },
                                 item
-                              )
-                            }
+                              );
+                            }}
                             className="p-1.5 text-cyan-700 bg-cyan-50 rounded-md hover:bg-cyan-100 transition-colors"
                             title="Edit Area Manager"
                           >

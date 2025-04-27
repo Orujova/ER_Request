@@ -27,11 +27,26 @@ const handleApiError = (error, setError) => {
   if (setError) setError(errorMessage);
 };
 
+// Add pagination params to URL
+const addPaginationParams = (url, page = 1, take = 50) => {
+  return `${url}?Page=${page}&ShowMore.Take=${take}`;
+};
+
 // API: Fetch all disciplinary actions
-export const fetchDisciplinaryActions = async (setLoading, setError) => {
+export const fetchDisciplinaryActions = async (
+  setLoading,
+  setError,
+  page = 1,
+  take = 50
+) => {
   setLoading(true);
   try {
-    const response = await fetch(`${API_BASE_URL}/GetAllDisciplinaryAction`, {
+    const url = addPaginationParams(
+      `${API_BASE_URL}/GetAllDisciplinaryAction`,
+      page,
+      take
+    );
+    const response = await fetch(url, {
       headers: getRequestHeaders(),
     });
     const data = await handleApiResponse(
@@ -48,15 +63,22 @@ export const fetchDisciplinaryActions = async (setLoading, setError) => {
 };
 
 // API: Fetch all disciplinary results
-export const fetchDisciplinaryResults = async (setLoading, setError) => {
+export const fetchDisciplinaryResults = async (
+  setLoading,
+  setError,
+  page = 1,
+  take = 50
+) => {
   setLoading(true);
   try {
-    const response = await fetch(
+    const url = addPaginationParams(
       `${API_BASE_URL}/GetAllDisciplinaryActionResult`,
-      {
-        headers: getRequestHeaders(),
-      }
+      page,
+      take
     );
+    const response = await fetch(url, {
+      headers: getRequestHeaders(),
+    });
     const data = await handleApiResponse(
       response,
       "Failed to fetch disciplinary results"
@@ -70,16 +92,50 @@ export const fetchDisciplinaryResults = async (setLoading, setError) => {
   }
 };
 
-// API: Fetch all disciplinary violations
-export const fetchDisciplinaryViolations = async (setLoading, setError) => {
+// API: Fetch disciplinary results by action ID
+export const fetchResultsByActionId = async (
+  actionId,
+  setLoading,
+  setError,
+  page = 1,
+  take = 50
+) => {
   setLoading(true);
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/GetAllDisciplinaryViolation`,
-      {
-        headers: getRequestHeaders(),
-      }
+    const url = `${API_BASE_URL}/GetDisciplinaryActionResultByDisciplinaryActionId?Page=${page}&ShowMore.Take=${take}&DisciplinaryActionId=${actionId}`;
+    const response = await fetch(url, {
+      headers: getRequestHeaders(),
+    });
+    const data = await handleApiResponse(
+      response,
+      "Failed to fetch results for this action"
     );
+    return data[0]?.DisciplinaryActionResults || [];
+  } catch (err) {
+    handleApiError(err, setError);
+    return [];
+  } finally {
+    setLoading(false);
+  }
+};
+
+// API: Fetch all disciplinary violations
+export const fetchDisciplinaryViolations = async (
+  setLoading,
+  setError,
+  page = 1,
+  take = 50
+) => {
+  setLoading(true);
+  try {
+    const url = addPaginationParams(
+      `${API_BASE_URL}/GetAllDisciplinaryViolation`,
+      page,
+      take
+    );
+    const response = await fetch(url, {
+      headers: getRequestHeaders(),
+    });
     const data = await handleApiResponse(
       response,
       "Failed to fetch disciplinary violations"
@@ -97,11 +153,18 @@ export const fetchDisciplinaryViolations = async (setLoading, setError) => {
 export const createDisciplinaryAction = async (
   action,
   setLoading,
-  setError,
-  setSuccess
+  setError
 ) => {
   if (!action.Name.trim()) {
     const errorMessage = "Name cannot be empty";
+    showToast(errorMessage, "error");
+    if (setError) setError(errorMessage);
+    return null;
+  }
+
+  // Ensure the action has a valid DisciplinaryActionResultId
+  if (!action.DisciplinaryActionResultId) {
+    const errorMessage = "Action result must be selected";
     showToast(errorMessage, "error");
     if (setError) setError(errorMessage);
     return null;
@@ -122,9 +185,10 @@ export const createDisciplinaryAction = async (
       "Failed to create disciplinary action"
     );
 
-    const successMessage = `Disciplinary action "${action.Name}" created successfully`;
-    showToast(successMessage, "success");
-
+    showToast(
+      `Disciplinary action "${action.Name}" created successfully`,
+      "success"
+    );
     return createdAction;
   } catch (err) {
     handleApiError(err, setError);
@@ -138,8 +202,7 @@ export const createDisciplinaryAction = async (
 export const createDisciplinaryResult = async (
   result,
   setLoading,
-  setError,
-  setSuccess
+  setError
 ) => {
   if (!result.Name.trim()) {
     const errorMessage = "Name cannot be empty";
@@ -165,9 +228,10 @@ export const createDisciplinaryResult = async (
       "Failed to create disciplinary result"
     );
 
-    const successMessage = `Disciplinary result "${result.Name}" created successfully`;
-    showToast(successMessage, "success");
-
+    showToast(
+      `Disciplinary result "${result.Name}" created successfully`,
+      "success"
+    );
     return createdResult;
   } catch (err) {
     handleApiError(err, setError);
@@ -181,8 +245,7 @@ export const createDisciplinaryResult = async (
 export const createDisciplinaryViolation = async (
   violation,
   setLoading,
-  setError,
-  setSuccess
+  setError
 ) => {
   if (!violation.Name.trim()) {
     const errorMessage = "Name cannot be empty";
@@ -208,9 +271,10 @@ export const createDisciplinaryViolation = async (
       "Failed to create disciplinary violation"
     );
 
-    const successMessage = `Disciplinary violation "${violation.Name}" created successfully`;
-    showToast(successMessage, "success");
-
+    showToast(
+      `Disciplinary violation "${violation.Name}" created successfully`,
+      "success"
+    );
     return createdViolation;
   } catch (err) {
     handleApiError(err, setError);
@@ -224,14 +288,21 @@ export const createDisciplinaryViolation = async (
 export const updateDisciplinaryAction = async (
   action,
   setLoading,
-  setError,
-  setSuccess
+  setError
 ) => {
   if (!action.Name.trim()) {
     const errorMessage = "Name cannot be empty";
     showToast(errorMessage, "error");
     if (setError) setError(errorMessage);
-    return null;
+    return false;
+  }
+
+  // Ensure the action has a valid DisciplinaryActionResultId
+  if (!action.DisciplinaryActionResultId) {
+    const errorMessage = "Action result must be selected";
+    showToast(errorMessage, "error");
+    if (setError) setError(errorMessage);
+    return false;
   }
 
   setLoading(true);
@@ -247,13 +318,14 @@ export const updateDisciplinaryAction = async (
     });
     await handleApiResponse(response, "Failed to update disciplinary action");
 
-    const successMessage = `Disciplinary action "${action.Name}" updated successfully`;
-    showToast(successMessage, "success");
-
+    showToast(
+      `Disciplinary action "${action.Name}" updated successfully`,
+      "success"
+    );
     return true;
   } catch (err) {
     handleApiError(err, setError);
-    return null;
+    return false;
   } finally {
     setLoading(false);
   }
@@ -263,14 +335,13 @@ export const updateDisciplinaryAction = async (
 export const updateDisciplinaryResult = async (
   result,
   setLoading,
-  setError,
-  setSuccess
+  setError
 ) => {
   if (!result.Name.trim()) {
     const errorMessage = "Name cannot be empty";
     showToast(errorMessage, "error");
     if (setError) setError(errorMessage);
-    return null;
+    return false;
   }
 
   setLoading(true);
@@ -288,13 +359,14 @@ export const updateDisciplinaryResult = async (
     );
     await handleApiResponse(response, "Failed to update disciplinary result");
 
-    const successMessage = `Disciplinary result "${result.Name}" updated successfully`;
-    showToast(successMessage, "success");
-
+    showToast(
+      `Disciplinary result "${result.Name}" updated successfully`,
+      "success"
+    );
     return true;
   } catch (err) {
     handleApiError(err, setError);
-    return null;
+    return false;
   } finally {
     setLoading(false);
   }
@@ -304,14 +376,13 @@ export const updateDisciplinaryResult = async (
 export const updateDisciplinaryViolation = async (
   violation,
   setLoading,
-  setError,
-  setSuccess
+  setError
 ) => {
   if (!violation.Name.trim()) {
     const errorMessage = "Name cannot be empty";
     showToast(errorMessage, "error");
     if (setError) setError(errorMessage);
-    return null;
+    return false;
   }
 
   setLoading(true);
@@ -332,13 +403,14 @@ export const updateDisciplinaryViolation = async (
       "Failed to update disciplinary violation"
     );
 
-    const successMessage = `Disciplinary violation "${violation.Name}" updated successfully`;
-    showToast(successMessage, "success");
-
+    showToast(
+      `Disciplinary violation "${violation.Name}" updated successfully`,
+      "success"
+    );
     return true;
   } catch (err) {
     handleApiError(err, setError);
-    return null;
+    return false;
   } finally {
     setLoading(false);
   }
@@ -348,8 +420,7 @@ export const updateDisciplinaryViolation = async (
 export const deleteDisciplinaryAction = async (
   actionId,
   setLoading,
-  setError,
-  setSuccess
+  setError
 ) => {
   setLoading(true);
   try {
@@ -362,9 +433,7 @@ export const deleteDisciplinaryAction = async (
     });
     await handleApiResponse(response, "Failed to delete disciplinary action");
 
-    const successMessage = "Disciplinary action deleted successfully";
-    showToast(successMessage, "success");
-
+    showToast("Disciplinary action deleted successfully", "success");
     return true;
   } catch (err) {
     handleApiError(err, setError);
@@ -378,8 +447,7 @@ export const deleteDisciplinaryAction = async (
 export const deleteDisciplinaryResult = async (
   resultId,
   setLoading,
-  setError,
-  setSuccess
+  setError
 ) => {
   setLoading(true);
   try {
@@ -395,9 +463,7 @@ export const deleteDisciplinaryResult = async (
     );
     await handleApiResponse(response, "Failed to delete disciplinary result");
 
-    const successMessage = "Disciplinary result deleted successfully";
-    showToast(successMessage, "success");
-
+    showToast("Disciplinary result deleted successfully", "success");
     return true;
   } catch (err) {
     handleApiError(err, setError);
@@ -411,8 +477,7 @@ export const deleteDisciplinaryResult = async (
 export const deleteDisciplinaryViolation = async (
   violationId,
   setLoading,
-  setError,
-  setSuccess
+  setError
 ) => {
   setLoading(true);
   try {
@@ -431,9 +496,7 @@ export const deleteDisciplinaryViolation = async (
       "Failed to delete disciplinary violation"
     );
 
-    const successMessage = "Disciplinary violation deleted successfully";
-    showToast(successMessage, "success");
-
+    showToast("Disciplinary violation deleted successfully", "success");
     return true;
   } catch (err) {
     handleApiError(err, setError);

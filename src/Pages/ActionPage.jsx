@@ -302,6 +302,7 @@ function RequestAction() {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
+
             Authorization: `Bearer ${jwtToken}`,
           },
           body: JSON.stringify({
@@ -341,6 +342,7 @@ function RequestAction() {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
+
             Authorization: `Bearer ${jwtToken}`,
           },
           body: JSON.stringify({

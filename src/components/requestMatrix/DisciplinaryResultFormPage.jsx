@@ -8,11 +8,18 @@ const DisciplinaryResultFormPage = ({
   onSubmit,
   onCancel,
 }) => {
-  const initialResult = isCreating ? { Name: "" } : selectedResult;
+  // Create default result object for new entries
+  const initialResult = isCreating
+    ? {
+        Id: 0,
+        Name: "",
+      }
+    : selectedResult;
 
   const formTitle = isCreating
-    ? "Create Disciplinary Result"
-    : "Edit Disciplinary Result";
+    ? "Create Disciplinary Action Result"
+    : "Edit Disciplinary Action Result";
+
   const submitLabel = isCreating ? "Create" : "Update";
 
   return (
