@@ -41,9 +41,16 @@ const RequestHeader = ({ id, request, handleGoBack, navigateToAction }) => {
                   </span>
                 )}
               </h1>
-              <div className="text-sm mt-1 flex items-center gap-1 text-slate-500">
-                <Clock className="w-3.5 h-3.5" />
-                <span>Created {formatDate(request?.createdDate)}</span>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 mt-1">
+                <div className="text-sm flex items-center gap-1 text-slate-500">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Created {formatDate(request?.createdDate)}</span>
+                </div>
+                <div className="flex items-center sm:ml-2">
+                  <span className="text-sm font-semibold bg-cyan-50 text-cyan-700 px-2 py-0.5 rounded-md border border-cyan-100">
+                    by {request?.UserFullName || "Unknown User"}
+                  </span>
+                </div>
               </div>
             </div>
 

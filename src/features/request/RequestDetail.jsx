@@ -86,6 +86,8 @@ function RequestDetail() {
     dispatch(fetchRequestData(id));
   };
 
+  console.log(request);
+
   // Send a new message using the thunk
   const handleSendMessage = async (messageText) => {
     try {

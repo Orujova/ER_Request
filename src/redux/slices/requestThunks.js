@@ -77,6 +77,7 @@ export const fetchRequestData = createAsyncThunk(
           url: link,
         })),
         erMember: data.ERMember,
+        UserFullName: data.UserFullName,
         createdDate: data.CreatedDate,
         parentId: data.ParentId,
         requestType: data.RequestType,
