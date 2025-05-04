@@ -1,13 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import {
-  Send,
-  X,
-  Paperclip,
-  ChevronDown,
-  AlertCircle,
-  Maximize2,
-  Minimize2,
-} from "lucide-react";
+import { Send, X, Paperclip, AlertCircle, Maximize2 } from "lucide-react";
 import { API_BASE_URL } from "../../../apiConfig";
 import { getStoredTokens } from "../../utils/authHandler";
 import { useMsal } from "@azure/msal-react";
@@ -27,17 +19,18 @@ import TableHeader from "@tiptap/extension-table-header";
 
 // Import components
 import EditorToolbar from "../../components/email/EditorToolbar";
-import EmailInput from "../../components/email/EmailInput";
+import SimplifiedEmailInput from "../../components/email/EmailInput";
 import AttachmentList from "../../components/email/AttachmentList";
 import SuccessMessage from "../../components/email/SuccessMessage";
 import TipTapStyles from "../../components/email/TipTapStyles";
 
-const EmailReplyForm = ({
+const StreamlinedEmailReplyForm = ({
   requestId,
   selectedEmail,
   onClose,
   onSuccess,
   replyType = "Reply",
+  parentScrollElement = null,
 }) => {
   // MSAL for Azure AD integration
   const { instance, accounts } = useMsal();
@@ -53,9 +46,16 @@ const EmailReplyForm = ({
   const [attachments, setAttachments] = useState([]);
   const [forwardedAttachments, setForwardedAttachments] = useState([]);
   const [downloadingAttachmentId, setDownloadingAttachmentId] = useState(null);
-  const [editorHeight, setEditorHeight] = useState(200); // Default height
-  const [isEditorExpanded, setIsEditorExpanded] = useState(false);
-  const [isFullScreen, setIsFullScreen] = useState(false); // Full screen mode for entire form
+  const [editorHeight, setEditorHeight] = useState(120);
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [formScrollPosition, setFormScrollPosition] = useState(0);
+  const [parentScrollPosition, setParentScrollPosition] = useState(0);
+
+  // Track the original email content (to separate it from user's additions)
+  const [originalEmailContent, setOriginalEmailContent] = useState("");
+
+  const formRef = useRef(null);
+  const parentViewportRef = useRef(null);
 
   // User inputs
   const currentUserEmail = localStorage.getItem("email");
@@ -90,7 +90,6 @@ const EmailReplyForm = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const [showCcField, setShowCcField] = useState(ccRecipients.length > 0);
   const fileInputRef = useRef(null);
 
   // Auth tokens
@@ -111,11 +110,11 @@ const EmailReplyForm = ({
     textLight: "#64748b",
   };
 
-  // Prepare original email content for quote with improved formatting
-  const prepareOriginalContent = () => {
+  // Prepare original email content with special markers for later identification
+  const prepareOriginalEmailContent = () => {
     if (!selectedEmail) return "";
 
-    // Format date for display in quote
+    // Format date for display
     const formatDate = (dateString) => {
       const date = new Date(dateString);
       return date.toLocaleDateString("en-US", {
@@ -127,65 +126,67 @@ const EmailReplyForm = ({
       });
     };
 
-    let quoteHeader = "";
+    let content = "";
 
     if (replyType === "Forward") {
-      quoteHeader = `<div style="margin-bottom: 12px;">
-      <p style="margin: 4px 0;"><strong>---------- Forwarded message ----------</strong></p>
-      <p style="margin: 4px 0;"><strong>From:</strong> ${
-        selectedEmail.SenderName
-      } &lt;${selectedEmail.Sender}&gt;</p>
-      <p style="margin: 4px 0;"><strong>Date:</strong> ${formatDate(
-        selectedEmail.ReceivedDateTime
-      )}</p>
-      <p style="margin: 4px 0;"><strong>Subject:</strong> ${
-        selectedEmail.Subject
-      }</p>
-      <p style="margin: 4px 0;"><strong>To:</strong> ${selectedEmail.To.join(
-        ", "
-      )}</p>`;
-
-      if (selectedEmail.CC && selectedEmail.CC.length > 0) {
-        quoteHeader += `<p style="margin: 4px 0;"><strong>CC:</strong> ${selectedEmail.CC.join(
-          ", "
-        )}</p>`;
-      }
-
-      quoteHeader += `</div>`;
-    } else {
-      quoteHeader = `<p style="margin: 4px 0;">On ${formatDate(
-        selectedEmail.ReceivedDateTime
-      )}, ${selectedEmail.SenderName} &lt;${
+      content = `<div data-original-email="true">
+        <p>---------- Forwarded message ----------</p>
+        <p><strong>From:</strong> ${selectedEmail.SenderName} &lt;${
         selectedEmail.Sender
-      }&gt; wrote:</p>`;
-    }
+      }&gt;</p>
+        <p><strong>Date:</strong> ${formatDate(
+          selectedEmail.ReceivedDateTime
+        )}</p>
+        <p><strong>Subject:</strong> ${selectedEmail.Subject}</p>
+        <p><strong>To:</strong> ${selectedEmail.To.join(", ")}</p>
+        ${
+          selectedEmail.CC && selectedEmail.CC.length > 0
+            ? `<p><strong>CC:</strong> ${selectedEmail.CC.join(", ")}</p>`
+            : ""
+        }
+        <p>----------------------------------------</p>`;
 
-    // Process content from email body - preserve original formatting exactly
-    let originalContent = "";
-    if (selectedEmail.Body) {
-      if (selectedEmail.Body.ContentType === "html") {
-        // For HTML content, we keep it as is, just wrapping in a container to isolate styles
-        originalContent = `<div class="original-email-content" style="font-family: inherit; font-size: inherit; color: inherit;">${selectedEmail.Body.Content}</div>`;
-      } else {
-        // Convert plain text to HTML with proper line breaks
-        originalContent = selectedEmail.Body.Content.split("\n")
-          .map((line) => `<p style="margin: 4px 0;">${line || "&nbsp;"}</p>`)
-          .join("");
+      // Add original content with marker
+      if (selectedEmail.Body) {
+        if (selectedEmail.Body.ContentType === "html") {
+          content += `<div data-original-email="true">${selectedEmail.Body.Content}</div>`;
+        } else {
+          // Convert plain text to HTML
+          content += `<div data-original-email="true">
+            ${selectedEmail.Body.Content.split("\n")
+              .map((line) => `<p>${line || "&nbsp;"}</p>`)
+              .join("")}
+          </div>`;
+        }
       }
+
+      content += "</div>";
+    } else {
+      // For Reply and ReplyAll
+      content = `<div data-original-email="true">
+        <p>On ${formatDate(selectedEmail.ReceivedDateTime)}, ${
+        selectedEmail.SenderName
+      } &lt;${selectedEmail.Sender}&gt; wrote:</p>
+        <blockquote style="margin: 0 0 0 0.5em; padding: 0 0 0 0.5em; border-left: 2px solid #e5e7eb;">`;
+
+      // Add original content with marker
+      if (selectedEmail.Body) {
+        if (selectedEmail.Body.ContentType === "html") {
+          content += `<div data-original-email="true">${selectedEmail.Body.Content}</div>`;
+        } else {
+          // Convert plain text to HTML
+          content += `<div data-original-email="true">
+            ${selectedEmail.Body.Content.split("\n")
+              .map((line) => `<p>${line || "&nbsp;"}</p>`)
+              .join("")}
+          </div>`;
+        }
+      }
+
+      content += "</blockquote></div>";
     }
 
-    // Create the quote with appropriate styling
-    const fullQuote = `
-    <p>&nbsp;</p>
-    <p>&nbsp;</p>
-    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 16px 0;" />
-    ${quoteHeader}
-    <blockquote style="margin: 0 0 0 0.5em; padding: 0 0 0 1em; border-left: 4px solid #e5e7eb;">
-      ${originalContent}
-    </blockquote>
-  `;
-
-    return fullQuote;
+    return content;
   };
 
   // Initialize TipTap editor
@@ -210,14 +211,90 @@ const EmailReplyForm = ({
         placeholder: "Write your email here...",
       }),
     ],
-    content: prepareOriginalContent(),
+    content: "", // Start with empty content, we'll add original content after initialization
     editorProps: {
       attributes: {
-        class: "focus:outline-none prose prose-sm max-w-none px-3 py-2",
-        style: `min-height: ${isFullScreen ? "400" : editorHeight}px`,
+        class: "focus:outline-none prose prose-sm max-w-none px-2 py-1",
+        style: `min-height: ${isFullScreen ? "300px" : editorHeight + "px"}`,
       },
     },
+    onUpdate: ({ editor }) => {
+      // Auto-adjust height of editor based on content
+      const element = editor.view.dom;
+      if (element && element.scrollHeight > editorHeight && !isFullScreen) {
+        setEditorHeight(Math.min(element.scrollHeight, 300));
+      }
+    },
   });
+
+  // Set up editor content once editor is initialized
+  useEffect(() => {
+    if (editor && !originalEmailContent) {
+      // Prepare the original content
+      const preparedContent = prepareOriginalEmailContent();
+      setOriginalEmailContent(preparedContent);
+
+      // Add a empty paragraph for user input, followed by original content
+      editor.commands.setContent(`<p></p>${preparedContent}`);
+
+      // Focus at the beginning of the content (before original email)
+      setTimeout(() => {
+        editor.commands.focus("start");
+      }, 100);
+    }
+  }, [editor, originalEmailContent]);
+
+  // Save parent document scroll position
+  useEffect(() => {
+    const saveParentScrollPosition = () => {
+      if (parentScrollElement) {
+        setParentScrollPosition(parentScrollElement.scrollTop);
+      }
+    };
+
+    // Record the initial position
+    saveParentScrollPosition();
+
+    // Set up listeners
+    if (parentScrollElement) {
+      parentScrollElement.addEventListener("scroll", saveParentScrollPosition);
+    }
+
+    // Clean up listener on unmount
+    return () => {
+      if (parentScrollElement) {
+        parentScrollElement.removeEventListener(
+          "scroll",
+          saveParentScrollPosition
+        );
+      }
+    };
+  }, [parentScrollElement]);
+
+  // Save scroll position when user scrolls within form
+  const handleFormScroll = () => {
+    if (formRef.current) {
+      setFormScrollPosition(formRef.current.scrollTop);
+    }
+  };
+
+  // Set up form scroll listener and restore position after re-render
+  useEffect(() => {
+    if (formRef.current) {
+      formRef.current.addEventListener("scroll", handleFormScroll);
+
+      // Restore previous scroll position
+      if (formScrollPosition > 0) {
+        formRef.current.scrollTop = formScrollPosition;
+      }
+    }
+
+    return () => {
+      if (formRef.current) {
+        formRef.current.removeEventListener("scroll", handleFormScroll);
+      }
+    };
+  }, [formRef.current, formScrollPosition]);
 
   // Update editor height when changed
   useEffect(() => {
@@ -225,8 +302,10 @@ const EmailReplyForm = ({
       editor.setOptions({
         editorProps: {
           attributes: {
-            class: "focus:outline-none prose prose-sm max-w-none px-3 py-2",
-            style: `min-height: ${isFullScreen ? "400" : editorHeight}px`,
+            class: "focus:outline-none prose prose-sm max-w-none px-2 py-1",
+            style: `min-height: ${
+              isFullScreen ? "300px" : editorHeight + "px"
+            }`,
           },
         },
       });
@@ -246,26 +325,17 @@ const EmailReplyForm = ({
     }
   }, [replyType, selectedEmail]);
 
-  // Force show CC field for Reply All
-  useEffect(() => {
-    if (replyType === "ReplyAll") {
-      setShowCcField(true);
-    }
-  }, [replyType]);
-
-  // Handle resizing the editor
-  const toggleEditorSize = () => {
-    if (isEditorExpanded) {
-      setEditorHeight(200); // Return to default
-    } else {
-      setEditorHeight(400); // Expand
-    }
-    setIsEditorExpanded(!isEditorExpanded);
-  };
-
   // Toggle full screen mode for the entire form
   const toggleFullScreen = () => {
     setIsFullScreen(!isFullScreen);
+
+    // Save scroll positions before changing mode
+    if (formRef.current) {
+      setFormScrollPosition(formRef.current.scrollTop);
+    }
+    if (parentScrollElement) {
+      setParentScrollPosition(parentScrollElement.scrollTop);
+    }
 
     // When entering full screen, disable the body scroll
     if (!isFullScreen) {
@@ -331,11 +401,37 @@ const EmailReplyForm = ({
     }
   };
 
-  // Handle form submission
+  // Extract user content by removing the original email parts
+  const extractUserContent = (fullHTML) => {
+    // Create a temporary div to parse the HTML
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = fullHTML;
+
+    // Remove all elements that are marked as original email content
+    const originalElements = tempDiv.querySelectorAll(
+      '[data-original-email="true"]'
+    );
+    originalElements.forEach((element) => {
+      element.remove();
+    });
+
+    // Return the cleaned content (user input only)
+    return tempDiv.innerHTML;
+  };
+
+  // Handle form submission with content separation
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!editor || !editor.getHTML() || editor.isEmpty) {
+    // Save current scroll positions before submission
+    if (formRef.current) {
+      setFormScrollPosition(formRef.current.scrollTop);
+    }
+    if (parentScrollElement) {
+      setParentScrollPosition(parentScrollElement.scrollTop);
+    }
+
+    if (!editor || editor.isEmpty) {
       setError("Email body cannot be empty");
       return;
     }
@@ -349,15 +445,29 @@ const EmailReplyForm = ({
     setError("");
 
     try {
-      // Prepare the form data
+      // Get the full content from the editor
+      const fullContent = editor.getHTML();
+
+      // Extract only the user's content (removing original email parts)
+      const userContent = extractUserContent(fullContent);
+
+      // Check if user added any content
+      if (!userContent || userContent === "" || userContent === "<p></p>") {
+        setError("Please add your message before sending");
+        setLoading(false);
+        return;
+      }
+
+      // Backend API processing - only send user's content
       const formData = new FormData();
 
       // Add required fields
       formData.append("AccessToken", accessToken);
       formData.append("ERRequestId", requestId);
       formData.append("Subject", subject);
-      formData.append("BodyContent", editor.getHTML());
+      formData.append("BodyContent", userContent); // Send only user's content!
       formData.append("ReplyType", replyType);
+      formData.append("PreserveFormatting", "true");
 
       // Add MessageId if available
       if (selectedEmail && selectedEmail.Id) {
@@ -411,8 +521,9 @@ const EmailReplyForm = ({
         // Notify parent component about successful submission
         if (onSuccess) {
           setTimeout(() => {
-            onSuccess();
-          }, 1500);
+            // Pass the scroll position to parent component
+            onSuccess(parentScrollPosition);
+          }, 1000);
         }
       } else {
         throw new Error(data.Message || "Failed to send email");
@@ -420,6 +531,16 @@ const EmailReplyForm = ({
     } catch (err) {
       console.error("Error sending email:", err);
       setError(err.message || "An error occurred while sending the email");
+
+      // Restore scroll positions when error occurs
+      setTimeout(() => {
+        if (formRef.current) {
+          formRef.current.scrollTop = formScrollPosition;
+        }
+        if (parentScrollElement) {
+          parentScrollElement.scrollTop = parentScrollPosition;
+        }
+      }, 0);
     } finally {
       setLoading(false);
     }
@@ -433,18 +554,21 @@ const EmailReplyForm = ({
   return (
     <div
       className={`${
-        isFullScreen ? "fixed inset-0 z-[1000] w-screen" : "h-full relative"
+        isFullScreen
+          ? "fixed inset-0 z-[1000] w-screen h-screen"
+          : "h-full relative"
       } flex flex-col bg-white border border-slate-200 rounded-lg shadow-md`}
+      ref={parentViewportRef}
     >
-      {/* Header */}
+      {/* Ultra-compact Header */}
       <div
-        className="px-4 py-3 rounded-t-lg flex justify-between items-center"
+        className="px-2 py-1.5 rounded-t-lg flex justify-between items-center"
         style={{
           background: `linear-gradient(to right, ${colors.primaryGradientStart}, ${colors.primaryGradientEnd})`,
           color: "white",
         }}
       >
-        <h2 className="text-base font-medium">
+        <h2 className="text-xs font-medium">
           {replyType === "Reply"
             ? "Reply"
             : replyType === "ReplyAll"
@@ -454,92 +578,70 @@ const EmailReplyForm = ({
         <div className="flex items-center">
           <button
             onClick={toggleFullScreen}
-            className="rounded-full p-1 mr-2 hover:bg-white hover:bg-opacity-20 transition-colors"
+            className="rounded-full p-1 hover:bg-white hover:bg-opacity-20 transition-colors"
             title={isFullScreen ? "Exit Full Screen" : "Full Screen Mode"}
           >
-            {isFullScreen ? (
-              <Minimize2 className="h-5 w-5" />
-            ) : (
-              <Maximize2 className="h-5 w-5" />
-            )}
+            <Maximize2 className="h-3 w-3" />
           </button>
           <button
             onClick={onClose}
-            className="rounded-full p-1 hover:bg-white hover:bg-opacity-20 transition-colors"
+            className="rounded-full p-1 hover:bg-white hover:bg-opacity-20 transition-colors ml-1"
           >
-            <X className="h-5 w-5" />
+            <X className="h-3 w-3" />
           </button>
         </div>
       </div>
 
-      {/* Email Form */}
+      {/* Ultra-compact Email Form - With stacked layout */}
       <form
+        ref={formRef}
         onSubmit={handleSubmit}
         className="flex-1 flex flex-col overflow-auto w-full"
       >
-        <div className="p-4 space-y-3 border-b border-slate-200">
-          {/* To Recipients */}
-          <EmailInput
-            recipients={toRecipients}
-            setRecipients={setToRecipients}
-            placeholder="Enter recipient email or search Azure users..."
-            label="To"
-            type="to"
-          />
+        {/* Compact vertical layout for inputs */}
+        <div className="p-1.5 border-b border-slate-200 flex flex-col gap-1.5">
+          {/* To field */}
+          <div className="flex items-center">
+            <SimplifiedEmailInput
+              recipients={toRecipients}
+              setRecipients={setToRecipients}
+              placeholder="To..."
+              label="To"
+            />
+          </div>
 
-          {/* CC Recipients or Toggle */}
-          {showCcField ? (
-            <EmailInput
+          {/* CC field */}
+          <div className="flex items-center">
+            <SimplifiedEmailInput
               recipients={ccRecipients}
               setRecipients={setCcRecipients}
-              placeholder="Enter CC email or search Azure users..."
+              placeholder="CC..."
               label="CC"
-              type="cc"
             />
-          ) : (
-            <div className="mt-2">
-              <button
-                type="button"
-                onClick={() => setShowCcField(true)}
-                className="text-xs text-cyan-600 hover:text-cyan-800 flex items-center transition-colors"
-              >
-                <ChevronDown className="h-3 w-3 mr-1" />
-                <span>Show CC</span>
-              </button>
-            </div>
-          )}
+          </div>
 
-          {/* Subject */}
-          <div className="flex flex-col mt-3">
-            <label className="text-xs font-medium text-slate-600 mb-1">
+          {/* Subject field */}
+          <div className="flex items-center">
+            <label className="text-[10px] font-medium text-slate-600 w-10 mr-1 flex-shrink-0">
               Subject:
             </label>
             <input
               type="text"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              className="border border-slate-300 rounded-md p-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-200 focus:border-cyan-400 transition-all"
-              placeholder="Email subject"
+              className="flex-1 border border-slate-300 rounded-sm p-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-cyan-200 focus:border-cyan-400 transition-all"
             />
           </div>
         </div>
 
         {/* Email Body - Rich Text Editor */}
-        <div
-          className={`flex-1 ${
-            isFullScreen ? "min-h-[400px]" : ""
-          } overflow-hidden border-b border-slate-200`}
-        >
-          <div className="border-b border-slate-200 flex justify-between items-center">
+        <div className="flex-1 overflow-hidden border-b border-slate-200">
+          <div className="border-b border-slate-200">
             <div className="flex-1">
               {editor && <EditorToolbar editor={editor} />}
             </div>
           </div>
-          <div
-            className={`${
-              isFullScreen ? "h-[calc(100vh-420px)]" : "h-full"
-            } overflow-auto w-full pr-0 no-scrollbar`}
-          >
+          <div className="h-full overflow-auto w-full pr-0 no-scrollbar pb-16">
             <EditorContent
               editor={editor}
               className="h-full transition-all duration-300 max-w-full"
@@ -547,18 +649,15 @@ const EmailReplyForm = ({
           </div>
         </div>
 
-        {/* Attachments Section */}
-        <div className="px-4 py-1.5 border-t border-slate-200">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-medium text-slate-700">
-              Attachments:
-            </span>
+        {/* Attachments Section - Fixed at bottom */}
+        <div className="border-t border-slate-200 p-1.5 sticky bottom-0 bg-white shadow-md z-10">
+          <div className="flex items-center justify-between mb-1">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="text-xs bg-cyan-50 border border-cyan-200 px-3 py-1.5 rounded-md flex items-center hover:bg-cyan-100 text-cyan-700 transition-colors"
+              className="text-[10px] bg-cyan-50 border border-cyan-200 px-1.5 py-0.5 rounded-sm flex items-center hover:bg-cyan-100 text-cyan-700 transition-colors"
             >
-              <Paperclip className="h-3 w-3 mr-1.5" />
+              <Paperclip className="h-2.5 w-2.5 mr-1" />
               <span>Add Files</span>
             </button>
             <input
@@ -568,12 +667,53 @@ const EmailReplyForm = ({
               className="hidden"
               multiple
             />
+
+            <div className="flex space-x-1.5">
+              <label className="flex items-center text-sm text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  id="email-communicated"
+                  className="rounded text-cyan-600 border-slate-300 shadow-sm focus:border-cyan-300 focus:ring focus:ring-cyan-200 focus:ring-opacity-50 mr-1 h-3 w-3"
+                />
+                <span>Mark as communicated</span>
+              </label>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-2 py-1.5 rounded-sm text-xs font-medium text-white flex items-center justify-center min-w-[60px] shadow-sm transition-all focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-cyan-300"
+                style={{
+                  background: loading
+                    ? colors.primaryLight
+                    : `linear-gradient(to right, ${colors.primaryGradientStart}, ${colors.primaryGradientEnd})`,
+                  opacity: loading ? 0.7 : 1,
+                }}
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin h-2.5 w-2.5 border-2 border-white border-t-transparent rounded-full mr-1" />
+                    <span>Sending</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-3 w-3 mr-1" />
+                    <span>Send</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-2 py-1 border border-slate-300 rounded-sm text-[10px] font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-1 focus:ring-cyan-200 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
 
           {/* Attachments List Component */}
-          <div
-            className={`${isFullScreen ? "max-h-[200px] overflow-y-auto" : ""}`}
-          >
+          <div className="max-h-[80px] overflow-y-auto">
             <AttachmentList
               attachments={attachments}
               forwardedAttachments={forwardedAttachments}
@@ -583,60 +723,14 @@ const EmailReplyForm = ({
               downloadingAttachmentId={downloadingAttachmentId}
             />
           </div>
-        </div>
 
-        {/* Error Message */}
-        {error && (
-          <div className="px-4 py-2 bg-red-50 border-t border-red-100 flex items-start">
-            <AlertCircle className="h-4 w-4 text-red-500 mr-2 mt-0.5" />
-            <span className="text-sm text-red-600">{error}</span>
-          </div>
-        )}
-
-        {/* Communicated Checkbox */}
-        <div className="px-4 py-2 border-t border-slate-200 bg-slate-50">
-          <label className="flex items-center text-sm text-slate-700 cursor-pointer">
-            <input
-              type="checkbox"
-              id="email-communicated"
-              className="rounded text-cyan-600 border-slate-300 shadow-sm focus:border-cyan-300 focus:ring focus:ring-cyan-200 focus:ring-opacity-50 mr-2"
-            />
-            <span>Mark as communicated with client</span>
-          </label>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="px-4 py-2 border-t border-slate-200 bg-slate-50 flex justify-between items-center rounded-b-lg">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-5 py-2 border border-slate-300 rounded-md text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-200 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-6 py-2 rounded-md text-xs font-medium text-white flex items-center justify-center min-w-[120px] shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-300"
-            style={{
-              background: loading
-                ? colors.primaryLight
-                : `linear-gradient(to right, ${colors.primaryGradientStart}, ${colors.primaryGradientEnd})`,
-              opacity: loading ? 0.7 : 1,
-            }}
-          >
-            {loading ? (
-              <>
-                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2" />
-                <span>Sending...</span>
-              </>
-            ) : (
-              <>
-                <Send className="h-4 w-4 mr-2" />
-                <span>Send Email</span>
-              </>
-            )}
-          </button>
+          {/* Error Message */}
+          {error && (
+            <div className="mt-1.5 py-1 bg-red-50 border border-red-100 rounded-sm flex items-start px-2">
+              <AlertCircle className="h-3 w-3 text-red-500 mr-1 mt-0.5 flex-shrink-0" />
+              <span className="text-[10px] text-red-600">{error}</span>
+            </div>
+          )}
         </div>
       </form>
 
@@ -646,4 +740,4 @@ const EmailReplyForm = ({
   );
 };
 
-export default EmailReplyForm;
+export default StreamlinedEmailReplyForm;

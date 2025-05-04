@@ -1,4 +1,3 @@
-// File: components/email/EmailContent.jsx
 import React, { useEffect, useRef } from "react";
 
 const EmailContent = ({ content }) => {
@@ -7,7 +6,7 @@ const EmailContent = ({ content }) => {
   if (!content) return null;
 
   if (content.ContentType === "html") {
-    // Add default styles to make email content more consistent
+    // Add default styles to make email content more consistent, but keep iframe height minimal
     const contentWithStyles = `
       <!DOCTYPE html>
       <html>
@@ -18,10 +17,10 @@ const EmailContent = ({ content }) => {
             body {
               font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
               font-size: 0.85rem;
-              line-height: 1.5;
+              line-height: 1.4;
               color: #334155;
               margin: 0;
-              padding: 16px;
+              padding: 12px;
               overflow-y: hidden;
             }
             /* Email specific styles */
@@ -37,7 +36,7 @@ const EmailContent = ({ content }) => {
             table:not([style]) {
               border-collapse: collapse;
               width: 100%;
-              margin-bottom: 1em;
+              margin-bottom: 0.8em;
             }
             th:not([style]) {
               background-color: #f8fafc;
@@ -45,7 +44,7 @@ const EmailContent = ({ content }) => {
             }
             th:not([style]), td:not([style]) {
               border: 1px solid #e2e8f0;
-              padding: 8px;
+              padding: 6px;
               text-align: left;
             }
             /* Keep all original styles */
@@ -63,9 +62,9 @@ const EmailContent = ({ content }) => {
               font-family: monospace;
             }
             blockquote {
-              border-left: 4px solid #e2e8f0;
+              border-left: 3px solid #e2e8f0;
               margin-left: 0;
-              padding-left: 16px;
+              padding-left: 12px;
               color: #64748b;
             }
             a {
@@ -73,12 +72,12 @@ const EmailContent = ({ content }) => {
               text-decoration: underline;
             }
             p {
-              margin-top: 0.5em;
-              margin-bottom: 0.5em;
+              margin-top: 0.4em;
+              margin-bottom: 0.4em;
             }
             h1, h2, h3, h4, h5, h6 {
-              margin-top: 1em;
-              margin-bottom: 0.5em;
+              margin-top: 0.8em;
+              margin-bottom: 0.4em;
               color: #1e293b;
             }
             
@@ -103,8 +102,7 @@ const EmailContent = ({ content }) => {
               const height = document.body.scrollHeight;
               window.parent.postMessage({ type: 'resize-iframe', height: height }, '*');
               
-              // Preserve table formatting by not adding any classes
-              // Just ensure tables are responsive
+              // Make tables responsive
               const tables = document.querySelectorAll('table');
               tables.forEach(table => {
                 if (table.offsetWidth > document.body.offsetWidth) {
@@ -125,7 +123,7 @@ const EmailContent = ({ content }) => {
         const { data } = event;
         if (data && data.type === "resize-iframe" && iframeRef.current) {
           // Add a small buffer to avoid scrollbars
-          iframeRef.current.style.height = `${data.height + 20}px`;
+          iframeRef.current.style.height = `${data.height + 16}px`;
         }
       };
 
@@ -141,7 +139,7 @@ const EmailContent = ({ content }) => {
         srcDoc={contentWithStyles}
         title="Email content"
         className="w-full border-none overflow-hidden"
-        style={{ minHeight: "300px", maxWidth: "100%" }}
+        style={{ height: "200px", maxWidth: "100%" }}
         sandbox="allow-same-origin allow-scripts"
         scrolling="no"
       />
@@ -150,7 +148,7 @@ const EmailContent = ({ content }) => {
 
   // Text content with better formatting
   return (
-    <div className="whitespace-pre-wrap text-sm leading-relaxed p-4 text-slate-700 overflow-hidden">
+    <div className="whitespace-pre-wrap text-xs leading-relaxed p-3 text-slate-700 overflow-hidden">
       {content.Content}
     </div>
   );

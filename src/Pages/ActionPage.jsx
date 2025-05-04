@@ -148,18 +148,118 @@ function RequestAction() {
       console.error("Error fetching current request:", err);
       return null;
     }
-  }, [id, dispatch, API_BASE_URL]);
+  }, [id, dispatch]);
+
+  // Fetch all disciplinary actions
+  const fetchAllDisciplinaryActions = useCallback(async () => {
+    try {
+      const { jwtToken } = getStoredTokens();
+
+      // Fetch all disciplinary actions
+      const actionsResponse = await fetch(
+        `${API_BASE_URL}/GetAllDisciplinaryAction`,
+        {
+          headers: {
+            accept: "*/*",
+            Authorization: `Bearer ${jwtToken}`,
+          },
+        }
+      );
+
+      if (!actionsResponse.ok) {
+        throw new Error(
+          `Error fetching disciplinary actions: ${actionsResponse.status}`
+        );
+      }
+
+      const actionsData = await actionsResponse.json();
+      const actions = actionsData[0]?.DisciplinaryActions || [];
+      setDisciplinaryActions(actions);
+
+      return actions;
+    } catch (err) {
+      console.error("Error fetching disciplinary actions:", err);
+      setError("Disciplinary actions yüklenirken hata oluştu.");
+      return [];
+    }
+  }, [API_BASE_URL]);
+
+  // Fetch disciplinary action results
+  const fetchDisciplinaryActionResults = useCallback(async () => {
+    try {
+      const { jwtToken } = getStoredTokens();
+
+      const resultsResponse = await fetch(
+        `${API_BASE_URL}/GetAllDisciplinaryActionResult`,
+        {
+          headers: {
+            accept: "*/*",
+            Authorization: `Bearer ${jwtToken}`,
+          },
+        }
+      );
+
+      if (!resultsResponse.ok) {
+        throw new Error(
+          `Error fetching action results: ${resultsResponse.status}`
+        );
+      }
+
+      const resultsData = await resultsResponse.json();
+      const results = resultsData[0]?.DisciplinaryActionResults || [];
+      setDisciplinaryActionResults(results);
+
+      return results;
+    } catch (err) {
+      console.error("Error fetching disciplinary action results:", err);
+      setError("Action results yüklenirken hata oluştu.");
+      return [];
+    }
+  }, [API_BASE_URL]);
+
+  // Fetch disciplinary violations
+  const fetchDisciplinaryViolations = useCallback(async () => {
+    try {
+      const { jwtToken } = getStoredTokens();
+
+      const violationsResponse = await fetch(
+        `${API_BASE_URL}/GetAllDisciplinaryViolation`,
+        {
+          headers: {
+            accept: "*/*",
+            Authorization: `Bearer ${jwtToken}`,
+          },
+        }
+      );
+
+      if (!violationsResponse.ok) {
+        throw new Error(
+          `Error fetching violations: ${violationsResponse.status}`
+        );
+      }
+
+      const violationsData = await violationsResponse.json();
+      const violations = violationsData[0]?.DisciplinaryViolations || [];
+      setDisciplinaryViolations(violations);
+
+      return violations;
+    } catch (err) {
+      console.error("Error fetching disciplinary violations:", err);
+      setError("Violations yüklenirken hata oluştu.");
+      return [];
+    }
+  }, [API_BASE_URL]);
 
   // Fetch necessary data
   const fetchAllData = useCallback(async () => {
     try {
       setLoading(true);
-      const { jwtToken } = getStoredTokens();
 
       // First, fetch the current request to ensure we have the latest data
       await fetchCurrentRequest();
 
       // Fetch ER Members
+      const { jwtToken } = getStoredTokens();
       const erMembersResponse = await fetch(
         `${API_BASE_URL}/api/AdminApplicationUser/GetAllERMemberUser`,
         {
@@ -179,49 +279,12 @@ function RequestAction() {
       const erMembersData = await erMembersResponse.json();
       setErMembers(erMembersData[0]?.AppUsers || []);
 
-      // Fetch Disciplinary Violations
-      const violationsResponse = await fetch(
-        `${API_BASE_URL}/GetAllDisciplinaryViolation`,
-        {
-          headers: {
-            accept: "*/*",
-            Authorization: `Bearer ${jwtToken}`,
-          },
-        }
-      );
-
-      if (!violationsResponse.ok) {
-        throw new Error(
-          `Error fetching violations: ${violationsResponse.status}`
-        );
-      }
-
-      const violationsData = await violationsResponse.json();
-      setDisciplinaryViolations(
-        violationsData[0]?.DisciplinaryViolations || []
-      );
-
-      // Fetch Disciplinary Action Results
-      const actionResultsResponse = await fetch(
-        `${API_BASE_URL}/GetAllDisciplinaryActionResult`,
-        {
-          headers: {
-            accept: "*/*",
-            Authorization: `Bearer ${jwtToken}`,
-          },
-        }
-      );
-
-      if (!actionResultsResponse.ok) {
-        throw new Error(
-          `Error fetching action results: ${actionResultsResponse.status}`
-        );
-      }
-
-      const actionResultsData = await actionResultsResponse.json();
-      setDisciplinaryActionResults(
-        actionResultsData[0]?.DisciplinaryActionResults || []
-      );
+      // Fetch disciplinary data
+      await Promise.all([
+        fetchDisciplinaryViolations(),
+        fetchAllDisciplinaryActions(),
+        fetchDisciplinaryActionResults(),
+      ]);
 
       // Fetch Cases
       const casesResponse = await fetch(`${API_BASE_URL}/api/Case`, {
@@ -274,7 +337,14 @@ function RequestAction() {
       setError(err.message);
       setLoading(false);
     }
-  }, [id, API_BASE_URL, fetchCurrentRequest]);
+  }, [
+    id,
+    API_BASE_URL,
+    fetchCurrentRequest,
+    fetchDisciplinaryViolations,
+    fetchAllDisciplinaryActions,
+    fetchDisciplinaryActionResults,
+  ]);
 
   // Fetch data on component mount and when shouldRefresh changes
   useEffect(() => {
@@ -319,8 +389,8 @@ function RequestAction() {
       // Fetch updated request data
       await fetchCurrentRequest();
 
-      setSuccess("ER member updated successfully.");
-      showToast("ER member updated successfully.", "success");
+      setSuccess("ER member başarıyla güncellendi.");
+      showToast("ER member başarıyla güncellendi.", "success");
       setLoading(false);
     } catch (err) {
       setError(err.message);
@@ -333,8 +403,6 @@ function RequestAction() {
     try {
       setStatusLoading(true);
       const { jwtToken } = getStoredTokens();
-
-      console.log(`Updating status to: ${newStatus}`);
 
       const response = await fetch(
         `${API_BASE_URL}/api/ERRequest/UpdateERRequestStatus`,
@@ -355,8 +423,6 @@ function RequestAction() {
       if (!response.ok) {
         throw new Error(`Error updating status: ${response.status}`);
       }
-
-      console.log("Status update successful, fetching updated data...");
 
       // Refresh the page to show updated status
       window.location.reload();
@@ -406,7 +472,7 @@ function RequestAction() {
             size={40}
             className="animate-spin text-primary mx-auto mb-4"
           />
-          <p className="text-lg text-text">Loading...</p>
+          <p className="text-lg text-text">Yükleniyor...</p>
         </div>
       </div>
     );
@@ -504,6 +570,12 @@ function RequestAction() {
                     setSuccess={setSuccess}
                     setError={setError}
                     showToast={showToast}
+                    fetchAllDisciplinaryActions={fetchAllDisciplinaryActions}
+                    fetchDisciplinaryActionResults={
+                      fetchDisciplinaryActionResults
+                    }
+                    fetchDisciplinaryViolations={fetchDisciplinaryViolations}
+                    fetchRequestDetails={fetchCurrentRequest}
                   />
                 )}
 

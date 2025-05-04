@@ -3,18 +3,13 @@ import {
   AlertTriangle,
   FileText,
   Calendar,
-  Check,
   Loader,
-  CheckCircle,
-  XCircle,
   HelpCircle,
   Info,
   RefreshCw,
   PencilLine,
   File,
   AlertCircle,
-  ThumbsUp,
-  ThumbsDown,
   Save,
 } from "lucide-react";
 import { getStoredTokens } from "../../utils/authHandler";
@@ -29,14 +24,18 @@ const UpdateRequestForm = ({
   setSuccess,
   setError,
   showToast,
+  fetchAllDisciplinaryActions,
+  fetchDisciplinaryActionResults,
+  fetchDisciplinaryViolations,
+  fetchRequestDetails,
 }) => {
   // Default to true if null
   const [isEligible, setIsEligible] = useState(true);
   const [formData, setFormData] = useState({
     Id: parseInt(id),
+    DisciplinaryViolationId: "",
     DisciplinaryActionId: "",
     DisciplinaryActionResultId: "",
-    DisciplinaryViolationId: "",
     Note: "",
     Reason: "",
     IsEligible: true,
@@ -46,90 +45,14 @@ const UpdateRequestForm = ({
   const [initialFormData, setInitialFormData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [fetchingData, setFetchingData] = useState(false);
-  const [localDisciplinaryActions, setLocalDisciplinaryActions] = useState([]);
-  const [showTooltip, setShowTooltip] = useState("");
+  const [filteredActionResults, setFilteredActionResults] = useState([]);
   const [formErrors, setFormErrors] = useState({});
   const [unsavedChanges, setUnsavedChanges] = useState(false);
 
-  const TERMINATION_RESULT_IDS = ["6"]; // Example IDs - replace with actual termination-related IDs
+  const TERMINATION_RESULT_IDS = ["6"]; // Termination IDs
 
-  // Initialize form data when request changes or direct API call
-  const fetchRequestDetails = async () => {
-    try {
-      setFetchingData(true);
-      const { jwtToken } = getStoredTokens();
-
-      const response = await fetch(`${API_BASE_URL}/api/ERRequest/${id}`, {
-        headers: {
-          accept: "*/*",
-          Authorization: `Bearer ${jwtToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error fetching request details: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      // Extract the actual request data if it's nested
-      const requestData = data[0]?.ERRequests?.[0] || data;
-
-      // Handle the case where IsEligible is null
-      const isEligibleValue =
-        requestData.IsEligible === null
-          ? true
-          : Boolean(requestData.IsEligible);
-
-      // Format the date properly (YYYY-MM-DD)
-      let formattedContractEndDate = requestData.ContractEndDate || "";
-      if (requestData.ContractEndDate) {
-        const date = new Date(requestData.ContractEndDate);
-        formattedContractEndDate = date.toISOString().split("T")[0];
-      }
-
-      const newFormData = {
-        Id: parseInt(id),
-        DisciplinaryActionId: requestData.DisciplinaryActionId
-          ? requestData.DisciplinaryActionId.toString()
-          : "",
-        DisciplinaryActionResultId: requestData.DisciplinaryActionResultId
-          ? requestData.DisciplinaryActionResultId.toString()
-          : "",
-        DisciplinaryViolationId: requestData.DisciplinaryViolationId
-          ? requestData.DisciplinaryViolationId.toString()
-          : "",
-        Note: requestData.Note || "",
-        Reason: requestData.Reason || "",
-        IsEligible: isEligibleValue,
-        ContractEndDate: formattedContractEndDate,
-        OrderNumber: requestData.OrderNumber || "",
-      };
-
-      setFormData(newFormData);
-      setInitialFormData(newFormData);
-      setIsEligible(isEligibleValue);
-      setFetchingData(false);
-
-      // If the action result ID exists, we should fetch corresponding actions
-      if (requestData.DisciplinaryActionResultId) {
-        fetchDisciplinaryActions(
-          requestData.DisciplinaryActionResultId.toString()
-        );
-      }
-    } catch (err) {
-      console.error("Error fetching request details:", err);
-      setError(err.message);
-      setFetchingData(false);
-    }
-  };
-
-  // Use both initialize methods - API fetch and props
-  useEffect(() => {
-    // Direct API call for the freshest data
-    fetchRequestDetails();
-
-    // Initialize from props if available (as backup)
+  // Initialize form when initial data is loaded
+  const initializeForm = useCallback(() => {
     if (request) {
       // Handle the case where IsEligible is null
       const isEligibleValue =
@@ -137,6 +60,14 @@ const UpdateRequestForm = ({
 
       const newFormData = {
         Id: parseInt(id),
+        DisciplinaryViolationId:
+          request.disciplinaryAction?.violationId ||
+          request.disciplinaryViolationId
+            ? (
+                request.disciplinaryAction?.violationId ||
+                request.disciplinaryViolationId
+              ).toString()
+            : "",
         DisciplinaryActionId:
           request.disciplinaryAction?.id || request.disciplinaryActionId
             ? (
@@ -151,14 +82,6 @@ const UpdateRequestForm = ({
                 request.disciplinaryActionResultId
               ).toString()
             : "",
-        DisciplinaryViolationId:
-          request.disciplinaryAction?.violationId ||
-          request.disciplinaryViolationId
-            ? (
-                request.disciplinaryAction?.violationId ||
-                request.disciplinaryViolationId
-              ).toString()
-            : "",
         Note: request.note || "",
         Reason: request.reason || "",
         IsEligible: isEligibleValue,
@@ -166,19 +89,26 @@ const UpdateRequestForm = ({
         OrderNumber: request.orderNumber || "",
       };
 
-      // Only set if we don't have initialFormData yet
-      if (!initialFormData) {
-        setFormData(newFormData);
-        setInitialFormData(newFormData);
-        setIsEligible(isEligibleValue);
+      setFormData(newFormData);
+      setInitialFormData(newFormData);
+      setIsEligible(isEligibleValue);
+
+      // If action ID exists, load the related action results
+      if (newFormData.DisciplinaryActionId) {
+        getActionResultsByActionId(newFormData.DisciplinaryActionId);
       }
     }
-  }, [id]);
+  }, [id, request]);
 
-  // Fetch disciplinary actions when action result changes
-  const fetchDisciplinaryActions = async (actionResultId) => {
-    if (!actionResultId) {
-      setLocalDisciplinaryActions([]);
+  // Fill the form when component mounts
+  useEffect(() => {
+    initializeForm();
+  }, [initializeForm]);
+
+  // Get appropriate action results based on selected action
+  const getActionResultsByActionId = async (actionId) => {
+    if (!actionId) {
+      setFilteredActionResults([]);
       return;
     }
 
@@ -186,75 +116,48 @@ const UpdateRequestForm = ({
       setLoading(true);
       const { jwtToken } = getStoredTokens();
 
-      const response = await fetch(
-        `${API_BASE_URL}/GetDisciplinaryActions?DisciplinaryActionResultId=${actionResultId}`,
-        {
-          headers: {
-            accept: "*/*",
-            Authorization: `Bearer ${jwtToken}`,
-          },
-        }
+      // Get all action results for the selected action
+      // If we had a real API endpoint, we would use something like:
+      // `${API_BASE_URL}/GetDisciplinaryActionResultsByActionId?actionId=${actionId}`
+
+      // For now, let's filter the existing data
+      const selectedAction = disciplinaryActions.find(
+        (action) => action.Id.toString() === actionId
       );
 
-      if (!response.ok) {
-        throw new Error(
-          `Error fetching disciplinary actions: ${response.status}`
+      if (selectedAction && selectedAction.DisciplinaryActionResultId) {
+        // Filter results that match the selected action's resultId
+        const matchingResults = disciplinaryActionResults.filter(
+          (result) =>
+            result.Id.toString() ===
+            selectedAction.DisciplinaryActionResultId.toString()
         );
+
+        setFilteredActionResults(matchingResults);
+      } else {
+        // If no specific relationship is found, show all results
+        setFilteredActionResults(disciplinaryActionResults);
       }
 
-      const data = await response.json();
-      setLocalDisciplinaryActions(data[0]?.DisciplinaryActions || data || []);
       setLoading(false);
     } catch (err) {
-      console.error("Error fetching disciplinary actions:", err);
-      setError(err.message);
+      console.error("Error fetching action results:", err);
+      // Show all results in case of error
+      setFilteredActionResults(disciplinaryActionResults);
       setLoading(false);
     }
   };
 
-  // When action result changes in the form
-  useEffect(() => {
-    if (formData.DisciplinaryActionResultId) {
-      fetchDisciplinaryActions(formData.DisciplinaryActionResultId);
-
-      // Auto-set IsEligible to false if termination is selected
-      if (
-        TERMINATION_RESULT_IDS.includes(formData.DisciplinaryActionResultId)
-      ) {
-        setIsEligible(false);
-        setFormData((prev) => ({
-          ...prev,
-          IsEligible: false,
-        }));
-      }
-
-      // Reset disciplinary action selection when action result changes
-      // Only if it's different from initial load
-      if (
-        initialFormData &&
-        formData.DisciplinaryActionResultId !==
-          initialFormData.DisciplinaryActionResultId
-      ) {
-        setFormData((prev) => ({
-          ...prev,
-          DisciplinaryActionId: "",
-        }));
-      }
-    } else {
-      setLocalDisciplinaryActions([]);
-    }
-  }, [formData.DisciplinaryActionResultId]);
-
-  // Track unsaved changes
+  // Monitor form changes
   useEffect(() => {
     if (initialFormData) {
       const hasChanges =
+        initialFormData.DisciplinaryViolationId !==
+          formData.DisciplinaryViolationId ||
         initialFormData.DisciplinaryActionId !==
           formData.DisciplinaryActionId ||
         initialFormData.DisciplinaryActionResultId !==
           formData.DisciplinaryActionResultId ||
-        initialFormData.DisciplinaryViolationId !==
-          formData.DisciplinaryViolationId ||
         initialFormData.Note !== formData.Note ||
         initialFormData.Reason !== formData.Reason ||
         initialFormData.IsEligible !== formData.IsEligible ||
@@ -265,6 +168,48 @@ const UpdateRequestForm = ({
     }
   }, [formData, initialFormData]);
 
+  // Update action results when action changes
+  useEffect(() => {
+    if (formData.DisciplinaryActionId) {
+      getActionResultsByActionId(formData.DisciplinaryActionId);
+
+      // If action changes, reset action result selection
+      // (only if it's not the initial load)
+      if (
+        initialFormData &&
+        formData.DisciplinaryActionId !== initialFormData.DisciplinaryActionId
+      ) {
+        setFormData((prev) => ({
+          ...prev,
+          DisciplinaryActionResultId: "",
+        }));
+      }
+    } else {
+      setFilteredActionResults([]);
+    }
+  }, [
+    formData.DisciplinaryActionId,
+    disciplinaryActionResults,
+    disciplinaryActions,
+    initialFormData,
+  ]);
+
+  // Perform necessary checks when action result changes
+  useEffect(() => {
+    if (formData.DisciplinaryActionResultId) {
+      // Automatically set rehire eligibility to false if termination is selected
+      if (
+        TERMINATION_RESULT_IDS.includes(formData.DisciplinaryActionResultId)
+      ) {
+        setIsEligible(false);
+        setFormData((prev) => ({
+          ...prev,
+          IsEligible: false,
+        }));
+      }
+    }
+  }, [formData.DisciplinaryActionResultId]);
+
   // Form validation
   const validateForm = () => {
     const errors = {};
@@ -273,16 +218,16 @@ const UpdateRequestForm = ({
       errors.DisciplinaryViolationId = "Please select a violation";
     }
 
-    if (!formData.DisciplinaryActionResultId) {
-      errors.DisciplinaryActionResultId = "Please select an action result";
+    if (!formData.DisciplinaryActionId) {
+      errors.DisciplinaryActionId = "Please select an action";
     }
 
     if (
-      formData.DisciplinaryActionResultId &&
-      !formData.DisciplinaryActionId &&
-      localDisciplinaryActions.length > 0
+      formData.DisciplinaryActionId &&
+      !formData.DisciplinaryActionResultId &&
+      filteredActionResults.length > 0
     ) {
-      errors.DisciplinaryActionId = "Please select an action";
+      errors.DisciplinaryActionResultId = "Please select an action result";
     }
 
     if (!formData.Reason.trim()) {
@@ -293,7 +238,7 @@ const UpdateRequestForm = ({
     return Object.keys(errors).length === 0;
   };
 
-  // Handle form change
+  // Form change handler
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     const newValue = type === "checkbox" ? checked : value;
@@ -308,7 +253,7 @@ const UpdateRequestForm = ({
       return;
     }
 
-    // If the user is changing the action result to a termination one, auto-set eligibility to false
+    // If user selects termination result, automatically set eligibility to false
     if (
       name === "DisciplinaryActionResultId" &&
       TERMINATION_RESULT_IDS.includes(value)
@@ -326,7 +271,7 @@ const UpdateRequestForm = ({
       });
     }
 
-    // Clear error for this field when user makes a change
+    // Clear error for this field
     if (formErrors[name]) {
       setFormErrors({
         ...formErrors,
@@ -335,13 +280,13 @@ const UpdateRequestForm = ({
     }
   };
 
-  // Handle form submit
+  // Form submission handler
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     // Validate form
     if (!validateForm()) {
-      setError("Please fix the highlighted errors before submitting.");
+      setError("Please fix the highlighted errors.");
       return;
     }
 
@@ -349,9 +294,15 @@ const UpdateRequestForm = ({
       setLoading(true);
       const { jwtToken } = getStoredTokens();
 
-      // Get the query parameters from the formData
+      // Create query parameters from form data
       const params = new URLSearchParams();
       params.append("Id", id);
+      params.append(
+        "DisciplinaryViolationId",
+        formData.DisciplinaryViolationId
+          ? formData.DisciplinaryViolationId
+          : "0"
+      );
       params.append(
         "DisciplinaryActionId",
         formData.DisciplinaryActionId ? formData.DisciplinaryActionId : "0"
@@ -362,19 +313,13 @@ const UpdateRequestForm = ({
           ? formData.DisciplinaryActionResultId
           : "0"
       );
-      params.append(
-        "DisciplinaryViolationId",
-        formData.DisciplinaryViolationId
-          ? formData.DisciplinaryViolationId
-          : "0"
-      );
       params.append("Note", formData.Note || "");
       params.append("Reason", formData.Reason || "");
       params.append("IsEligible", isEligible.toString());
       params.append("ContractEndDate", formData.ContractEndDate || "");
       params.append("OrderNumber", formData.OrderNumber || "");
 
-      // Make the PUT request
+      // Make PUT request
       const response = await fetch(
         `${API_BASE_URL}/api/ERRequest/UpdateERRequest?${params.toString()}`,
         {
@@ -387,7 +332,7 @@ const UpdateRequestForm = ({
       );
 
       if (!response.ok) {
-        // Try to get error details if available
+        // Try to get error details
         let errorMessage;
         try {
           const errorData = await response.text();
@@ -404,8 +349,13 @@ const UpdateRequestForm = ({
       setLoading(false);
       setUnsavedChanges(false);
 
-      // Update initial form data to match current state
+      // Update initial form data to current state
       setInitialFormData({ ...formData });
+
+      // Reload the request
+      if (fetchRequestDetails) {
+        await fetchRequestDetails();
+      }
     } catch (err) {
       console.error("Error updating request:", err);
       setError(err.message);
@@ -413,7 +363,7 @@ const UpdateRequestForm = ({
     }
   };
 
-  // Reset form handler
+  // Form reset handler
   const handleReset = () => {
     if (initialFormData) {
       setFormData({ ...initialFormData });
@@ -422,16 +372,25 @@ const UpdateRequestForm = ({
     }
   };
 
-  // Get Action Result Name
-  const getActionResultName = (resultId) => {
-    if (!resultId) return "";
-    const result = disciplinaryActionResults.find(
-      (r) => r.Id.toString() === resultId
-    );
-    return result ? result.Name : "";
+  // Reload data
+  const refreshData = async () => {
+    setFetchingData(true);
+    try {
+      if (fetchDisciplinaryViolations) await fetchDisciplinaryViolations();
+      if (fetchAllDisciplinaryActions) await fetchAllDisciplinaryActions();
+      if (fetchDisciplinaryActionResults)
+        await fetchDisciplinaryActionResults();
+      if (fetchRequestDetails) await fetchRequestDetails();
+      initializeForm();
+    } catch (err) {
+      console.error("Error refreshing data:", err);
+      setError("An error occurred while refreshing data.");
+    } finally {
+      setFetchingData(false);
+    }
   };
 
-  // If we're fetching initial data, show a loading state
+  // Show loading state when initial data is loading
   if (fetchingData) {
     return (
       <div className="flex justify-center items-center p-12">
@@ -443,10 +402,10 @@ const UpdateRequestForm = ({
 
   return (
     <form onSubmit={handleSubmit} className="relative">
-      {/* Refresh button for direct data reload */}
+      {/* Refresh button */}
       <button
         type="button"
-        onClick={fetchRequestDetails}
+        onClick={refreshData}
         className="absolute top-0 right-0 p-2 text-slate-400 hover:text-sky-500 transition-colors"
         title="Refresh data from server"
       >
@@ -460,7 +419,7 @@ const UpdateRequestForm = ({
           <div>
             <p className="font-medium">You have unsaved changes</p>
             <p className="text-xs text-amber-600 mt-1">
-              Click Save Changes button to save your updates
+              Click "Save Changes" button to save your updates
             </p>
           </div>
         </div>
@@ -514,64 +473,6 @@ const UpdateRequestForm = ({
 
         <div>
           <label className="block text-sm font-medium text-slate-600 mb-2">
-            Disciplinary Action Result
-            {formErrors.DisciplinaryActionResultId && (
-              <span className="text-red-500 ml-1">*</span>
-            )}
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-              <FileText
-                size={16}
-                className={
-                  formErrors.DisciplinaryActionResultId
-                    ? "text-red-500"
-                    : "text-slate-400"
-                }
-              />
-            </div>
-            <select
-              name="DisciplinaryActionResultId"
-              className={`block w-full rounded-lg border ${
-                formErrors.DisciplinaryActionResultId
-                  ? "border-red-300 focus:border-red-500 focus:ring-red-100"
-                  : "border-slate-200 focus:border-sky-500 focus:ring-sky-100"
-              } bg-white pl-10 pr-4 py-3 text-sm transition-all
-              focus:ring-2 focus:outline-none hover:border-slate-300 shadow-sm`}
-              value={formData.DisciplinaryActionResultId}
-              onChange={handleChange}
-              disabled={loading || fetchingData}
-            >
-              <option value="">Select Action Result</option>
-              {disciplinaryActionResults.map((result) => (
-                <option key={result.Id} value={result.Id}>
-                  {result.Name}
-                </option>
-              ))}
-            </select>
-            {formErrors.DisciplinaryActionResultId && (
-              <p className="mt-1 text-xs text-red-500">
-                {formErrors.DisciplinaryActionResultId}
-              </p>
-            )}
-
-            {/* Show auto-eligibility notice when termination is selected */}
-            {TERMINATION_RESULT_IDS.includes(
-              formData.DisciplinaryActionResultId
-            ) && (
-              <div className="mt-1.5 text-xs flex items-center text-indigo-600">
-                <Info size={12} className="mr-1" />
-                <span>
-                  Termination selected - Employee automatically marked as not
-                  eligible for rehire
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-600 mb-2">
             Disciplinary Action
             {formErrors.DisciplinaryActionId && (
               <span className="text-red-500 ml-1">*</span>
@@ -582,19 +483,12 @@ const UpdateRequestForm = ({
               <FileText
                 size={16}
                 className={
-                  !formData.DisciplinaryActionResultId
-                    ? "text-slate-300"
-                    : formErrors.DisciplinaryActionId
+                  formErrors.DisciplinaryActionId
                     ? "text-red-500"
                     : "text-slate-400"
                 }
               />
             </div>
-            {loading && formData.DisciplinaryActionResultId && (
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                <Loader size={16} className="animate-spin text-sky-500" />
-              </div>
-            )}
             <select
               name="DisciplinaryActionId"
               className={`block w-full rounded-lg border ${
@@ -602,36 +496,102 @@ const UpdateRequestForm = ({
                   ? "border-red-300 focus:border-red-500 focus:ring-red-100"
                   : "border-slate-200 focus:border-sky-500 focus:ring-sky-100"
               } bg-white pl-10 pr-4 py-3 text-sm transition-all
-              focus:ring-2 focus:outline-none hover:border-slate-300 shadow-sm ${
-                !formData.DisciplinaryActionResultId
-                  ? "bg-slate-50 text-slate-400 cursor-not-allowed"
-                  : ""
-              }`}
+              focus:ring-2 focus:outline-none hover:border-slate-300 shadow-sm`}
               value={formData.DisciplinaryActionId}
               onChange={handleChange}
-              disabled={
-                !formData.DisciplinaryActionResultId || loading || fetchingData
-              }
+              disabled={loading || fetchingData}
             >
               <option value="">Select Action</option>
-              {localDisciplinaryActions.map((action) => (
+              {disciplinaryActions.map((action) => (
                 <option key={action.Id} value={action.Id}>
                   {action.Name}
+                  {action.DARName ? ` (${action.DARName})` : ""}
                 </option>
               ))}
             </select>
-            {formData.DisciplinaryActionResultId &&
-              localDisciplinaryActions.length === 0 &&
-              !loading && (
-                <div className="mt-1 text-xs text-amber-600 flex items-center">
-                  <AlertCircle size={12} className="mr-1" />
-                  No actions available for this result
-                </div>
-              )}
             {formErrors.DisciplinaryActionId && (
               <p className="mt-1 text-xs text-red-500">
                 {formErrors.DisciplinaryActionId}
               </p>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-600 mb-2">
+            Disciplinary Action Result
+            {formErrors.DisciplinaryActionResultId && (
+              <span className="text-red-500 ml-1">*</span>
+            )}
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+              <FileText
+                size={16}
+                className={
+                  !formData.DisciplinaryActionId
+                    ? "text-slate-300"
+                    : formErrors.DisciplinaryActionResultId
+                    ? "text-red-500"
+                    : "text-slate-400"
+                }
+              />
+            </div>
+            {loading && formData.DisciplinaryActionId && (
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <Loader size={16} className="animate-spin text-sky-500" />
+              </div>
+            )}
+            <select
+              name="DisciplinaryActionResultId"
+              className={`block w-full rounded-lg border ${
+                formErrors.DisciplinaryActionResultId
+                  ? "border-red-300 focus:border-red-500 focus:ring-red-100"
+                  : "border-slate-200 focus:border-sky-500 focus:ring-sky-100"
+              } bg-white pl-10 pr-4 py-3 text-sm transition-all
+              focus:ring-2 focus:outline-none hover:border-slate-300 shadow-sm ${
+                !formData.DisciplinaryActionId
+                  ? "bg-slate-50 text-slate-400 cursor-not-allowed"
+                  : ""
+              }`}
+              value={formData.DisciplinaryActionResultId}
+              onChange={handleChange}
+              disabled={
+                !formData.DisciplinaryActionId || loading || fetchingData
+              }
+            >
+              <option value="">Select Action Result</option>
+              {filteredActionResults.map((result) => (
+                <option key={result.Id} value={result.Id}>
+                  {result.Name}
+                </option>
+              ))}
+            </select>
+            {formData.DisciplinaryActionId &&
+              filteredActionResults.length === 0 &&
+              !loading && (
+                <div className="mt-1 text-xs text-amber-600 flex items-center">
+                  <AlertCircle size={12} className="mr-1" />
+                  No results found for this action
+                </div>
+              )}
+            {formErrors.DisciplinaryActionResultId && (
+              <p className="mt-1 text-xs text-red-500">
+                {formErrors.DisciplinaryActionResultId}
+              </p>
+            )}
+
+            {/* Show warning when termination is selected */}
+            {TERMINATION_RESULT_IDS.includes(
+              formData.DisciplinaryActionResultId
+            ) && (
+              <div className="mt-1.5 text-xs flex items-center text-indigo-600">
+                <Info size={12} className="mr-1" />
+                <span>
+                  Termination selected - Employee automatically marked as not
+                  eligible for rehire
+                </span>
+              </div>
             )}
           </div>
         </div>
