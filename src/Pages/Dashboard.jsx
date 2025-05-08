@@ -46,6 +46,7 @@ const Dashboard = () => {
     orderBy,
     showFilters,
     activeFilters,
+    lastReassignSuccessTime
   } = useSelector((state) => state.dashboard);
 
   // Fetch initial data
@@ -69,7 +70,7 @@ const Dashboard = () => {
     if (currentPage === 1) {
       setFiltersApplied(true);
     }
-  }, [dispatch, currentPage, itemsPerPage, orderBy, activeFilters]);
+  }, [dispatch, currentPage, itemsPerPage, orderBy, activeFilters, lastReassignSuccessTime]);
 
   // Fetch total stats when filters change but not when pagination changes
   useEffect(() => {

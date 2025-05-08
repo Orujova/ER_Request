@@ -361,6 +361,7 @@ const initialState = {
     canceled: 0,
   },
   totalStatsLoading: false,
+  lastReassignSuccessTime: null,
   totalStatsError: null,
   stats: {
     total: 0,
@@ -618,6 +619,7 @@ const dashboardSlice = createSlice({
       })
       .addCase(reassignERMember.fulfilled, (state, action) => {
         state.reassignLoading = false;
+        state.lastReassignSuccessTime = Date.now();
 
         // Update the request with the new ER member info
         const { requestId, newErMemberId } = action.payload;
