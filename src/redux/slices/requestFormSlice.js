@@ -1,4 +1,3 @@
-// src/redux/slices/requestFormSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { API_BASE_URL } from "../../../apiConfig";
 import { getStoredTokens, getUserId } from "../../utils/authHandler";
@@ -190,19 +189,20 @@ export const submitRequest = createAsyncThunk(
 
       if (isEmployeeRequest) {
         // Employee request - include employee data
-        formDataObj.append(
-          "EmployeeId",
-          formDataState.selectedEmployee?.Id || "0"
-        );
-        formDataObj.append(
-          "ProjectId",
-          formDataState.selectedEmployee?.Project?.Id ||
-            formDataState.projectId ||
-            "0"
-        );
+        const employeeId = formDataState.selectedEmployee?.Id;
+        if (employeeId) {
+          formDataObj.append("EmployeeId", employeeId);
+        }
+        // Only append ProjectId if it exists
+        const projectId = formDataState.selectedEmployee?.Project?.Id || formDataState.projectId;
+        if (projectId) {
+          formDataObj.append("ProjectId", projectId);
+        }
       } else {
-        formDataObj.append("EmployeeId", "0");
-        formDataObj.append("ProjectId", formDataState.projectId || "0");
+        // General request - EmployeeId is not included (null), include ProjectId only if it exists
+        if (formDataState.projectId) {
+          formDataObj.append("ProjectId", formDataState.projectId);
+        }
       }
 
       // Common fields for both request types
@@ -231,12 +231,10 @@ export const submitRequest = createAsyncThunk(
         actFiles.forEach((fileInfo, index) => {
           if (fileInfo.file && fileInfo.file instanceof File) {
             console.log(`Appending act file: ${fileInfo.file.name}`);
-            // Use 'ActAttachments' as the field name
             formDataObj.append(`ActAttachments`, fileInfo.file);
           }
         });
       } else {
-        // Make sure to send an empty array if no files
         formDataObj.append("ActAttachments", "");
       }
 
@@ -245,12 +243,10 @@ export const submitRequest = createAsyncThunk(
         presentationFiles.forEach((fileInfo, index) => {
           if (fileInfo.file && fileInfo.file instanceof File) {
             console.log(`Appending presentation file: ${fileInfo.file.name}`);
-            // Use 'PresentationAttachments' as the field name
             formDataObj.append(`PresentationAttachments`, fileInfo.file);
           }
         });
       } else {
-        // Make sure to send an empty array if no files
         formDataObj.append("PresentationAttachments", "");
       }
 
@@ -259,12 +255,10 @@ export const submitRequest = createAsyncThunk(
         explanationFiles.forEach((fileInfo, index) => {
           if (fileInfo.file && fileInfo.file instanceof File) {
             console.log(`Appending explanation file: ${fileInfo.file.name}`);
-            // Use 'ExplanationAttachments' as the field name
             formDataObj.append(`ExplanationAttachments`, fileInfo.file);
           }
         });
       } else {
-        // Make sure to send an empty array if no files
         formDataObj.append("ExplanationAttachments", "");
       }
 
@@ -273,12 +267,10 @@ export const submitRequest = createAsyncThunk(
         generalFiles.forEach((fileInfo, index) => {
           if (fileInfo.file && fileInfo.file instanceof File) {
             console.log(`Appending general file: ${fileInfo.file.name}`);
-            // Use 'GeneralAttachments' as the field name
             formDataObj.append(`GeneralAttachments`, fileInfo.file);
           }
         });
       } else {
-        // Make sure to send an empty array if no files
         formDataObj.append("GeneralAttachments", "");
       }
 
@@ -306,7 +298,6 @@ export const submitRequest = createAsyncThunk(
       let responseData;
       try {
         responseData = JSON.parse(responseText);
-        // console.log("Parsed API response:", responseData);
       } catch (e) {
         console.error("Failed to parse response as JSON:", e);
         responseData = { message: responseText };
