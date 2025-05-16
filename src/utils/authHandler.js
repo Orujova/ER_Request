@@ -86,6 +86,14 @@ export const checkInitialAuthState = () => {
             }
           }
         }
+
+        // Make sure we have role information as well
+        const roles = localStorage.getItem("rols");
+        if (!roles) {
+          console.warn("Missing role information");
+          return false;
+        }
+
         // All checks passed
         return true;
       } catch (error) {
@@ -94,6 +102,28 @@ export const checkInitialAuthState = () => {
     }
   }
   return false;
+};
+
+// Add a new function to ensure all auth data is loaded and available
+export const ensureAuthData = async () => {
+  try {
+    // Check if we have all required auth data
+    const { msalToken, jwtToken } = getStoredTokens();
+    const userInfo = getUserInfo();
+    const roles = localStorage.getItem("rols");
+
+    // If we're missing any critical auth data but have tokens, reload them
+    if (msalToken && (!userInfo || !roles || !jwtToken)) {
+      console.log("Reloading auth data from backend");
+      await verifyTokenWithBackend(msalToken);
+      return true;
+    }
+
+    return msalToken && jwtToken && userInfo && roles;
+  } catch (error) {
+    console.error("Error ensuring auth data:", error);
+    return false;
+  }
 };
 
 const setAuthState = (isAuthenticated) => {
@@ -197,12 +227,18 @@ const startExpirationTimer = (expiresAt) => {
   const timeUntilExpiry = expiresAt.getTime() - Date.now();
   if (timeUntilExpiry > 0) {
     expirationTimer = setTimeout(handleTokenExpiration, timeUntilExpiry);
+  } else {
+    // If token is already expired, handle expiration immediately
+    handleTokenExpiration();
   }
 };
 
 export const handleTokenExpiration = () => {
   clearAuthTokens();
-  window.location.href = "/login";
+  // Only redirect if we're not already on the login page
+  if (window.location.pathname !== "/login") {
+    window.location.href = "/login";
+  }
 };
 
 export const clearAuthTokens = () => {
@@ -211,6 +247,10 @@ export const clearAuthTokens = () => {
   Cookies.remove(USER_INFO_COOKIE);
   Cookies.remove(USER_ID_COOKIE);
   Cookies.remove(AUTH_STATE_COOKIE);
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("email");
+  localStorage.removeItem("rols");
+  localStorage.removeItem("jwt");
   clearTimeout(expirationTimer);
 };
 
@@ -223,7 +263,14 @@ export const getStoredTokens = () => {
 
 export const getUserInfo = () => {
   const userInfoStr = Cookies.get(USER_INFO_COOKIE);
-  return userInfoStr ? JSON.parse(userInfoStr) : null;
+  if (!userInfoStr) return null;
+
+  try {
+    return JSON.parse(userInfoStr);
+  } catch (error) {
+    console.error("Error parsing user info:", error);
+    return null;
+  }
 };
 
 export const isAuthenticated = () => {
@@ -241,12 +288,53 @@ export const isAuthenticated = () => {
         }
       }
     }
+
+    // Check additional required auth data
+    const roles = localStorage.getItem("rols");
+    const userInfo = getUserInfo();
+    if (!roles || !userInfo) {
+      console.warn("Missing authentication data");
+      return false;
+    }
+
     // Explicitly set auth state to true whenever checked and valid
     setAuthState(true);
     return true;
   } catch (error) {
     console.error("Error checking authentication:", error);
     handleTokenExpiration();
+    return false;
+  }
+};
+
+// Add a function to check if the refresh token needs to be used
+export const checkAndRefreshTokens = async () => {
+  try {
+    const { msalToken, jwtToken } = getStoredTokens();
+    if (!msalToken || !jwtToken) return false;
+
+    // Check if tokens will expire soon (within 5 minutes)
+    const fiveMinutesFromNow = Date.now() + 5 * 60 * 1000;
+
+    for (const token of [msalToken, jwtToken]) {
+      const parts = token.split(".");
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        if (payload.exp && payload.exp * 1000 <= fiveMinutesFromNow) {
+          // Token will expire soon, try to refresh
+          console.log("Token expiring soon, attempting refresh");
+
+          // This assumes your MSAL configuration handles refresh tokens automatically
+          // You may need to call your backend to refresh the JWT token as well
+          await verifyTokenWithBackend(msalToken);
+          return true;
+        }
+      }
+    }
+
+    return true; // Tokens are valid and not expiring soon
+  } catch (error) {
+    console.error("Error checking/refreshing tokens:", error);
     return false;
   }
 };

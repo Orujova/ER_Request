@@ -29,7 +29,6 @@ const UpdateRequestForm = ({
   fetchDisciplinaryViolations,
   fetchRequestDetails,
 }) => {
-  // Default to true if null
   const [isEligible, setIsEligible] = useState(true);
   const [formData, setFormData] = useState({
     Id: parseInt(id),
@@ -49,12 +48,10 @@ const UpdateRequestForm = ({
   const [formErrors, setFormErrors] = useState({});
   const [unsavedChanges, setUnsavedChanges] = useState(false);
 
-  const TERMINATION_RESULT_IDS = ["6"]; // Termination IDs
+  const TERMINATION_RESULT_IDS = ["6"];
 
-  // Initialize form when initial data is loaded
   const initializeForm = useCallback(() => {
-    if (request) {
-      // Handle the case where IsEligible is null
+    if (request && Object.keys(request).length > 0) {
       const isEligibleValue =
         request.isEligible === null ? true : Boolean(request.isEligible);
 
@@ -93,19 +90,32 @@ const UpdateRequestForm = ({
       setInitialFormData(newFormData);
       setIsEligible(isEligibleValue);
 
-      // If action ID exists, load the related action results
       if (newFormData.DisciplinaryActionId) {
         getActionResultsByActionId(newFormData.DisciplinaryActionId);
       }
+    } else {
+      const defaultFormData = {
+        Id: parseInt(id),
+        DisciplinaryViolationId: "",
+        DisciplinaryActionId: "",
+        DisciplinaryActionResultId: "",
+        Note: "",
+        Reason: "",
+        IsEligible: true,
+        ContractEndDate: "",
+        OrderNumber: "",
+      };
+      setFormData(defaultFormData);
+      setInitialFormData(defaultFormData);
+      setIsEligible(true);
+      setFilteredActionResults([]);
     }
   }, [id, request]);
 
-  // Fill the form when component mounts
   useEffect(() => {
     initializeForm();
   }, [initializeForm]);
 
-  // Get appropriate action results based on selected action
   const getActionResultsByActionId = async (actionId) => {
     if (!actionId) {
       setFilteredActionResults([]);
@@ -116,39 +126,28 @@ const UpdateRequestForm = ({
       setLoading(true);
       const { jwtToken } = getStoredTokens();
 
-      // Get all action results for the selected action
-      // If we had a real API endpoint, we would use something like:
-      // `${API_BASE_URL}/GetDisciplinaryActionResultsByActionId?actionId=${actionId}`
-
-      // For now, let's filter the existing data
       const selectedAction = disciplinaryActions.find(
         (action) => action.Id.toString() === actionId
       );
 
       if (selectedAction && selectedAction.DisciplinaryActionResultId) {
-        // Filter results that match the selected action's resultId
         const matchingResults = disciplinaryActionResults.filter(
           (result) =>
             result.Id.toString() ===
             selectedAction.DisciplinaryActionResultId.toString()
         );
-
         setFilteredActionResults(matchingResults);
       } else {
-        // If no specific relationship is found, show all results
         setFilteredActionResults(disciplinaryActionResults);
       }
-
-      setLoading(false);
     } catch (err) {
       console.error("Error fetching action results:", err);
-      // Show all results in case of error
       setFilteredActionResults(disciplinaryActionResults);
+    } finally {
       setLoading(false);
     }
   };
 
-  // Monitor form changes
   useEffect(() => {
     if (initialFormData) {
       const hasChanges =
@@ -168,13 +167,10 @@ const UpdateRequestForm = ({
     }
   }, [formData, initialFormData]);
 
-  // Update action results when action changes
   useEffect(() => {
     if (formData.DisciplinaryActionId) {
       getActionResultsByActionId(formData.DisciplinaryActionId);
 
-      // If action changes, reset action result selection
-      // (only if it's not the initial load)
       if (
         initialFormData &&
         formData.DisciplinaryActionId !== initialFormData.DisciplinaryActionId
@@ -194,10 +190,8 @@ const UpdateRequestForm = ({
     initialFormData,
   ]);
 
-  // Perform necessary checks when action result changes
   useEffect(() => {
     if (formData.DisciplinaryActionResultId) {
-      // Automatically set rehire eligibility to false if termination is selected
       if (
         TERMINATION_RESULT_IDS.includes(formData.DisciplinaryActionResultId)
       ) {
@@ -210,7 +204,6 @@ const UpdateRequestForm = ({
     }
   }, [formData.DisciplinaryActionResultId]);
 
-  // Form validation
   const validateForm = () => {
     const errors = {};
 
@@ -238,7 +231,6 @@ const UpdateRequestForm = ({
     return Object.keys(errors).length === 0;
   };
 
-  // Form change handler
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     const newValue = type === "checkbox" ? checked : value;
@@ -253,7 +245,6 @@ const UpdateRequestForm = ({
       return;
     }
 
-    // If user selects termination result, automatically set eligibility to false
     if (
       name === "DisciplinaryActionResultId" &&
       TERMINATION_RESULT_IDS.includes(value)
@@ -271,7 +262,6 @@ const UpdateRequestForm = ({
       });
     }
 
-    // Clear error for this field
     if (formErrors[name]) {
       setFormErrors({
         ...formErrors,
@@ -280,11 +270,9 @@ const UpdateRequestForm = ({
     }
   };
 
-  // Form submission handler
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate form
     if (!validateForm()) {
       setError("Please fix the highlighted errors.");
       return;
@@ -294,7 +282,6 @@ const UpdateRequestForm = ({
       setLoading(true);
       const { jwtToken } = getStoredTokens();
 
-      // Create query parameters from form data
       const params = new URLSearchParams();
       params.append("Id", id);
       params.append(
@@ -319,7 +306,6 @@ const UpdateRequestForm = ({
       params.append("ContractEndDate", formData.ContractEndDate || "");
       params.append("OrderNumber", formData.OrderNumber || "");
 
-      // Make PUT request
       const response = await fetch(
         `${API_BASE_URL}/api/ERRequest/UpdateERRequest?${params.toString()}`,
         {
@@ -332,7 +318,6 @@ const UpdateRequestForm = ({
       );
 
       if (!response.ok) {
-        // Try to get error details
         let errorMessage;
         try {
           const errorData = await response.text();
@@ -346,16 +331,15 @@ const UpdateRequestForm = ({
 
       setSuccess("Request updated successfully.");
       showToast("Request updated successfully.", "success");
-      setLoading(false);
-      setUnsavedChanges(false);
 
-      // Update initial form data to current state
-      setInitialFormData({ ...formData });
-
-      // Reload the request
+      // Refresh the request data after successful save
       if (fetchRequestDetails) {
         await fetchRequestDetails();
       }
+
+      setLoading(false);
+      setUnsavedChanges(false);
+      setInitialFormData({ ...formData });
     } catch (err) {
       console.error("Error updating request:", err);
       setError(err.message);
@@ -363,16 +347,31 @@ const UpdateRequestForm = ({
     }
   };
 
-  // Form reset handler
   const handleReset = () => {
     if (initialFormData) {
       setFormData({ ...initialFormData });
       setIsEligible(initialFormData.IsEligible);
       setFormErrors({});
+      setFilteredActionResults(
+        initialFormData.DisciplinaryActionId
+          ? disciplinaryActionResults.filter(
+              (result) =>
+                result.Id.toString() ===
+                (
+                  disciplinaryActions.find(
+                    (action) =>
+                      action.Id.toString() ===
+                      initialFormData.DisciplinaryActionId
+                  )?.DisciplinaryActionResultId || ""
+                ).toString()
+            )
+          : []
+      );
+    } else {
+      initializeForm();
     }
   };
 
-  // Reload data
   const refreshData = async () => {
     setFetchingData(true);
     try {
@@ -390,7 +389,6 @@ const UpdateRequestForm = ({
     }
   };
 
-  // Show loading state when initial data is loading
   if (fetchingData) {
     return (
       <div className="flex justify-center items-center p-12">
@@ -402,7 +400,6 @@ const UpdateRequestForm = ({
 
   return (
     <form onSubmit={handleSubmit} className="relative">
-      {/* Refresh button */}
       <button
         type="button"
         onClick={refreshData}
@@ -412,7 +409,6 @@ const UpdateRequestForm = ({
         <RefreshCw size={16} className={fetchingData ? "animate-spin" : ""} />
       </button>
 
-      {/* Unsaved changes indicator */}
       {unsavedChanges && (
         <div className="mb-5 p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm flex items-center">
           <Info size={18} className="mr-3 flex-shrink-0" />
@@ -458,7 +454,7 @@ const UpdateRequestForm = ({
             >
               <option value="">Select Violation</option>
               {disciplinaryViolations.map((violation) => (
-                <option key={violation.Id} value={violation.Id}>
+                <option key={violation.Id} value={violation.Id.toString()}>
                   {violation.Name}
                 </option>
               ))}
@@ -503,7 +499,7 @@ const UpdateRequestForm = ({
             >
               <option value="">Select Action</option>
               {disciplinaryActions.map((action) => (
-                <option key={action.Id} value={action.Id}>
+                <option key={action.Id} value={action.Id.toString()}>
                   {action.Name}
                   {action.DARName ? ` (${action.DARName})` : ""}
                 </option>
@@ -562,7 +558,7 @@ const UpdateRequestForm = ({
             >
               <option value="">Select Action Result</option>
               {filteredActionResults.map((result) => (
-                <option key={result.Id} value={result.Id}>
+                <option key={result.Id} value={result.Id.toString()}>
                   {result.Name}
                 </option>
               ))}
@@ -580,17 +576,15 @@ const UpdateRequestForm = ({
                 {formErrors.DisciplinaryActionResultId}
               </p>
             )}
-
-            {/* Show warning when termination is selected */}
             {TERMINATION_RESULT_IDS.includes(
               formData.DisciplinaryActionResultId
             ) && (
-              <div className="mt-1.5 text-xs flex items-center text-indigo-600">
-                <Info size={12} className="mr-1" />
-                <span>
+              <div className="mt-2 text-xs text-indigo-600 flex items-center">
+                {/* <Info size={12} className="mr-1" /> */}
+                {/* <span>
                   Termination selected - Employee automatically marked as not
                   eligible for rehire
-                </span>
+                </span> */}
               </div>
             )}
           </div>
@@ -652,10 +646,8 @@ const UpdateRequestForm = ({
           </div>
         </div>
 
-        {/* Rehiring Eligibility Section */}
         <div className="md:col-span-2 mt-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Rehiring Eligibility */}
             <div className="md:col-span-1">
               <label className="block text-sm font-medium text-slate-600 mb-2">
                 Rehiring Eligibility
@@ -690,7 +682,6 @@ const UpdateRequestForm = ({
               </div>
             </div>
 
-            {/* Contract End Date */}
             <div>
               <label className="block text-sm font-medium text-slate-600 mb-2">
                 Contract End Date
@@ -712,7 +703,6 @@ const UpdateRequestForm = ({
               </div>
             </div>
 
-            {/* Order Number */}
             <div>
               <label className="block text-sm font-medium text-slate-600 mb-2">
                 Order Number
@@ -738,7 +728,6 @@ const UpdateRequestForm = ({
         </div>
       </div>
 
-      {/* Form Action Buttons */}
       <div className="mt-8 flex justify-between items-center">
         <button
           type="button"

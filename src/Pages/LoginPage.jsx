@@ -19,6 +19,7 @@ const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState(null);
   const authInProgress = useRef(false);
+  const redirected = useRef(false); // New ref to track if we've already redirected
 
   // Get intended destination from state or default
   const from = location.state?.from?.pathname || getDefaultRedirect();
@@ -26,12 +27,13 @@ const LoginPage = () => {
   // Check for existing valid auth without waiting for MSAL
   useEffect(() => {
     const quickAuthCheck = async () => {
-      // If already checked auth in progress, don't do it again
-      if (authInProgress.current) return;
+      // If already checked auth in progress or already redirected, don't do it again
+      if (authInProgress.current || redirected.current) return;
 
       // Check if we already have valid auth state from cookies
       if (checkInitialAuthState()) {
         // We're already authenticated based on cookies, redirect to intended destination
+        redirected.current = true;
         navigate(from, { replace: true });
         return;
       }
@@ -45,6 +47,7 @@ const LoginPage = () => {
     // Prevent duplicate auth attempts and loops
     if (
       authInProgress.current ||
+      redirected.current || // Don't authenticate if already redirected
       !isAuthenticated ||
       !accounts?.length ||
       inProgress !== "none"
@@ -75,8 +78,14 @@ const LoginPage = () => {
           await verifyTokenWithBackend(tokenResponse.accessToken);
         }
 
-        // Redirect to intended destination
-        navigate(from, { replace: true });
+        // Prevent multiple redirects
+        redirected.current = true;
+
+        // Force a small delay before redirect to ensure state updates
+        setTimeout(() => {
+          // Redirect to intended destination
+          navigate(from, { replace: true });
+        }, 100);
       } catch (error) {
         console.error("Authentication error:", error);
         setLoginError("Authentication failed. Please try again.");
@@ -92,6 +101,12 @@ const LoginPage = () => {
 
     handleAuthentication();
   }, [isAuthenticated, accounts, instance, navigate, from, inProgress]);
+
+  // If we're already authenticated, redirect immediately to prevent showing login page
+  if (isAuthenticated && checkInitialAuthState() && !redirected.current) {
+    redirected.current = true;
+    return <Navigate to={from} replace />;
+  }
 
   const handleSignIn = async () => {
     // Prevent multiple login attempts
@@ -115,9 +130,6 @@ const LoginPage = () => {
       authInProgress.current = false;
     }
   };
-
-  // If already authenticated via checkInitialAuthState, the first useEffect will handle redirect
-  // If authenticated via MSAL, the second useEffect will handle the redirect
 
   return (
     <div className="min-h-[calc(100vh-64px)] flex flex-col items-center justify-center bg-gray-50">

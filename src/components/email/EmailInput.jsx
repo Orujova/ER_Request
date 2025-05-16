@@ -5,7 +5,7 @@ import { InteractionRequiredAuthError } from "@azure/msal-browser";
 import { graphConfig } from "../../../authConfig";
 import { Loader, AlertCircle } from "lucide-react";
 
-// Ultra-compact email input component
+// Improved email input component with fixed "+X" functionality
 const SimplifiedEmailInput = ({
   recipients,
   setRecipients,
@@ -24,10 +24,10 @@ const SimplifiedEmailInput = ({
 
   // Auto-collapse when there are many recipients
   useEffect(() => {
-    if (recipients.length > 2 && !isCollapsed) {
+    if (recipients.length > 2 && !isFocused) {
       setIsCollapsed(true);
     }
-  }, [recipients, isCollapsed]);
+  }, [recipients, isFocused]);
 
   // Handle removing a recipient
   const handleRemoveRecipient = (email) => {
@@ -118,6 +118,16 @@ const SimplifiedEmailInput = ({
   // Handle click outside to close dropdown
   useEffect(() => {
     const handleClickOutside = (event) => {
+      // Check if the clicked element is the "+X" element
+      const isExpandButton = event.target.closest(
+        '[data-expand-button="true"]'
+      );
+
+      if (isExpandButton) {
+        // If clicking on the "+X" button, don't close the dropdown
+        return;
+      }
+
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsFocused(false);
       }
@@ -135,6 +145,21 @@ const SimplifiedEmailInput = ({
     setInputValue("");
     setAzureUsers([]);
     inputRef.current?.focus();
+  };
+
+  // Handle clicking on the "+X" indicator
+  const handleExpandClick = (e) => {
+    e.stopPropagation(); // Prevent bubbling to parent elements
+    e.preventDefault(); // Prevent default behavior
+
+    // Expand to show all recipients
+    setIsCollapsed(false);
+
+    // Focus the input after expanding
+    setTimeout(() => {
+      setIsFocused(true);
+      inputRef.current?.focus();
+    }, 10);
   };
 
   // Get visible recipients (all if expanded, first 2 if collapsed)
@@ -174,6 +199,7 @@ const SimplifiedEmailInput = ({
             key={user.id}
             className="p-1 hover:bg-slate-100 cursor-pointer flex items-center"
             onClick={() => handleSelectAzureUser(user)}
+            onMouseDown={(e) => e.preventDefault()} // Prevent blur
           >
             <div className="w-4 h-4 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center mr-1.5">
               <User className="h-2 w-2" />
@@ -192,6 +218,7 @@ const SimplifiedEmailInput = ({
           <div
             className="p-1 hover:bg-slate-100 cursor-pointer flex items-center text-cyan-600"
             onClick={handleAddManualEmail}
+            onMouseDown={(e) => e.preventDefault()} // Prevent blur
           >
             <div className="w-4 h-4 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center mr-1.5">
               <Send className="h-2 w-2" />
@@ -213,7 +240,13 @@ const SimplifiedEmailInput = ({
       </label>
 
       <div className="flex-1 relative">
-        <div className="flex w-full flex-wrap items-center gap-1 border border-slate-300 rounded-md p-0.5 bg-white focus-within:ring-1 focus-within:ring-cyan-200 focus-within:border-cyan-400 transition-all min-h-[24px]">
+        <div
+          className="flex w-full flex-wrap items-center gap-1 border border-slate-300 rounded-md p-0.5 bg-white focus-within:ring-1 focus-within:ring-cyan-200 focus-within:border-cyan-400 transition-all min-h-[24px]"
+          onClick={() => {
+            inputRef.current?.focus();
+            setIsFocused(true);
+          }}
+        >
           {visibleRecipients.map((email) => (
             <div
               key={email}
@@ -222,7 +255,10 @@ const SimplifiedEmailInput = ({
               <span className="mr-0.5 text-slate-700 truncate">{email}</span>
               <button
                 type="button"
-                onClick={() => handleRemoveRecipient(email)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRemoveRecipient(email);
+                }}
                 className="text-slate-500 hover:text-slate-700 transition-colors"
               >
                 <X className="h-2 w-2" />
@@ -231,12 +267,18 @@ const SimplifiedEmailInput = ({
           ))}
 
           {hiddenCount > 0 && (
-            <div
+            <button
+              type="button"
+              data-expand-button="true"
               className="bg-slate-100 text-slate-600 text-[8px] px-1 py-0.5 rounded-sm cursor-pointer hover:bg-slate-200 transition-colors"
-              onClick={() => setIsCollapsed(false)}
+              onClick={handleExpandClick}
+              onMouseDown={(e) => {
+                // This is critical - prevent mousedown to avoid blur on the input
+                e.preventDefault();
+              }}
             >
-              +{hiddenCount}
-            </div>
+              +{hiddenCount} more
+            </button>
           )}
 
           <input
@@ -244,17 +286,36 @@ const SimplifiedEmailInput = ({
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            onFocus={() => setIsFocused(true)}
+            onFocus={() => {
+              setIsFocused(true);
+              if (isCollapsed && recipients.length > 2) {
+                setIsCollapsed(false);
+              }
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
                 handleAddManualEmail();
+              } else if (
+                e.key === "Backspace" &&
+                inputValue === "" &&
+                recipients.length > 0
+              ) {
+                // Remove last recipient when backspace is pressed on empty input
+                const newRecipients = [...recipients];
+                newRecipients.pop();
+                setRecipients(newRecipients);
               }
             }}
             onBlur={() => {
               // Delay to allow clicking dropdown items
               setTimeout(() => {
-                if (isValidEmail(inputValue)) {
+                // Only handle blur if we're not interacting with dropdown or expand button
+                const expandButtonActive =
+                  document.activeElement?.getAttribute("data-expand-button") ===
+                  "true";
+
+                if (!expandButtonActive && isValidEmail(inputValue)) {
                   handleAddManualEmail();
                 }
               }, 200);

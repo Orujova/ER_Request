@@ -20,7 +20,7 @@ export const AuthGuard = ({ children, requiredRoles = [] }) => {
   const [isAuth, setIsAuth] = useState(false);
 
   useEffect(() => {
-    const checkAuth = () => {
+    const checkAuth = async () => {
       setIsChecking(true);
 
       // First, check initial auth state which is based on cookies
@@ -44,9 +44,8 @@ export const AuthGuard = ({ children, requiredRoles = [] }) => {
       setIsChecking(false);
     };
 
-    // Small delay to ensure authentication state is updated
-    const timer = setTimeout(checkAuth, 50);
-    return () => clearTimeout(timer);
+    // Run immediately and don't use timeout which can cause delay in rendering
+    checkAuth();
   }, [isMsalAuthenticated, location.pathname]);
 
   // Return a loading state while checking
@@ -85,7 +84,7 @@ export const AdminGuard = ({ children }) => {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    const checkAdmin = () => {
+    const checkAdmin = async () => {
       setIsChecking(true);
 
       // First check initial auth state
@@ -118,9 +117,8 @@ export const AdminGuard = ({ children }) => {
       setIsChecking(false);
     };
 
-    // Small delay to ensure authentication state is updated
-    const timer = setTimeout(checkAdmin, 50);
-    return () => clearTimeout(timer);
+    // Run check immediately
+    checkAdmin();
   }, [isMsalAuthenticated]);
 
   // Return a loading state while checking

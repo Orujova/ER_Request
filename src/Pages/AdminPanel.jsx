@@ -788,7 +788,7 @@ const AdminPanel = () => {
 
             {activeTab === "link" && (
               <AreaManagerErMemberTable
-                areaManagers={areaManagers}
+                areaManagers={areaManagerOptions}
                 loading={loading}
                 onEdit={(manager) => handleEditErMember(manager)}
                 refreshTrigger={tableRefreshTrigger}

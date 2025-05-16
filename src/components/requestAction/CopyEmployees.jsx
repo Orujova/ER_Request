@@ -29,7 +29,6 @@ const CopyEmployees = ({
   refreshChildRequests,
   showToast,
 }) => {
-  // State
   const [employees, setEmployees] = useState([]);
   const [childRequests, setChildRequests] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -43,13 +42,11 @@ const CopyEmployees = ({
   const [formErrors, setFormErrors] = useState({});
   const [expandedSection, setExpandedSection] = useState("new");
 
-  // Handle case change
   const handleCaseChange = (e) => {
     const caseId = e.target.value;
     setSelectedCase(caseId);
     setFormErrors({ ...formErrors, case: null });
 
-    // Filter subcases based on selected case
     if (caseId) {
       const filteredSubCases = allSubCases.filter(
         (subCase) => subCase.CaseId === parseInt(caseId)
@@ -59,17 +56,14 @@ const CopyEmployees = ({
       setSubCases([]);
     }
 
-    // Reset selected subcase
     setSelectedSubCase("");
   };
 
-  // Handle subcase change
   const handleSubCaseChange = (e) => {
     setSelectedSubCase(e.target.value);
     setFormErrors({ ...formErrors, subCase: null });
   };
 
-  // Auto search employee when searchTerm changes
   useEffect(() => {
     if (searchTimeout) {
       clearTimeout(searchTimeout);
@@ -86,8 +80,14 @@ const CopyEmployees = ({
         setIsSearching(true);
         const { jwtToken } = getStoredTokens();
 
+        // Construct query parameters with proper encoding
+        const params = new URLSearchParams();
+        params.append("Search", searchTerm);
+        params.append("Page", "1");
+        params.append("ShowMore.Take", "10");
+
         const response = await fetch(
-          `${API_BASE_URL}/api/Employee?searchTerm=${searchTerm}`,
+          `${API_BASE_URL}/api/Employee?${params.toString()}`,
           {
             headers: {
               accept: "*/*",
@@ -97,17 +97,25 @@ const CopyEmployees = ({
         );
 
         if (!response.ok) {
-          throw new Error(`Error fetching employees: ${response.status}`);
+          const errorText = await response.text();
+          throw new Error(
+            `Error fetching employees: ${response.status} - ${
+              errorText || response.statusText
+            }`
+          );
         }
 
         const data = await response.json();
-        setEmployees(data[0]?.Employees || []);
+        // Adjust based on actual API response structure; assuming data[0].Employees
+        const employeeList = data[0]?.Employees || [];
+        setEmployees(employeeList);
         setIsSearching(false);
       } catch (err) {
+        console.error("Search error:", err);
         setError(err.message);
         setIsSearching(false);
       }
-    }, 500);
+    }, 800); // Increased debounce timeout to 800ms
 
     setSearchTimeout(timer);
 
@@ -118,22 +126,18 @@ const CopyEmployees = ({
     };
   }, [searchTerm, API_BASE_URL, setError]);
 
-  // Validate before adding employee
   const validateBeforeAdd = (employee) => {
     const errors = {};
 
-    // Check if employee is already added
     if (childRequests.some((req) => req.EmployeeId === employee.Id)) {
       errors.employee = "This employee has already been added to the list.";
     }
 
-    // Check if employee already exists in existing child requests
     if (existingChildRequests.some((req) => req.EmployeeId === employee.Id)) {
       errors.employee =
         "This employee already has a child request for this parent.";
     }
 
-    // Validate case and subcase selections
     if (!selectedCase) {
       errors.case = "Please select a Case before adding employees.";
     }
@@ -146,7 +150,6 @@ const CopyEmployees = ({
     return Object.keys(errors).length === 0;
   };
 
-  // Add employee to child requests
   const addEmployeeToChildRequests = (employee) => {
     if (!validateBeforeAdd(employee)) {
       return;
@@ -170,18 +173,16 @@ const CopyEmployees = ({
       },
     ]);
 
-    // Clear search results but keep the search term
     setEmployees([]);
+    setSearchTerm(""); // Clear search term after adding an employee
   };
 
-  // Remove employee from child requests
   const removeEmployeeFromChildRequests = (employeeId) => {
     setChildRequests(
       childRequests.filter((req) => req.EmployeeId !== employeeId)
     );
   };
 
-  // Submit child requests
   const submitChildRequests = async () => {
     if (childRequests.length === 0) {
       setError("No employees selected for child requests.");
@@ -214,7 +215,12 @@ const CopyEmployees = ({
       );
 
       if (!response.ok) {
-        throw new Error(`Error creating child requests: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(
+          `Error creating child requests: ${response.status} - ${
+            errorText || response.statusText
+          }`
+        );
       }
 
       setSuccess("Child requests created successfully.");
@@ -226,12 +232,12 @@ const CopyEmployees = ({
       setSearchTerm("");
       setLoading(false);
 
-      // Refresh child requests and clear success message after 2 seconds
       setTimeout(() => {
         setSuccess(null);
         refreshChildRequests();
       }, 2000);
     } catch (err) {
+      console.error("Submit error:", err);
       setError(err.message);
       setLoading(false);
     }
@@ -248,7 +254,6 @@ const CopyEmployees = ({
   return (
     <div>
       <div className="mb-6">
-        {/* Selection Section */}
         <div className="p-5 rounded-lg bg-slate-50 border border-slate-200 mb-6">
           <h3 className="text-md font-medium mb-4 flex items-center text-slate-700">
             <Filter size={16} className="mr-2 text-sky-500" />
@@ -352,7 +357,6 @@ const CopyEmployees = ({
             </div>
           </div>
 
-          {/* Employee Search */}
           <div>
             <label className="block text-sm font-medium text-slate-600 mb-2">
               Search Employee
@@ -411,7 +415,6 @@ const CopyEmployees = ({
           </div>
         </div>
 
-        {/* Search Results */}
         {employees.length > 0 && (
           <div className="rounded-lg border border-slate-200 overflow-hidden mb-6 shadow-sm">
             <div className="bg-slate-50 px-4 py-2 border-b border-slate-200">
@@ -457,7 +460,7 @@ const CopyEmployees = ({
                     disabled={!selectedCase || !selectedSubCase}
                     title={
                       !selectedCase || !selectedSubCase
-                        ? "Select Case and Sub Case first"
+                        ? "Please select both Case and Sub Case first"
                         : "Add employee"
                     }
                   >
@@ -466,10 +469,16 @@ const CopyEmployees = ({
                 </div>
               ))}
             </div>
+            {!selectedCase || !selectedSubCase ? (
+              <div className="p-4 text-xs text-amber-600 flex items-center">
+                <AlertTriangle size={12} className="mr-1" />
+                Please select both a Case and a Sub Case before adding an
+                employee
+              </div>
+            ) : null}
           </div>
         )}
 
-        {/* Existing Child Requests (Collapsible Section) */}
         {existingChildRequests.length > 0 && (
           <div className="mb-6 rounded-lg border border-slate-200 overflow-hidden shadow-sm">
             <button
@@ -540,7 +549,6 @@ const CopyEmployees = ({
           </div>
         )}
 
-        {/* New Child Requests to Add (Collapsible Section) */}
         {childRequests.length > 0 && (
           <div className="mb-6 rounded-lg border border-slate-200 overflow-hidden shadow-sm">
             <button
@@ -604,7 +612,6 @@ const CopyEmployees = ({
           </div>
         )}
 
-        {/* Submit Button */}
         {childRequests.length > 0 && (
           <div className="flex justify-end">
             <button
@@ -628,7 +635,6 @@ const CopyEmployees = ({
           </div>
         )}
 
-        {/* Empty State */}
         {!isSearching && employees.length === 0 && searchTerm.length > 2 && (
           <div className="p-8 rounded-lg border border-dashed border-slate-200 text-center mb-6 bg-slate-50">
             <User size={48} className="mx-auto mb-2 text-slate-300" />

@@ -74,6 +74,31 @@ const TipTapStyles = () => {
         margin: 0.2em 0;
       }
 
+      /* Better list styling */
+      .ProseMirror ul {
+        list-style-type: disc;
+      }
+
+      .ProseMirror ol {
+        list-style-type: decimal;
+      }
+
+      .ProseMirror ul ul {
+        list-style-type: circle;
+      }
+
+      .ProseMirror ul ul ul {
+        list-style-type: square;
+      }
+
+      .ProseMirror ol ol {
+        list-style-type: lower-alpha;
+      }
+
+      .ProseMirror ol ol ol {
+        list-style-type: lower-roman;
+      }
+
       /* Links */
       .ProseMirror a {
         color: #0891b2;
@@ -116,6 +141,44 @@ const TipTapStyles = () => {
         font-size: inherit;
         line-height: inherit;
         color: inherit;
+      }
+
+      /* Prevent form submission on enter - these styles will help visually indicate the editor is separate from the form */
+      .ProseMirror {
+        border: 1px solid #e2e8f0;
+        border-radius: 0.375rem;
+        transition: border-color 0.15s ease-in-out;
+      }
+
+      .ProseMirror:focus {
+        border-color: #0891b2;
+        box-shadow: 0 0 0 2px rgba(8, 145, 178, 0.1);
+      }
+
+      /* Task Lists */
+      ul[data-type="taskList"] {
+        list-style: none;
+        padding: 0;
+      }
+
+      ul[data-type="taskList"] li {
+        display: flex;
+        align-items: center;
+      }
+
+      ul[data-type="taskList"] li > label {
+        margin-right: 0.5rem;
+        user-select: none;
+      }
+
+      ul[data-type="taskList"] li > div {
+        flex: 1 1 auto;
+      }
+
+      /* Ensure proper focus indicator */
+      .ProseMirror-focused {
+        border-color: #0891b2;
+        box-shadow: 0 0 0 2px rgba(8, 145, 178, 0.1);
       }
     `}</style>
   );

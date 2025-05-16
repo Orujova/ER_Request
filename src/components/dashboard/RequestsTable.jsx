@@ -46,7 +46,7 @@ const RequestsTable = ({ requests, onViewDetails }) => {
   // Helper function to format duration display
   const formatDuration = (days) => {
     if (days === null || days === undefined) return "N/A";
-    return days === 1 ? `${days} day` : `${days} days`;
+    return days === 1 ? `${days - 1} day` : `${days - 1} days`;
   };
 
   // Helper function to determine duration text color

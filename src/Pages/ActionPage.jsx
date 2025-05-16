@@ -20,7 +20,6 @@ function RequestAction() {
   const dispatch = useDispatch();
   const request = useSelector((state) => state.request.currentRequest);
 
-  // State
   const [erMembers, setErMembers] = useState([]);
   const [selectedErMember, setSelectedErMember] = useState("");
   const [disciplinaryViolations, setDisciplinaryViolations] = useState([]);
@@ -39,7 +38,6 @@ function RequestAction() {
   const [activeTab, setActiveTab] = useState("updateRequest");
   const [localRequest, setLocalRequest] = useState(null);
 
-  // Create a function to fetch the current request data
   const fetchCurrentRequest = useCallback(async () => {
     try {
       const { jwtToken } = getStoredTokens();
@@ -49,6 +47,9 @@ function RequestAction() {
           headers: {
             accept: "*/*",
             Authorization: `Bearer ${jwtToken}`,
+
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
           },
         }
       );
@@ -58,24 +59,18 @@ function RequestAction() {
       }
 
       const requestData = await requestResponse.json();
-
-      // Extract the request data
       const requestItem = requestData;
 
       if (requestItem) {
-        // Transform API data to match our component structure
         const transformedRequest = {
           id: requestItem.Id,
           caseId: requestItem.CaseId,
-          case: requestItem.CaseName,
           caseName: requestItem.CaseName,
           subCaseId: requestItem.SubCaseId,
-          subCase: requestItem.SubCaseDescription,
           subCaseDescription: requestItem.SubCaseDescription,
           status: requestItem.ERRequestStatus,
           employeeId: requestItem.EmployeeId,
           employeeName: requestItem.EmployeeName,
-          employeeFullName: requestItem.EmployeeName,
           employeeBadge: requestItem.EmployeeBadge || "",
           projectName: requestItem.ProjectName,
           projectId: requestItem.ProjectId,
@@ -103,7 +98,6 @@ function RequestAction() {
           disciplinaryViolationName: requestItem.DisciplinaryViolationName,
           isEligible: requestItem.IsEligible,
           contractEndDate: requestItem.ContractEndDate,
-          // Structure the data to be compatible with both formats
           employeeInfo: {
             id: requestItem.EmployeeId,
             name: requestItem.EmployeeName,
@@ -113,8 +107,6 @@ function RequestAction() {
             projectCode: requestItem.ProjectCode,
             position: requestItem.PositionName || "",
             positionId: requestItem.PositionId,
-            section: requestItem.SectionName || "",
-            sectionId: requestItem.SectionId,
           },
           disciplinaryAction: {
             id: requestItem.DisciplinaryActionId,
@@ -126,16 +118,12 @@ function RequestAction() {
           },
         };
 
-        // Update the Redux store with the latest request data
         dispatch({
           type: "SET_CURRENT_REQUEST",
           payload: transformedRequest,
         });
-
-        // Also set in local state for fallback
         setLocalRequest(transformedRequest);
 
-        // Set selected ER member based on request data
         if (requestItem.ERMemberUserId) {
           setSelectedErMember(requestItem.ERMemberUserId.toString());
         }
@@ -150,18 +138,18 @@ function RequestAction() {
     }
   }, [id, dispatch]);
 
-  // Fetch all disciplinary actions
   const fetchAllDisciplinaryActions = useCallback(async () => {
     try {
       const { jwtToken } = getStoredTokens();
-
-      // Fetch all disciplinary actions
       const actionsResponse = await fetch(
         `${API_BASE_URL}/GetAllDisciplinaryAction`,
         {
           headers: {
             accept: "*/*",
             Authorization: `Bearer ${jwtToken}`,
+
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
           },
         }
       );
@@ -175,7 +163,6 @@ function RequestAction() {
       const actionsData = await actionsResponse.json();
       const actions = actionsData[0]?.DisciplinaryActions || [];
       setDisciplinaryActions(actions);
-
       return actions;
     } catch (err) {
       console.error("Error fetching disciplinary actions:", err);
@@ -184,17 +171,18 @@ function RequestAction() {
     }
   }, [API_BASE_URL]);
 
-  // Fetch disciplinary action results
   const fetchDisciplinaryActionResults = useCallback(async () => {
     try {
       const { jwtToken } = getStoredTokens();
-
       const resultsResponse = await fetch(
         `${API_BASE_URL}/GetAllDisciplinaryActionResult`,
         {
           headers: {
             accept: "*/*",
             Authorization: `Bearer ${jwtToken}`,
+
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
           },
         }
       );
@@ -208,7 +196,6 @@ function RequestAction() {
       const resultsData = await resultsResponse.json();
       const results = resultsData[0]?.DisciplinaryActionResults || [];
       setDisciplinaryActionResults(results);
-
       return results;
     } catch (err) {
       console.error("Error fetching disciplinary action results:", err);
@@ -217,17 +204,18 @@ function RequestAction() {
     }
   }, [API_BASE_URL]);
 
-  // Fetch disciplinary violations
   const fetchDisciplinaryViolations = useCallback(async () => {
     try {
       const { jwtToken } = getStoredTokens();
-
       const violationsResponse = await fetch(
         `${API_BASE_URL}/GetAllDisciplinaryViolation`,
         {
           headers: {
             accept: "*/*",
             Authorization: `Bearer ${jwtToken}`,
+
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
           },
         }
       );
@@ -241,7 +229,6 @@ function RequestAction() {
       const violationsData = await violationsResponse.json();
       const violations = violationsData[0]?.DisciplinaryViolations || [];
       setDisciplinaryViolations(violations);
-
       return violations;
     } catch (err) {
       console.error("Error fetching disciplinary violations:", err);
@@ -250,15 +237,11 @@ function RequestAction() {
     }
   }, [API_BASE_URL]);
 
-  // Fetch necessary data
   const fetchAllData = useCallback(async () => {
     try {
       setLoading(true);
-
-      // First, fetch the current request to ensure we have the latest data
       await fetchCurrentRequest();
 
-      // Fetch ER Members
       const { jwtToken } = getStoredTokens();
       const erMembersResponse = await fetch(
         `${API_BASE_URL}/api/AdminApplicationUser/GetAllERMemberUser`,
@@ -266,6 +249,9 @@ function RequestAction() {
           headers: {
             accept: "*/*",
             Authorization: `Bearer ${jwtToken}`,
+
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
           },
         }
       );
@@ -279,18 +265,19 @@ function RequestAction() {
       const erMembersData = await erMembersResponse.json();
       setErMembers(erMembersData[0]?.AppUsers || []);
 
-      // Fetch disciplinary data
       await Promise.all([
         fetchDisciplinaryViolations(),
         fetchAllDisciplinaryActions(),
         fetchDisciplinaryActionResults(),
       ]);
 
-      // Fetch Cases
       const casesResponse = await fetch(`${API_BASE_URL}/api/Case`, {
         headers: {
           accept: "*/*",
           Authorization: `Bearer ${jwtToken}`,
+
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          Pragma: "no-cache",
         },
       });
 
@@ -301,11 +288,13 @@ function RequestAction() {
       const casesData = await casesResponse.json();
       setCases(casesData[0]?.Cases || []);
 
-      // Fetch SubCases
       const subCasesResponse = await fetch(`${API_BASE_URL}/api/SubCase`, {
         headers: {
           accept: "*/*",
           Authorization: `Bearer ${jwtToken}`,
+
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          Pragma: "no-cache",
         },
       });
 
@@ -316,13 +305,15 @@ function RequestAction() {
       const subCasesData = await subCasesResponse.json();
       setAllSubCases(subCasesData[0]?.SubCases || []);
 
-      // Fetch existing child requests
       const childRequestsResponse = await fetch(
         `${API_BASE_URL}/api/ERRequest/GetAllChildRequest?ParentId=${id}`,
         {
           headers: {
             accept: "*/*",
             Authorization: `Bearer ${jwtToken}`,
+
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
           },
         }
       );
@@ -346,12 +337,10 @@ function RequestAction() {
     fetchDisciplinaryActionResults,
   ]);
 
-  // Fetch data on component mount and when shouldRefresh changes
   useEffect(() => {
     fetchAllData();
   }, [fetchAllData]);
 
-  // Refresh data when shouldRefresh changes
   useEffect(() => {
     if (shouldRefresh) {
       fetchAllData();
@@ -359,7 +348,6 @@ function RequestAction() {
     }
   }, [shouldRefresh, fetchAllData]);
 
-  // Handle ER member change
   const handleErMemberChange = async (newErMemberId) => {
     try {
       setLoading(true);
@@ -386,7 +374,6 @@ function RequestAction() {
         throw new Error(`Error updating ER member: ${response.status}`);
       }
 
-      // Fetch updated request data
       await fetchCurrentRequest();
 
       setSuccess("ER member başarıyla güncellendi.");
@@ -398,7 +385,6 @@ function RequestAction() {
     }
   };
 
-  // Handle status update
   const handleStatusUpdate = async (newStatus) => {
     try {
       setStatusLoading(true);
@@ -424,7 +410,6 @@ function RequestAction() {
         throw new Error(`Error updating status: ${response.status}`);
       }
 
-      // Refresh the page to show updated status
       window.location.reload();
     } catch (err) {
       console.error("Error updating status:", err);
@@ -446,6 +431,9 @@ function RequestAction() {
           headers: {
             accept: "*/*",
             Authorization: `Bearer ${jwtToken}`,
+
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
           },
         }
       );
@@ -461,7 +449,6 @@ function RequestAction() {
     }
   };
 
-  // Use either Redux state or local state for request, with a fallback to an empty object
   const currentRequest = request || localRequest || {};
 
   if (loading && !error && !success) {
@@ -481,7 +468,6 @@ function RequestAction() {
   return (
     <div className="min-h-screen bg-secondary pt-6 pb-12">
       <div className="">
-        {/* Header */}
         <Header
           id={id}
           request={currentRequest}
@@ -496,12 +482,10 @@ function RequestAction() {
         <Alert
           variant="success"
           message={success}
-          onDismiss={() => setSuccess("")}
+          onDismiss={() => setSuccess(null)}
         />
 
-        {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column - Takes 8/12 of the space */}
           <div className="lg:col-span-8 space-y-6">
             <ErMemberAssignment
               erMembers={erMembers}
@@ -511,7 +495,6 @@ function RequestAction() {
               request={currentRequest}
             />
 
-            {/* Tabs */}
             <div
               className="bg-background rounded-xl shadow-sm overflow-hidden"
               style={{ boxShadow: themeColors.cardShadow }}
@@ -558,7 +541,6 @@ function RequestAction() {
               </div>
 
               <div className="p-6">
-                {/* Request Update Form */}
                 {activeTab === "updateRequest" && (
                   <UpdateRequestForm
                     id={id}
@@ -578,8 +560,6 @@ function RequestAction() {
                     fetchRequestDetails={fetchCurrentRequest}
                   />
                 )}
-
-                {/* Copy to Other Employees */}
                 {activeTab === "copyEmployees" && (
                   <CopyEmployees
                     id={id}
@@ -597,11 +577,9 @@ function RequestAction() {
             </div>
           </div>
 
-          {/* Right Column - Takes 4/12 of the space */}
           <div className="lg:col-span-4 space-y-6">
             <CaseSummary request={currentRequest} />
 
-            {/* Status Update Card */}
             <StatusUpdater
               key={`status-updater-${
                 currentRequest?.status || "loading"

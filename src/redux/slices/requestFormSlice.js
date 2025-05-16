@@ -194,7 +194,9 @@ export const submitRequest = createAsyncThunk(
           formDataObj.append("EmployeeId", employeeId);
         }
         // Only append ProjectId if it exists
-        const projectId = formDataState.selectedEmployee?.Project?.Id || formDataState.projectId;
+        const projectId =
+          formDataState.selectedEmployee?.Project?.Id ||
+          formDataState.projectId;
         if (projectId) {
           formDataObj.append("ProjectId", projectId);
         }

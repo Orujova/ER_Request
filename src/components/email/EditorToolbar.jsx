@@ -6,10 +6,22 @@ const EditorToolbar = ({ editor }) => {
     return null;
   }
 
+  // Safe click handler to prevent form submission
+  const safeClick = (fn) => (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Use setTimeout to ensure the command runs after event handling is completed
+    setTimeout(() => {
+      fn();
+    }, 10);
+  };
+
   return (
     <div className="border-b border-gray-200 bg-gray-50 p-1 flex flex-wrap items-center gap-0.5">
       <button
-        onClick={() => editor.chain().focus().toggleBold().run()}
+        type="button"
+        onClick={safeClick(() => editor.chain().focus().toggleBold().run())}
         className={`p-1.5 rounded hover:bg-gray-200 ${
           editor.isActive("bold")
             ? "bg-gray-200 text-cyan-600"
@@ -34,7 +46,8 @@ const EditorToolbar = ({ editor }) => {
       </button>
 
       <button
-        onClick={() => editor.chain().focus().toggleItalic().run()}
+        type="button"
+        onClick={safeClick(() => editor.chain().focus().toggleItalic().run())}
         className={`p-1.5 rounded hover:bg-gray-200 ${
           editor.isActive("italic")
             ? "bg-gray-200 text-cyan-600"
@@ -60,7 +73,10 @@ const EditorToolbar = ({ editor }) => {
       </button>
 
       <button
-        onClick={() => editor.chain().focus().toggleUnderline().run()}
+        type="button"
+        onClick={safeClick(() =>
+          editor.chain().focus().toggleUnderline().run()
+        )}
         className={`p-1.5 rounded hover:bg-gray-200 ${
           editor.isActive("underline")
             ? "bg-gray-200 text-cyan-600"
@@ -87,7 +103,15 @@ const EditorToolbar = ({ editor }) => {
       <span className="mx-1 text-gray-300">|</span>
 
       <button
-        onClick={() => editor.chain().focus().toggleBulletList().run()}
+        type="button"
+        onClick={safeClick(() => {
+          // Ensure the toggle bullet list command completes properly
+          try {
+            editor.chain().focus().toggleBulletList().run();
+          } catch (error) {
+            console.error("Error toggling bullet list:", error);
+          }
+        })}
         className={`p-1.5 rounded hover:bg-gray-200 ${
           editor.isActive("bulletList")
             ? "bg-gray-200 text-cyan-600"
@@ -116,7 +140,25 @@ const EditorToolbar = ({ editor }) => {
       </button>
 
       <button
-        onClick={() => editor.chain().focus().toggleOrderedList().run()}
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+
+          // Special handling for ordered lists
+          try {
+            // Execute in setTimeout to prevent form submission
+            setTimeout(() => {
+              // Focus the editor first
+              editor.commands.focus();
+
+              // Then toggle the ordered list
+              editor.commands.toggleOrderedList();
+            }, 10);
+          } catch (error) {
+            console.error("Error toggling ordered list:", error);
+          }
+        }}
         className={`p-1.5 rounded hover:bg-gray-200 ${
           editor.isActive("orderedList")
             ? "bg-gray-200 text-cyan-600"
@@ -147,7 +189,10 @@ const EditorToolbar = ({ editor }) => {
       <span className="mx-1 text-gray-300">|</span>
 
       <button
-        onClick={() => editor.chain().focus().setTextAlign("left").run()}
+        type="button"
+        onClick={safeClick(() =>
+          editor.chain().focus().setTextAlign("left").run()
+        )}
         className={`p-1.5 rounded hover:bg-gray-200 ${
           editor.isActive({ textAlign: "left" })
             ? "bg-gray-200 text-cyan-600"
@@ -174,7 +219,10 @@ const EditorToolbar = ({ editor }) => {
       </button>
 
       <button
-        onClick={() => editor.chain().focus().setTextAlign("center").run()}
+        type="button"
+        onClick={safeClick(() =>
+          editor.chain().focus().setTextAlign("center").run()
+        )}
         className={`p-1.5 rounded hover:bg-gray-200 ${
           editor.isActive({ textAlign: "center" })
             ? "bg-gray-200 text-cyan-600"
@@ -201,7 +249,10 @@ const EditorToolbar = ({ editor }) => {
       </button>
 
       <button
-        onClick={() => editor.chain().focus().setTextAlign("right").run()}
+        type="button"
+        onClick={safeClick(() =>
+          editor.chain().focus().setTextAlign("right").run()
+        )}
         className={`p-1.5 rounded hover:bg-gray-200 ${
           editor.isActive({ textAlign: "right" })
             ? "bg-gray-200 text-cyan-600"
@@ -230,11 +281,18 @@ const EditorToolbar = ({ editor }) => {
       <span className="mx-1 text-gray-300">|</span>
 
       <button
-        onClick={() => {
-          const url = window.prompt("Enter the link URL:");
-          if (url) {
-            editor.chain().focus().setLink({ href: url }).run();
-          }
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+
+          // Use setTimeout to ensure the prompt appears after event handling
+          setTimeout(() => {
+            const url = window.prompt("Enter the link URL:");
+            if (url) {
+              editor.chain().focus().setLink({ href: url }).run();
+            }
+          }, 10);
         }}
         className={`p-1.5 rounded hover:bg-gray-200 ${
           editor.isActive("link")
@@ -260,7 +318,8 @@ const EditorToolbar = ({ editor }) => {
       </button>
 
       <button
-        onClick={() => editor.chain().focus().undo().run()}
+        type="button"
+        onClick={safeClick(() => editor.chain().focus().undo().run())}
         disabled={!editor.can().undo()}
         className="p-1.5 rounded hover:bg-gray-200 text-gray-700 disabled:opacity-50"
         title="Undo"
@@ -282,7 +341,8 @@ const EditorToolbar = ({ editor }) => {
       </button>
 
       <button
-        onClick={() => editor.chain().focus().redo().run()}
+        type="button"
+        onClick={safeClick(() => editor.chain().focus().redo().run())}
         disabled={!editor.can().redo()}
         className="p-1.5 rounded hover:bg-gray-200 text-gray-700 disabled:opacity-50"
         title="Redo"
