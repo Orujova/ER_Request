@@ -212,6 +212,7 @@ export const fetchDashboardData = createAsyncThunk(
         employee: item.EmployeeName,
         case: item.CaseName,
         subcase: item.SubCaseDescription,
+        title: item.Title,
         statusCode: item.ERRequestStatus,
         isCanceled: item.IsCanceled,
         date: new Date(item.CreatedDate || Date.now())

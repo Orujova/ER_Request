@@ -576,14 +576,16 @@ const StreamlinedEmailReplyForm = ({
             : "Forward"}
         </h2>
         <div className="flex items-center">
-          <button
+           <button
+        type="button"
             onClick={toggleFullScreen}
             className="rounded-full p-1 hover:bg-white hover:bg-opacity-20 transition-colors"
             title={isFullScreen ? "Exit Full Screen" : "Full Screen Mode"}
           >
             <Maximize2 className="h-3 w-3" />
           </button>
-          <button
+           <button
+        type="button"
             onClick={onClose}
             className="rounded-full p-1 hover:bg-white hover:bg-opacity-20 transition-colors ml-1"
           >
@@ -652,7 +654,7 @@ const StreamlinedEmailReplyForm = ({
         {/* Attachments Section - Fixed at bottom */}
         <div className="border-t border-slate-200 p-1.5 sticky bottom-0 bg-white shadow-md z-10">
           <div className="flex items-center justify-between mb-1">
-            <button
+             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               className="text-[10px] bg-cyan-50 border border-cyan-200 px-1.5 py-0.5 rounded-sm flex items-center hover:bg-cyan-100 text-cyan-700 transition-colors"
@@ -678,7 +680,7 @@ const StreamlinedEmailReplyForm = ({
                 <span>Mark as communicated</span>
               </label>
 
-              <button
+               <button
                 type="submit"
                 disabled={loading}
                 className="px-2 py-1.5 rounded-sm text-xs font-medium text-white flex items-center justify-center min-w-[60px] shadow-sm transition-all focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-cyan-300"
@@ -702,7 +704,7 @@ const StreamlinedEmailReplyForm = ({
                 )}
               </button>
 
-              <button
+               <button
                 type="button"
                 onClick={onClose}
                 className="px-2 py-1 border border-slate-300 rounded-sm text-[10px] font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-1 focus:ring-cyan-200 transition-colors"
