@@ -27,10 +27,7 @@ import ToastContainer from "./toast/ToastContainer";
 
 // Import role utilities
 import { ROLES, getDefaultRedirect, hasAccess } from "./utils/roles";
-import {
-  checkInitialAuthState,
-  isAuthenticated as isJwtAuthenticated,
-} from "./utils/authHandler";
+import { checkInitialAuthState, ensureAuthData } from "./utils/authHandler";
 
 // Auth redirect component
 const AuthRedirect = ({ children, requireAuth = true }) => {
@@ -40,9 +37,14 @@ const AuthRedirect = ({ children, requireAuth = true }) => {
 
   useEffect(() => {
     if (!requireAuth && isAuthenticated && checkInitialAuthState()) {
-      const redirectTo = getDefaultRedirect();
-      console.log("AuthRedirect: Redirecting from login to:", redirectTo);
-      navigate(redirectTo, { replace: true });
+      const redirectTo = getDefaultRedirect() || "/"; // Fallback to "/" if getDefaultRedirect fails or returns "/login"
+      if (redirectTo === "/login") {
+        console.log("Warning: Redirect to /login detected, forcing redirect to /");
+        navigate("/", { replace: true });
+      } else {
+        console.log("AuthRedirect: Redirecting from login to:", redirectTo);
+        navigate(redirectTo, { replace: true });
+      }
     }
   }, [requireAuth, isAuthenticated, navigate]);
 
@@ -61,21 +63,23 @@ function App() {
 
   // Global authentication status check
   useEffect(() => {
-    if (
-      location.pathname !== "/login" &&
-      !isAuthenticated &&
-      !checkInitialAuthState()
-    ) {
-      console.log("App: Redirecting to /login from:", location.pathname);
-      navigate("/login", { state: { from: location }, replace: true });
-    } else if (
-      location.pathname === "/login" &&
-      (isAuthenticated || checkInitialAuthState())
-    ) {
-      const redirectTo = getDefaultRedirect();
-      console.log("App: Redirecting from /login to:", redirectTo);
-      navigate(redirectTo, { replace: true });
-    }
+    const handleAuth = async () => {
+      if (location.pathname !== "/login" && !isAuthenticated && !checkInitialAuthState()) {
+        console.log("App: Redirecting to /login from:", location.pathname);
+        navigate("/login", { state: { from: location }, replace: true });
+      } else if (location.pathname === "/login" && (isAuthenticated || checkInitialAuthState())) {
+        await ensureAuthData(); // Ensure auth data is loaded
+        const redirectTo = getDefaultRedirect() || "/";
+        if (redirectTo === "/login") {
+          console.log("Warning: Redirect to /login detected, forcing redirect to /");
+          navigate("/", { replace: true });
+        } else {
+          console.log("App: Redirecting from /login to:", redirectTo);
+          navigate(redirectTo, { replace: true });
+        }
+      }
+    };
+    handleAuth();
   }, [location.pathname, isAuthenticated, navigate]);
 
   return (
@@ -176,7 +180,7 @@ function App() {
             {/* Catch-all route */}
             <Route
               path="*"
-              element={<Navigate to={getDefaultRedirect()} replace />}
+              element={<Navigate to={getDefaultRedirect() || "/"} replace />}
               key="catch-all"
             />
           </Routes>

@@ -67,10 +67,22 @@ export const fetchRequestData = createAsyncThunk(
           body: data.MailBody || "",
         },
         attachments: {
-          presentation: data.PresentationAttach || [],
-          act: data.ActAttach || [],
-          explanation: data.ExplanationAttach || [],
-          general: data.GeneralAttachments || [],
+          presentation: (data.PresentationAttach || []).map((attach, index) => ({
+            id: data.PresentationAttachIds?.[index] || index,
+            url: attach,
+          })),
+          act: (data.ActAttach || []).map((attach, index) => ({
+            id: data.ActAttachIds?.[index] || index,
+            url: attach,
+          })),
+          explanation: (data.ExplanationAttach || []).map((attach, index) => ({
+            id: data.ExplanationAttachIds?.[index] || index,
+            url: attach,
+          })),
+          general: (data.Attachments || []).map((attach, index) => ({
+            id: data.AttachmentIds?.[index] || index,
+            url: attach,
+          })),
         },
         hyperLinks: (data.ERHyperLinks || []).map((link, index) => ({
           id: data.ERHyperLinkIds?.[index] || index,
@@ -460,7 +472,7 @@ export const fetchChildRequests = createAsyncThunk(
 export const manageAttachments = createAsyncThunk(
   "request/manageAttachments",
   async (
-    { requestId, attachmentType, file, hyperlink, hyperLinkIdToDelete },
+    { requestId, attachmentType, file, hyperlink, hyperLinkIdToDelete, attachmentIdToDelete },
     { dispatch, rejectWithValue }
   ) => {
     try {
@@ -492,6 +504,11 @@ export const manageAttachments = createAsyncThunk(
       // For hyperlink deletions
       if (hyperLinkIdToDelete) {
         formData.append("HyperLinkIdsToDelete", hyperLinkIdToDelete);
+      }
+
+      // For attachment deletions
+      if (attachmentIdToDelete) {
+        formData.append("AttachmentIdsDelete", attachmentIdToDelete);
       }
 
       const response = await fetch(

@@ -1,4 +1,3 @@
-// AttachmentsTab.jsx - Redux integrated version
 import React, { useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Paperclip, ArrowUpToLine, Link2, X } from "lucide-react";
@@ -187,16 +186,20 @@ const AttachmentsTab = ({
   };
 
   // Delete attachment handler with Redux thunk
-  const handleDeleteAttachment = async (url, type) => {
-    if (!url || !type) return;
+  const handleDeleteAttachment = async (attachment) => {
+    if (!attachment || !attachment.id) return;
 
     try {
       setErrorMessage("");
 
-      // For attachments, we would need a specific API endpoint to delete them
-      // This implementation depends on your backend API structure
+      await dispatch(
+        manageAttachments({
+          requestId,
+          attachmentIdToDelete: attachment.id,
+        })
+      ).unwrap();
 
-      // Call the parent callback to refresh the data after deletion
+      // Callback to refresh attachments
       if (onAttachmentsUpdated) {
         onAttachmentsUpdated();
       }
@@ -509,13 +512,9 @@ const AttachmentsTab = ({
       ) : (
         <FileAttachmentManager
           requestId={requestId}
-          presentationAttachments={
-            getFilteredAttachments().presentationAttachments
-          }
+          presentationAttachments={getFilteredAttachments().presentationAttachments}
           actAttachments={getFilteredAttachments().actAttachments}
-          explanationAttachments={
-            getFilteredAttachments().explanationAttachments
-          }
+          explanationAttachments={getFilteredAttachments().explanationAttachments}
           generalAttachments={getFilteredAttachments().generalAttachments}
           hyperLinks={getFilteredAttachments().hyperLinks}
           onDeleteAttachment={handleDeleteAttachment}

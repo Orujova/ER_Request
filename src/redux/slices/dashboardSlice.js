@@ -210,6 +210,8 @@ export const fetchDashboardData = createAsyncThunk(
         project: item.ProjectName,
         projectCode: item.ProjectCode,
         employee: item.EmployeeName,
+        employeeBadge: item.EmployeeBadge,
+        employeeManager: item.EmployeeManager,
         case: item.CaseName,
         subcase: item.SubCaseDescription,
         title: item.Title,

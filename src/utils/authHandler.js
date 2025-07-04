@@ -1,4 +1,3 @@
-// src/utils/authHandler.js
 import Cookies from "js-cookie";
 import { API_BASE_URL } from "../../apiConfig";
 
@@ -9,9 +8,60 @@ const USER_INFO_COOKIE = "userInfo";
 const USER_ID_COOKIE = "userId";
 const AUTH_STATE_COOKIE = "authState";
 
+// Key for storing verified tokens and lock state in localStorage
+const VERIFIED_TOKENS_KEY = "verifiedTokens";
+const VERIFICATION_LOCK_KEY = "verificationLock";
+
+// Load verified tokens from localStorage on module load
+const loadVerifiedTokens = () => {
+  const stored = localStorage.getItem(VERIFIED_TOKENS_KEY);
+  return stored ? new Set(JSON.parse(stored)) : new Set();
+};
+
+// Save verified tokens to localStorage
+const saveVerifiedTokens = (tokensSet) => {
+  localStorage.setItem(VERIFIED_TOKENS_KEY, JSON.stringify(Array.from(tokensSet)));
+};
+
+// Load verification lock state
+const loadVerificationLock = () => localStorage.getItem(VERIFICATION_LOCK_KEY);
+const saveVerificationLock = (token) => localStorage.setItem(VERIFICATION_LOCK_KEY, token);
+const clearVerificationLock = () => localStorage.removeItem(VERIFICATION_LOCK_KEY);
+
+// Initialize verifiedTokens set with persisted data
+const verifiedTokens = loadVerifiedTokens();
+
 export const verifyTokenWithBackend = async (msalAccessToken) => {
+  // Check if a verification is already in progress for this token
+  const currentLock = loadVerificationLock();
+  if (currentLock && currentLock !== msalAccessToken) {
+    console.log("Verification already in progress for another token, waiting:", currentLock);
+    await new Promise((resolve) => setTimeout(resolve, 100)); // Kısa bir bekleme
+    return verifyTokenWithBackend(msalAccessToken); // Yeniden kontrol et
+  }
+
+  if (verifiedTokens.has(msalAccessToken)) {
+    console.log("Token already verified, skipping redundant call:", msalAccessToken);
+    const cachedData = getStoredTokens();
+    if (cachedData.msalToken && cachedData.jwtToken) {
+      return { IsSuccess: true, ...cachedData };
+    }
+  }
+
+  // Lock the verification process
+  saveVerificationLock(msalAccessToken);
+  console.log("Starting token verification for:", msalAccessToken);
+
   try {
-    // First store the MSAL token
+    const tokenParts = msalAccessToken.split(".");
+    if (tokenParts.length !== 3) throw new Error("Invalid token format");
+    const payload = JSON.parse(atob(tokenParts[1]));
+    if (payload.exp && payload.exp * 1000 <= Date.now()) {
+      console.log("Token is expired, clearing auth data:", msalAccessToken);
+      handleTokenExpiration();
+      throw new Error("Token is expired");
+    }
+
     storeMsalToken(msalAccessToken);
     localStorage.setItem("access_token", msalAccessToken);
 
@@ -19,100 +69,80 @@ export const verifyTokenWithBackend = async (msalAccessToken) => {
       `${API_BASE_URL}/api/AdminApplicationUser/verify-token`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          Token: msalAccessToken,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ Token: msalAccessToken }),
       }
     );
 
-    if (!response.ok) {
-      throw new Error("Token verification failed");
-    }
-
+    if (!response.ok) throw new Error(`Token verification failed with status ${response.status}`);
     const data = await response.json();
-    localStorage.setItem("email", data.Email);
-    localStorage.setItem("rols", data.RoleIds);
+    if (!data.IsSuccess) throw new Error(data.ErrorDetail || data.Message || "Token verification failed");
 
-    if (!data.IsSuccess) {
-      throw new Error(
-        data.ErrorDetail || data.Message || "Token verification failed"
-      );
-    }
-
-    // Store JWT token and user info
+    localStorage.setItem("email", data.Email || "");
+    localStorage.setItem("rols", JSON.stringify(data.RoleIds || []));
     storeJwtToken(data.JwtToken);
-
     localStorage.setItem("jwt", data.JwtToken);
     storeUserInfo({
-      userId: data.UserId,
-      fullName: data.FullName,
-      email: data.Email,
-      phoneNumber: data.PhoneNumber,
-      roleIds: data.RoleIds,
+      userId: data.UserId || null,
+      fullName: data.FullName || "",
+      email: data.Email || "",
+      phoneNumber: data.PhoneNumber || "",
+      roleIds: data.RoleIds || [],
     });
 
-    // Set auth state to true and store it
     setAuthState(true);
+    verifiedTokens.add(msalAccessToken);
+    saveVerifiedTokens(verifiedTokens);
+    console.log("Token verification successful for:", msalAccessToken);
 
     return data;
   } catch (error) {
     console.error("Token verification error:", error);
     handleTokenExpiration();
     throw error;
+  } finally {
+    // Clear the lock after verification (success or failure)
+    if (loadVerificationLock() === msalAccessToken) clearVerificationLock();
   }
 };
 
 // Check if the user should be considered authenticated
 export const checkInitialAuthState = () => {
-  // Check if auth state is explicitly set
   const authState = getAuthState();
-  if (authState === true) {
-    // Double-check tokens actually exist
-    const tokens = getStoredTokens();
-    if (tokens.msalToken && tokens.jwtToken) {
-      try {
-        // Verify tokens are valid
-        for (const token of [tokens.msalToken, tokens.jwtToken]) {
-          const parts = token.split(".");
-          if (parts.length === 3) {
-            const payload = JSON.parse(atob(parts[1]));
-            if (payload.exp && payload.exp * 1000 <= Date.now()) {
-              // Token is expired
-              handleTokenExpiration();
-              return false;
-            }
-          }
-        }
+  if (authState !== true) return false;
 
-        // Make sure we have role information as well
-        const roles = localStorage.getItem("rols");
-        if (!roles) {
-          console.warn("Missing role information");
+  const tokens = getStoredTokens();
+  if (!tokens.msalToken || !tokens.jwtToken) return false;
+
+  try {
+    for (const token of [tokens.msalToken, tokens.jwtToken]) {
+      const parts = token.split(".");
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        if (payload.exp && payload.exp * 1000 <= Date.now()) {
+          handleTokenExpiration();
           return false;
         }
-
-        // All checks passed
-        return true;
-      } catch (error) {
-        console.error("Error checking initial auth state:", error);
       }
     }
+
+    const roles = localStorage.getItem("rols");
+    if (!roles) return false;
+
+    return true;
+  } catch (error) {
+    console.error("Error checking initial auth state:", error);
+    return false;
   }
-  return false;
 };
 
-// Add a new function to ensure all auth data is loaded and available
+// Ensure all auth data is loaded and available
 export const ensureAuthData = async () => {
   try {
-    // Check if we have all required auth data
     const { msalToken, jwtToken } = getStoredTokens();
     const userInfo = getUserInfo();
     const roles = localStorage.getItem("rols");
 
-    // If we're missing any critical auth data but have tokens, reload them
     if (msalToken && (!userInfo || !roles || !jwtToken)) {
       console.log("Reloading auth data from backend");
       await verifyTokenWithBackend(msalToken);
@@ -128,11 +158,10 @@ export const ensureAuthData = async () => {
 
 const setAuthState = (isAuthenticated) => {
   try {
-    // Store auth state with 1 day expiration
     Cookies.set(AUTH_STATE_COOKIE, isAuthenticated.toString(), {
-      expires: 1, // 1 day
+      expires: 1,
       secure: true,
-      sameSite: "lax", // Allow cross-tab access
+      sameSite: "lax",
     });
   } catch (error) {
     console.error("Error setting auth state:", error);
@@ -158,13 +187,11 @@ const storeMsalToken = (msalToken) => {
       const payload = JSON.parse(atob(tokenParts[1]));
       if (payload.exp) {
         const expiresAt = new Date(payload.exp * 1000);
-
         Cookies.set(MSAL_TOKEN_COOKIE, msalToken, {
           expires: expiresAt,
           secure: true,
-          sameSite: "lax", // Changed from strict to lax to allow cross-tab access
+          sameSite: "lax",
         });
-
         startExpirationTimer(expiresAt);
       }
     }
@@ -182,13 +209,11 @@ const storeJwtToken = (jwtToken) => {
       const payload = JSON.parse(atob(tokenParts[1]));
       if (payload.exp) {
         const expiresAt = new Date(payload.exp * 1000);
-
         Cookies.set(JWT_TOKEN_COOKIE, jwtToken, {
           expires: expiresAt,
           secure: true,
-          sameSite: "lax", // Changed from strict to lax to allow cross-tab access
+          sameSite: "lax",
         });
-
         startExpirationTimer(expiresAt);
       }
     }
@@ -203,13 +228,11 @@ const storeUserInfo = (userInfo) => {
   try {
     Cookies.set(USER_INFO_COOKIE, JSON.stringify(userInfo), {
       secure: true,
-      sameSite: "lax", // Changed from strict to lax to allow cross-tab access
+      sameSite: "lax",
     });
-
-    // userId ayrıca saxlanır
     Cookies.set(USER_ID_COOKIE, userInfo.userId, {
       secure: true,
-      sameSite: "lax", // Changed from strict to lax to allow cross-tab access
+      sameSite: "lax",
     });
   } catch (error) {
     console.error("Error storing user info:", error);
@@ -223,19 +246,16 @@ export const getUserId = () => {
 let expirationTimer;
 const startExpirationTimer = (expiresAt) => {
   clearTimeout(expirationTimer);
-
   const timeUntilExpiry = expiresAt.getTime() - Date.now();
   if (timeUntilExpiry > 0) {
     expirationTimer = setTimeout(handleTokenExpiration, timeUntilExpiry);
   } else {
-    // If token is already expired, handle expiration immediately
     handleTokenExpiration();
   }
 };
 
 export const handleTokenExpiration = () => {
   clearAuthTokens();
-  // Only redirect if we're not already on the login page
   if (window.location.pathname !== "/login") {
     window.location.href = "/login";
   }
@@ -252,6 +272,8 @@ export const clearAuthTokens = () => {
   localStorage.removeItem("rols");
   localStorage.removeItem("jwt");
   clearTimeout(expirationTimer);
+  verifiedTokens.clear();
+  saveVerifiedTokens(verifiedTokens);
 };
 
 export const getStoredTokens = () => {
@@ -264,7 +286,6 @@ export const getStoredTokens = () => {
 export const getUserInfo = () => {
   const userInfoStr = Cookies.get(USER_INFO_COOKIE);
   if (!userInfoStr) return null;
-
   try {
     return JSON.parse(userInfoStr);
   } catch (error) {
@@ -289,7 +310,6 @@ export const isAuthenticated = () => {
       }
     }
 
-    // Check additional required auth data
     const roles = localStorage.getItem("rols");
     const userInfo = getUserInfo();
     if (!roles || !userInfo) {
@@ -297,7 +317,6 @@ export const isAuthenticated = () => {
       return false;
     }
 
-    // Explicitly set auth state to true whenever checked and valid
     setAuthState(true);
     return true;
   } catch (error) {
@@ -307,32 +326,25 @@ export const isAuthenticated = () => {
   }
 };
 
-// Add a function to check if the refresh token needs to be used
 export const checkAndRefreshTokens = async () => {
   try {
     const { msalToken, jwtToken } = getStoredTokens();
     if (!msalToken || !jwtToken) return false;
 
-    // Check if tokens will expire soon (within 5 minutes)
     const fiveMinutesFromNow = Date.now() + 5 * 60 * 1000;
-
     for (const token of [msalToken, jwtToken]) {
       const parts = token.split(".");
       if (parts.length === 3) {
         const payload = JSON.parse(atob(parts[1]));
         if (payload.exp && payload.exp * 1000 <= fiveMinutesFromNow) {
-          // Token will expire soon, try to refresh
           console.log("Token expiring soon, attempting refresh");
-
-          // This assumes your MSAL configuration handles refresh tokens automatically
-          // You may need to call your backend to refresh the JWT token as well
           await verifyTokenWithBackend(msalToken);
           return true;
         }
       }
     }
 
-    return true; // Tokens are valid and not expiring soon
+    return true;
   } catch (error) {
     console.error("Error checking/refreshing tokens:", error);
     return false;

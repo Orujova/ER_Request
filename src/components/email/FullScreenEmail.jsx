@@ -72,7 +72,7 @@ const FullScreenEmail = ({
               )}
             </div>
             <div className="text-xs text-slate-500 mt-1">
-              {formatDate(selectedEmail.ReceivedDateTime)}
+              eeeee {formatDate(selectedEmail.ReceivedDateTime)}
             </div>
           </div>
         </div>

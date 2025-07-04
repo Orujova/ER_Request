@@ -79,7 +79,19 @@ const RequestsTable = ({ requests, onViewDetails }) => {
                   scope="col"
                   className="w-48 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600"
                 >
-                  Employee
+                  Manager
+                </th>
+                 <th
+                  scope="col"
+                  className="w-48 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600"
+                >
+                  Emp. Name
+                </th>
+                <th
+                  scope="col"
+                  className="w-48 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600"
+                >
+                  Badge
                 </th>
                 <th
                   scope="col"
@@ -124,7 +136,7 @@ const RequestsTable = ({ requests, onViewDetails }) => {
               {requests.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="10"
+                    colSpan="11"
                     className="bg-white py-16 text-center text-sm text-gray-500"
                   >
                     No requests found
@@ -156,7 +168,13 @@ const RequestsTable = ({ requests, onViewDetails }) => {
                       {request.projectCode}
                     </td>
                     <td className="whitespace-nowrap px-4 py-4 text-center text-xs text-gray-700">
+                      {request.employeeManager}
+                    </td>
+                     <td className="whitespace-nowrap px-4 py-4 text-center text-xs text-gray-700">
                       {request.employee}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-4 text-center text-xs text-gray-700">
+                      {request.employeeBadge}
                     </td>
                     <td className="whitespace-nowrap px-4 py-4 text-center text-xs font-medium text-gray-800">
                       {request.case}

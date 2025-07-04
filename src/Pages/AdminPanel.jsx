@@ -364,6 +364,7 @@ const AdminPanel = () => {
 
       setSuccess("ER Member linked successfully");
 
+      await fetchAllData(); 
       // Refresh the table
       refreshTable();
 
