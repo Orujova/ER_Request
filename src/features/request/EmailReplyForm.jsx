@@ -23,6 +23,7 @@ import SimplifiedEmailInput from "../../components/email/EmailInput";
 import AttachmentList from "../../components/email/AttachmentList";
 import SuccessMessage from "../../components/email/SuccessMessage";
 import TipTapStyles from "../../components/email/TipTapStyles";
+import { jwtDecode } from "jwt-decode";
 
 const StreamlinedEmailReplyForm = ({
   requestId,
@@ -282,9 +283,46 @@ const StreamlinedEmailReplyForm = ({
         return setError("Please add your message before sending");
       }
 
+      const getUserIdFromJwt = () => {
+        const token = localStorage.getItem("jwt");
+        if (!token) {
+          console.error("DEBUG: JWT token not found in localStorage.");
+          return null;
+        }
+        try {
+          // Tokeni decode edirik
+          const decodedToken = jwtDecode(token);
+          
+          // Tokenin içindəki `nameidentifier` sahəsini alırıq.
+          // Bu, adətən .NET Identity-də UserId-ni təmsil edir.
+          const userId = decodedToken["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"];
+          
+          if (!userId) {
+            console.error("DEBUG: 'nameidentifier' claim not found in decoded JWT:", decodedToken);
+            return null;
+          }
+          return userId;
+        } catch (error) {
+          console.error("DEBUG: Failed to decode JWT token:", error);
+          return null;
+        }
+      };
+
+      const userId = getUserIdFromJwt();
+      
+      if (!userId || userId === "0") {
+         setError("Could not identify the user. Please log in again.");
+         setLoading(false);
+         console.error(`DEBUG: Invalid userId ('${userId}') extracted from JWT. Aborting submission.`);
+         return;
+      }
+
+      console.log(`DEBUG: Sending request with UserId from JWT: ${userId}`);
+
       const formData = new FormData();
       formData.append("AccessToken", accessToken);
       formData.append("ERRequestId", requestId);
+      formData.append("UserId", userId);
       formData.append("Subject", subject);
       formData.append("BodyContent", userContent);
       formData.append("ReplyType", replyType);

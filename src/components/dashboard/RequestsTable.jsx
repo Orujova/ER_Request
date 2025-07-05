@@ -81,7 +81,7 @@ const RequestsTable = ({ requests, onViewDetails }) => {
                 >
                   Manager
                 </th>
-                 <th
+                <th
                   scope="col"
                   className="w-48 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600"
                 >
@@ -149,9 +149,21 @@ const RequestsTable = ({ requests, onViewDetails }) => {
                     className="group align-middle bg-white transition-colors duration-200 ease-in-out hover:bg-cyan-50"
                   >
                     <td className="sticky left-0 z-10 w-40 min-w-[10rem] whitespace-nowrap border-r bg-white px-4 py-4 text-center text-xs font-medium text-gray-800 transition-colors duration-200 ease-in-out group-hover:bg-cyan-50">
-                      {(request.title &&
-                        request.title.substring(4).split(":")[0]) ||
-                        "N/A"}
+                      {(() => {
+                        if (!request.title) return "N/A";
+
+                        // 1. "ER" sözünün başladığı yeri tapırıq.
+                        const erIndex = request.title.indexOf("ER");
+                        if (erIndex === -1) return "N/A"; // Əgər "ER" tapılmazsa
+
+                        // 2. Mətni "ER"-dən başlayaraq kəsirik və ilk ":" işarəsinə qədər götürürük.
+                        const titlePart = request.title
+                          .slice(erIndex)
+                          .split(":")[0]
+                          .trim();
+
+                        return titlePart;
+                      })()}
                     </td>
                     <td className="sticky left-40 z-10 w-48 min-w-[12rem] whitespace-nowrap border-r bg-white px-4 py-4 text-center transition-colors duration-200 ease-in-out group-hover:bg-cyan-50">
                       <p className="text-sm font-semibold text-gray-900">
@@ -170,7 +182,7 @@ const RequestsTable = ({ requests, onViewDetails }) => {
                     <td className="whitespace-nowrap px-4 py-4 text-center text-xs text-gray-700">
                       {request.employeeManager}
                     </td>
-                     <td className="whitespace-nowrap px-4 py-4 text-center text-xs text-gray-700">
+                    <td className="whitespace-nowrap px-4 py-4 text-center text-xs text-gray-700">
                       {request.employee}
                     </td>
                     <td className="whitespace-nowrap px-4 py-4 text-center text-xs text-gray-700">
