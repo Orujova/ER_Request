@@ -36,16 +36,46 @@ const RequestsTable = ({ requests, onViewDetails }) => {
     }
   };
 
-  const formatDuration = (days) => {
-    if (days === null || days === undefined) return "N/A";
-    return days === 1 ? `${days - 1} day` : `${days - 1} days`;
+ const getFinalDuration = (request) => {
+    if (!request || request.duration === null || request.duration === undefined) {
+      return null;
+    }
+
+    const isCaseClosed = request.statusCode >= 4;
+
+    if (isCaseClosed) {
+      // 1. Durum kapalıysa (DecisionCommunicated), iş kuralı gereği
+      // backend'den gelen süreye +1 ekleyerek gösteriyoruz.
+      return request.duration;
+    } else {
+      // 2. Durum canlıysa, lokal/server farkını düzelten mantığı uygula.
+      const correctedValue =
+        process.env.NODE_ENV === "development"
+          ? request.duration - 1
+          : request.duration - 1;
+      return Math.max(0, correctedValue);
+    }
+  };
+
+  const formatDuration = (request) => {
+    const finalDuration = getFinalDuration(request);
+    if (finalDuration === null) {
+      return "N/A";
+    }
+    return finalDuration === 1
+      ? `${finalDuration} day`
+      : `${finalDuration} days`;
   };
 
   const getDurationColor = (request) => {
-    if (request.statusCode >= 4) {
-      return request.duration > 14 ? "text-amber-600" : "text-gray-500";
+    const finalDuration = getFinalDuration(request);
+    if (finalDuration === null) {
+      return "text-gray-500";
     }
-    return request.duration > 14 ? "text-red-600 font-bold" : "text-gray-500";
+    if (request.statusCode >= 4) {
+      return finalDuration > 14 ? "text-amber-600" : "text-gray-500";
+    }
+    return finalDuration > 14 ? "text-red-600 font-bold" : "text-gray-500";
   };
 
   return (
@@ -207,7 +237,7 @@ const RequestsTable = ({ requests, onViewDetails }) => {
                         )}`}
                       >
                         <ClockIcon className="mr-1.5 h-4 w-4" />
-                        <span>{formatDuration(request.duration)}</span>
+                        <span>{formatDuration(request)}</span>
                       </div>
                     </td>
                     <td className="sticky right-[9rem] z-10 w-36 min-w-[9rem] whitespace-nowrap border-l bg-white px-4 py-4 text-center transition-colors duration-200 ease-in-out group-hover:bg-cyan-50">
