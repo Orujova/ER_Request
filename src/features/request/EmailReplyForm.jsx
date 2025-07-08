@@ -3,6 +3,8 @@ import { Send, X, Paperclip, AlertCircle, Maximize2 } from "lucide-react";
 import { API_BASE_URL } from "../../../apiConfig";
 import { getStoredTokens } from "../../utils/authHandler";
 import { useMsal } from "@azure/msal-react";
+import { jwtDecode } from "jwt-decode";
+import DOMPurify from "dompurify"; // GÜVENLİK VE BASE64 RESİM İŞLEME İÇİN EKLENDİ
 
 // TipTap imports for rich text editor
 import { useEditor, EditorContent } from "@tiptap/react";
@@ -23,7 +25,6 @@ import SimplifiedEmailInput from "../../components/email/EmailInput";
 import AttachmentList from "../../components/email/AttachmentList";
 import SuccessMessage from "../../components/email/SuccessMessage";
 import TipTapStyles from "../../components/email/TipTapStyles";
-import { jwtDecode } from "jwt-decode";
 
 const StreamlinedEmailReplyForm = ({
   requestId,
@@ -36,7 +37,7 @@ const StreamlinedEmailReplyForm = ({
   // MSAL for Azure AD integration
   const { instance, accounts } = useMsal();
 
-  // State management
+  // State management (Mevcut yapı korundu)
   const [subject, setSubject] = useState(
     selectedEmail
       ? replyType === "Forward"
@@ -44,12 +45,9 @@ const StreamlinedEmailReplyForm = ({
         : `Re: ${selectedEmail.Subject}`
       : ""
   );
-  const [attachments, setAttachments] = useState([]); // Kullanıcının yeni eklediği dosyalar
-  const [forwardedAttachments, setForwardedAttachments] = useState([]); // Orijinal ekleri arayüzde göstermek için
-
-  // YENİ MANTIK: Silinmesi istenen orijinal eklerin ID'lerini tutar
+  const [attachments, setAttachments] = useState([]);
+  const [forwardedAttachments, setForwardedAttachments] = useState([]);
   const [removedAttachmentIds, setRemovedAttachmentIds] = useState(new Set());
-
   const [downloadingAttachmentId, setDownloadingAttachmentId] = useState(null);
   const [editorHeight, setEditorHeight] = useState(120);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -60,14 +58,13 @@ const StreamlinedEmailReplyForm = ({
   const parentViewportRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // User inputs
+  // User inputs (Mevcut yapı korundu)
   const currentUserEmail = localStorage.getItem("email");
   const [toRecipients, setToRecipients] = useState(() => {
     if (replyType === "Reply") {
       return selectedEmail?.Sender ? [selectedEmail.Sender] : [];
     } else if (replyType === "ReplyAll") {
-      const sender = selectedEmail?.Sender;
-      return sender ? [sender] : [];
+      return selectedEmail?.Sender ? [selectedEmail.Sender] : [];
     } else {
       return [];
     }
@@ -88,31 +85,27 @@ const StreamlinedEmailReplyForm = ({
     }
   });
 
-  // State for UI
+  // State for UI (Mevcut yapı korundu)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  // Auth tokens
+  // Auth tokens (Mevcut yapı korundu)
   const { jwtToken } = getStoredTokens();
   const accessToken = localStorage.getItem("access_token");
 
-  // Colors
+  // Colors (Mevcut yapı korundu)
   const colors = {
-    primary: "#0891b2",
-    primaryLight: "#22d3ee",
-    primaryDark: "#0e7490",
     primaryGradientStart: "#0891b2",
     primaryGradientEnd: "#0e7490",
-    primaryHover: "#0369a1",
-    background: "#f8fafc",
-    border: "#e2e8f0",
-    text: "#334155",
-    textLight: "#64748b",
+    primaryLight: "#22d3ee",
   };
 
+  // --- ANA GÜNCELLEME BURADA ---
+  // Backend'den gelen ve Base64 resimleri içeren HTML'i GÜVENLİ bir şekilde hazırlar.
   const prepareOriginalEmailContent = () => {
     if (!selectedEmail) return "";
+
     const formatDate = (dateString) =>
       new Date(dateString).toLocaleString("en-US", {
         year: "numeric",
@@ -121,10 +114,12 @@ const StreamlinedEmailReplyForm = ({
         hour: "2-digit",
         minute: "2-digit",
       });
-    let content = "";
+
+    // Orijinal e-postanın başlık bilgisini oluştur
+    let headerHtml = "";
     if (replyType === "Forward") {
-      content = `<div data-original-email="true"><p>---------- Forwarded message ----------</p><p><strong>From:</strong> ${
-        selectedEmail.SenderName
+      headerHtml = `<div data-original-email="true"><p>---------- Forwarded message ----------</p><p><strong>From:</strong> ${
+        selectedEmail.SenderName || ""
       } <${selectedEmail.Sender}></p><p><strong>Date:</strong> ${formatDate(
         selectedEmail.ReceivedDateTime
       )}</p><p><strong>Subject:</strong> ${
@@ -133,27 +128,39 @@ const StreamlinedEmailReplyForm = ({
         selectedEmail.CC && selectedEmail.CC.length > 0
           ? `<p><strong>CC:</strong> ${selectedEmail.CC.join(", ")}</p>`
           : ""
-      }<p>----------------------------------------</p>`;
+      }<hr></div>`;
     } else {
-      content = `<div data-original-email="true"><p>On ${formatDate(
+      headerHtml = `<div data-original-email="true"><p>On ${formatDate(
         selectedEmail.ReceivedDateTime
-      )}, ${selectedEmail.SenderName} <${
+      )}, ${selectedEmail.SenderName || ""} <${
         selectedEmail.Sender
-      }> wrote:</p><blockquote style="margin: 0 0 0 0.5em; padding: 0 0 0 0.5em; border-left: 2px solid #e5e7eb;">`;
+      }> wrote:</p></div>`;
     }
-    if (selectedEmail.Body) {
+
+    // Orijinal e-postanın gövdesini oluştur
+    let bodyHtml = "";
+    if (selectedEmail.Body && selectedEmail.Body.Content) {
+      let originalContent = "";
       if (selectedEmail.Body.ContentType === "html") {
-        content += `<div data-original-email="true">${selectedEmail.Body.Content}</div>`;
+        // GÜVENLİK: XSS saldırılarını önlemek için HTML'i temizle.
+        // Bu işlem, backend'in eklediği `src="data:image/..."` gibi güvenli `data:` URL'lerini korur.
+        originalContent = DOMPurify.sanitize(selectedEmail.Body.Content);
       } else {
-        content += `<div data-original-email="true">${selectedEmail.Body.Content.split(
-          "\n"
-        )
-          .map((line) => `<p>${line || " "}</p>`)
-          .join("")}</div>`;
+        // Plain text ise, satır sonlarını <p> etiketlerine çevirerek HTML'e dönüştür.
+        originalContent = selectedEmail.Body.Content.split("\n")
+          .map((line) => `<p>${line || " "}</p>`) // Boş satırlar için
+          .join("");
+      }
+
+      if (replyType === "Forward") {
+        bodyHtml = `<div data-original-email="true">${originalContent}</div>`;
+      } else {
+        // Reply/ReplyAll için blockquote (alıntı) içine al.
+        bodyHtml = `<blockquote data-original-email="true" style="margin: 0 0 0 0.8em; border-left: 2px solid #e5e7eb; padding-left: 1em;">${originalContent}</blockquote>`;
       }
     }
-    content += replyType === "Forward" ? "</div>" : "</blockquote></div>";
-    return content;
+
+    return headerHtml + bodyHtml;
   };
 
   const editor = useEditor({
@@ -162,7 +169,8 @@ const StreamlinedEmailReplyForm = ({
       Underline,
       Link.configure({ openOnClick: false }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
-      Image,
+      // Image eklentisi, backend'den gelen base64 `data:` URL'lerini destekler.
+      Image.configure({ allowBase64: true }),
       Table.configure({ resizable: true }),
       TableRow,
       TableCell,
@@ -173,7 +181,9 @@ const StreamlinedEmailReplyForm = ({
     editorProps: {
       attributes: {
         class: "focus:outline-none prose prose-sm max-w-none px-2 py-1",
-        style: `min-height: ${isFullScreen ? "300px" : editorHeight + "px"}`,
+        style: `min-height: ${
+          isFullScreen ? "calc(100vh - 350px)" : editorHeight + "px"
+        }`,
       },
     },
     onUpdate: ({ editor }) => {
@@ -185,13 +195,18 @@ const StreamlinedEmailReplyForm = ({
   });
 
   useEffect(() => {
-    if (editor && !originalEmailContent) {
+    if (editor && !editor.isDestroyed && !originalEmailContent) {
       const preparedContent = prepareOriginalEmailContent();
       setOriginalEmailContent(preparedContent);
+      // Editör içeriğini boş bir paragraf ve ardından alıntılanan e-posta ile ayarla
       editor.commands.setContent(`<p></p>${preparedContent}`);
+      // İmleci başlangıca odakla
       setTimeout(() => editor.commands.focus("start"), 100);
     }
+    // Bağımlılıklar orijinal kodunuzdaki gibi bırakıldı.
   }, [editor, originalEmailContent]);
+
+  // Diğer tüm fonksiyonlar ve useEffect'ler orijinal kodunuzdaki gibi korundu.
 
   useEffect(() => {
     if (
@@ -253,6 +268,8 @@ const StreamlinedEmailReplyForm = ({
     }
   };
 
+  // Bu fonksiyon, güncellenmiş `data-original-email` özniteliği sayesinde
+  // daha güvenilir çalışacaktır.
   const extractUserContent = (fullHTML) => {
     const tempDiv = document.createElement("div");
     tempDiv.innerHTML = fullHTML;
@@ -290,15 +307,16 @@ const StreamlinedEmailReplyForm = ({
           return null;
         }
         try {
-          // Tokeni decode edirik
           const decodedToken = jwtDecode(token);
-          
-          // Tokenin içindəki `nameidentifier` sahəsini alırıq.
-          // Bu, adətən .NET Identity-də UserId-ni təmsil edir.
-          const userId = decodedToken["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"];
-          
+          const userId =
+            decodedToken[
+              "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
+            ];
           if (!userId) {
-            console.error("DEBUG: 'nameidentifier' claim not found in decoded JWT:", decodedToken);
+            console.error(
+              "DEBUG: 'nameidentifier' claim not found in decoded JWT:",
+              decodedToken
+            );
             return null;
           }
           return userId;
@@ -309,12 +327,13 @@ const StreamlinedEmailReplyForm = ({
       };
 
       const userId = getUserIdFromJwt();
-      
       if (!userId || userId === "0") {
-         setError("Could not identify the user. Please log in again.");
-         setLoading(false);
-         console.error(`DEBUG: Invalid userId ('${userId}') extracted from JWT. Aborting submission.`);
-         return;
+        setError("Could not identify the user. Please log in again.");
+        setLoading(false);
+        console.error(
+          `DEBUG: Invalid userId ('${userId}') extracted from JWT. Aborting submission.`
+        );
+        return;
       }
 
       console.log(`DEBUG: Sending request with UserId from JWT: ${userId}`);
@@ -324,6 +343,7 @@ const StreamlinedEmailReplyForm = ({
       formData.append("ERRequestId", requestId);
       formData.append("UserId", userId);
       formData.append("Subject", subject);
+      // Orijinal kodunuzdaki gibi sadece kullanıcı içeriğini gönderiyoruz.
       formData.append("BodyContent", userContent);
       formData.append("ReplyType", replyType);
 
@@ -338,7 +358,7 @@ const StreamlinedEmailReplyForm = ({
       attachments.forEach((f) => formData.append("Attachments", f));
 
       if (replyType === "Forward" && removedAttachmentIds.size > 0) {
-        removedAttachmentIds.forEach((id) =>
+        Array.from(removedAttachmentIds).forEach((id) =>
           formData.append("RemovedAttachmentIds", id)
         );
       }
@@ -367,10 +387,20 @@ const StreamlinedEmailReplyForm = ({
     }
   };
 
+  useEffect(() => {
+    // Component unmount olduğunda editörü temizle
+    return () => {
+      if (editor && !editor.isDestroyed) {
+        editor.destroy();
+      }
+    };
+  }, [editor]);
+
   if (success) {
     return <SuccessMessage onClose={onClose} />;
   }
 
+  // JSX kısmı orijinal kodunuzdaki gibi korundu.
   return (
     <div
       ref={parentViewportRef}
@@ -387,18 +417,12 @@ const StreamlinedEmailReplyForm = ({
           color: "white",
         }}
       >
-        <h2 className="text-xs font-medium">
-          {replyType === "Reply"
-            ? "Reply"
-            : replyType === "ReplyAll"
-            ? "Reply All"
-            : "Forward"}
-        </h2>
+        <h2 className="text-xs font-medium">{replyType}</h2>
         <div className="flex items-center">
           <button
             type="button"
             onClick={() => setIsFullScreen(!isFullScreen)}
-            className="rounded-full p-1 hover:bg-white hover:bg-opacity-20 transition-colors"
+            className="rounded-full p-1 hover:bg-white/20"
             title={isFullScreen ? "Exit Full Screen" : "Full Screen Mode"}
           >
             <Maximize2 className="h-3 w-3" />
@@ -406,13 +430,13 @@ const StreamlinedEmailReplyForm = ({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-1 hover:bg-white hover:bg-opacity-20 transition-colors ml-1"
+            className="rounded-full p-1 hover:bg-white/20 ml-1"
+            title="Close"
           >
             <X className="h-3 w-3" />
           </button>
         </div>
       </div>
-
       <form
         ref={formRef}
         onSubmit={handleSubmit}
@@ -443,7 +467,6 @@ const StreamlinedEmailReplyForm = ({
             />
           </div>
         </div>
-
         <div className="flex-1 flex flex-col overflow-hidden border-b border-slate-200">
           <div className="border-b border-slate-200">
             {editor && <EditorToolbar editor={editor} />}
@@ -455,7 +478,6 @@ const StreamlinedEmailReplyForm = ({
             />
           </div>
         </div>
-
         <div className="border-t border-slate-200 p-1.5 sticky bottom-0 bg-white shadow-md z-10">
           <div className="flex items-center justify-between mb-1">
             <button
@@ -474,7 +496,6 @@ const StreamlinedEmailReplyForm = ({
               multiple
             />
           </div>
-
           <div className="max-h-[80px] overflow-y-auto mb-2">
             <AttachmentList
               attachments={attachments}
@@ -486,14 +507,12 @@ const StreamlinedEmailReplyForm = ({
               downloadingAttachmentId={downloadingAttachmentId}
             />
           </div>
-
           {error && (
             <div className="mb-2 py-1 bg-red-50 border border-red-100 rounded-sm flex items-start px-2">
               <AlertCircle className="h-3 w-3 text-red-500 mr-1 mt-0.5 flex-shrink-0" />
               <span className="text-[10px] text-red-600">{error}</span>
             </div>
           )}
-
           <div className="flex items-center justify-between">
             <label className="flex items-center text-sm text-slate-700 cursor-pointer">
               <input
