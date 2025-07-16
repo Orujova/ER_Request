@@ -47,9 +47,6 @@ function RequestAction() {
           headers: {
             accept: "*/*",
             Authorization: `Bearer ${jwtToken}`,
-
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            Pragma: "no-cache",
           },
         }
       );
@@ -147,9 +144,6 @@ function RequestAction() {
           headers: {
             accept: "*/*",
             Authorization: `Bearer ${jwtToken}`,
-
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            Pragma: "no-cache",
           },
         }
       );
@@ -180,9 +174,6 @@ function RequestAction() {
           headers: {
             accept: "*/*",
             Authorization: `Bearer ${jwtToken}`,
-
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            Pragma: "no-cache",
           },
         }
       );
@@ -213,9 +204,6 @@ function RequestAction() {
           headers: {
             accept: "*/*",
             Authorization: `Bearer ${jwtToken}`,
-
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            Pragma: "no-cache",
           },
         }
       );
@@ -249,9 +237,6 @@ function RequestAction() {
           headers: {
             accept: "*/*",
             Authorization: `Bearer ${jwtToken}`,
-
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            Pragma: "no-cache",
           },
         }
       );
@@ -311,9 +296,6 @@ function RequestAction() {
           headers: {
             accept: "*/*",
             Authorization: `Bearer ${jwtToken}`,
-
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            Pragma: "no-cache",
           },
         }
       );
@@ -431,9 +413,6 @@ function RequestAction() {
           headers: {
             accept: "*/*",
             Authorization: `Bearer ${jwtToken}`,
-
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            Pragma: "no-cache",
           },
         }
       );

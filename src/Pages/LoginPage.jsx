@@ -1,118 +1,22 @@
-// src/Pages/LoginPage.jsx
 import { useIsAuthenticated, useMsal } from "@azure/msal-react";
-import { Navigate, useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { loginRequest } from "../../authConfig";
 import { HomeIcon } from "lucide-react";
-import { useEffect, useState, useRef } from "react";
+import { useState } from "react";
 import { getDefaultRedirect } from "../utils/roles";
-import {
-  verifyTokenWithBackend,
-  checkInitialAuthState,
-  getStoredTokens,
-} from "../utils/authHandler";
 
 const LoginPage = () => {
   const isAuthenticated = useIsAuthenticated();
-  const { instance, inProgress, accounts } = useMsal();
+  const { instance, inProgress } = useMsal();
   const navigate = useNavigate();
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState(null);
-  const authInProgress = useRef(false);
-  const redirected = useRef(false); // New ref to track if we've already redirected
 
-  // Get intended destination from state or default
-  const from = location.state?.from?.pathname || getDefaultRedirect();
-
-  // Check for existing valid auth without waiting for MSAL
-  useEffect(() => {
-    const quickAuthCheck = async () => {
-      // If already checked auth in progress or already redirected, don't do it again
-      if (authInProgress.current || redirected.current) return;
-
-      // Check if we already have valid auth state from cookies
-      if (checkInitialAuthState()) {
-        // We're already authenticated based on cookies, redirect to intended destination
-        redirected.current = true;
-        navigate(from, { replace: true });
-        return;
-      }
-    };
-
-    quickAuthCheck();
-  }, [navigate, from]);
-
-  // Handle authentication process with MSAL
-  useEffect(() => {
-    // Prevent duplicate auth attempts and loops
-    if (
-      authInProgress.current ||
-      redirected.current || // Don't authenticate if already redirected
-      !isAuthenticated ||
-      !accounts?.length ||
-      inProgress !== "none"
-    ) {
-      return;
-    }
-
-    const handleAuthentication = async () => {
-      // Set flags to prevent multiple calls
-      authInProgress.current = true;
-      setIsLoading(true);
-
-      try {
-        // Check if we already have a stored token from previous auth
-        const { msalToken } = getStoredTokens();
-
-        if (msalToken) {
-          // Verify the existing token with backend
-          await verifyTokenWithBackend(msalToken);
-        } else {
-          // Get token silently if no stored token
-          const tokenResponse = await instance.acquireTokenSilent({
-            account: accounts[0],
-            scopes: loginRequest.scopes,
-          });
-
-          // Verify token with backend
-          await verifyTokenWithBackend(tokenResponse.accessToken);
-        }
-
-        // Prevent multiple redirects
-        redirected.current = true;
-
-        // Force a small delay before redirect to ensure state updates
-        setTimeout(() => {
-          // Redirect to intended destination
-          navigate(from, { replace: true });
-        }, 100);
-      } catch (error) {
-        console.error("Authentication error:", error);
-        setLoginError("Authentication failed. Please try again.");
-        // Don't navigate on error - stay on login page
-      } finally {
-        setIsLoading(false);
-        // Allow another attempt after a delay
-        setTimeout(() => {
-          authInProgress.current = false;
-        }, 2000);
-      }
-    };
-
-    handleAuthentication();
-  }, [isAuthenticated, accounts, instance, navigate, from, inProgress]);
-
-  // If we're already authenticated, redirect immediately to prevent showing login page
-  if (isAuthenticated && checkInitialAuthState() && !redirected.current) {
-    redirected.current = true;
-    return <Navigate to={from} replace />;
-  }
+  const from = location.state?.from?.pathname || getDefaultRedirect() || "/";
 
   const handleSignIn = async () => {
-    // Prevent multiple login attempts
-    if (inProgress !== "none" || isLoading || authInProgress.current) {
-      return;
-    }
+    if (inProgress !== "none" || isLoading) return;
 
     setIsLoading(true);
     setLoginError(null);
@@ -120,16 +24,20 @@ const LoginPage = () => {
     try {
       await instance.loginRedirect({
         ...loginRequest,
-        // Store the return URL in state
         state: JSON.stringify({ returnUrl: from }),
       });
     } catch (error) {
       console.error("Login redirect failed:", error);
       setLoginError("Sign-in failed. Please try again.");
+    } finally {
       setIsLoading(false);
-      authInProgress.current = false;
     }
   };
+
+  // Render login UI only if not authenticated
+  if (isAuthenticated) {
+    return null; // Hide login UI when authenticated (handled by App)
+  }
 
   return (
     <div className="min-h-[calc(100vh-64px)] flex flex-col items-center justify-center bg-gray-50">

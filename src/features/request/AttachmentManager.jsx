@@ -1,4 +1,3 @@
-// FileAttachmentManager.jsx
 import React, { useState } from "react";
 import {
   Paperclip,
@@ -15,8 +14,8 @@ import {
 } from "lucide-react";
 
 // File type icon selector helper
-const getFileIcon = (url) => {
-  const extension = url.split(".").pop().toLowerCase();
+const getFileIcon = (attachment) => {
+  const extension = attachment.url.split(".").pop().toLowerCase();
 
   switch (extension) {
     case "pdf":
@@ -41,12 +40,13 @@ const getFileIcon = (url) => {
 };
 
 // Format the attachment name from URL
-const formatAttachmentName = (url) => {
+const formatAttachmentName = (attachment) => {
   try {
+    const url = typeof attachment === "object" ? attachment.url : attachment;
     const filename = url.split("/").pop();
     return decodeURIComponent(filename);
   } catch (e) {
-    return url;
+    return typeof attachment === "object" ? attachment.url : attachment;
   }
 };
 
@@ -64,12 +64,12 @@ const AttachmentCardGroup = ({
   if (!attachments || attachments.length === 0) return null;
 
   // Handle delete confirmation
-  const handleConfirmDelete = (url) => {
-    if (confirmDelete === url && !isProcessing) {
-      onDeleteAttachment(url, type);
+  const handleConfirmDelete = (attachmentId) => {
+    if (confirmDelete === attachmentId && !isProcessing) {
+      onDeleteAttachment({ id: attachmentId });
       setConfirmDelete(null);
     } else {
-      setConfirmDelete(url);
+      setConfirmDelete(attachmentId);
     }
   };
 
@@ -84,14 +84,14 @@ const AttachmentCardGroup = ({
 
       <div className="p-4">
         <ul className="divide-y divide-slate-200">
-          {attachments.map((url, index) => {
+          {attachments.map((attachment, index) => {
             // Convert erReq paths to erfile paths for download
-            const downloadUrl = url.replace("erfile", "uploads/erfile");
-            const isDeleting = confirmDelete === url;
+            const downloadUrl = attachment.url.replace("erfile", "uploads/erfile");
+            const isDeleting = confirmDelete === attachment.id;
 
             return (
               <li
-                key={`${type}-${index}`}
+                key={`${type}-${attachment.id || index}`}
                 className="py-3 flex items-center justify-between group"
               >
                 <a
@@ -100,17 +100,17 @@ const AttachmentCardGroup = ({
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 text-sm text-slate-700 hover:text-sky-600 hover:underline group flex-1 truncate"
                 >
-                  {getFileIcon(url)}
-                  <span className="truncate">{formatAttachmentName(url)}</span>
+                  {getFileIcon(attachment)}
+                  <span className="truncate">{formatAttachmentName(attachment)}</span>
                   <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </a>
                 <button
                   type="button"
-                  onClick={() => handleConfirmDelete(url)}
-                  disabled={isProcessing}
+                  onClick={() => handleConfirmDelete(attachment.id)}
+                  disabled={isProcessing || !attachment.id}
                   className={`text-slate-400 hover:text-rose-600 transition-colors ml-2 p-1 rounded-full
                     ${isDeleting ? "bg-rose-50 text-rose-600" : ""}
-                    ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}
+                    ${isProcessing || !attachment.id ? "opacity-50 cursor-not-allowed" : ""}
                   `}
                   title={
                     isDeleting

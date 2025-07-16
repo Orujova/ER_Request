@@ -11,19 +11,17 @@ const RequestsTable = ({ requests, onViewDetails }) => {
     (state) => state.dashboard
   );
 
-  // State for reassignment modal
+  // Modal state'i
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [newErMemberId, setNewErMemberId] = useState("");
 
-  // Open reassign modal
   const handleReassignClick = (request) => {
     setSelectedRequest(request);
     setNewErMemberId("");
     setShowReassignModal(true);
   };
 
-  // Handle reassign submission
   const handleReassignSubmit = () => {
     if (selectedRequest && newErMemberId) {
       dispatch(
@@ -33,170 +31,225 @@ const RequestsTable = ({ requests, onViewDetails }) => {
         })
       )
         .unwrap()
-        .then(() => {
-          setShowReassignModal(false);
-          // Success message could be shown here
-        })
-        .catch((error) => {
-          // Error handling is done in the Redux slice
-        });
+        .then(() => setShowReassignModal(false))
+        .catch(() => {});
     }
   };
 
-  // Helper function to format duration display
-  const formatDuration = (days) => {
-    if (days === null || days === undefined) return "N/A";
-    return days === 1 ? `${days - 1} day` : `${days - 1} days`;
+ const getFinalDuration = (request) => {
+    if (!request || request.duration === null || request.duration === undefined) {
+      return null;
+    }
+
+    const isCaseClosed = request.statusCode >= 4;
+
+    if (isCaseClosed) {
+      // 1. Durum kapalıysa (DecisionCommunicated), iş kuralı gereği
+      // backend'den gelen süreye +1 ekleyerek gösteriyoruz.
+      return request.duration;
+    } else {
+      // 2. Durum canlıysa, lokal/server farkını düzelten mantığı uygula.
+      const correctedValue =
+        process.env.NODE_ENV === "development"
+          ? request.duration - 1
+          : request.duration - 1;
+      return Math.max(0, correctedValue);
+    }
   };
 
-  // Helper function to determine duration text color
+  const formatDuration = (request) => {
+    const finalDuration = getFinalDuration(request);
+    if (finalDuration === null) {
+      return "N/A";
+    }
+    return finalDuration === 1
+      ? `${finalDuration} day`
+      : `${finalDuration} days`;
+  };
+
   const getDurationColor = (request) => {
-    // If status is 4 (Decision Communicated) or higher, the duration is final
-    if (request.statusCode >= 4) {
-      return request.duration > 14 ? "text-amber-600" : "text-gray-500";
+    const finalDuration = getFinalDuration(request);
+    if (finalDuration === null) {
+      return "text-gray-500";
     }
-
-    // For ongoing requests, highlight in red if exceeding 14 days
-    return request.duration > 14 ? "text-red-600 font-medium" : "text-gray-500";
+    if (request.statusCode >= 4) {
+      return finalDuration > 14 ? "text-amber-600" : "text-gray-500";
+    }
+    return finalDuration > 14 ? "text-red-600 font-bold" : "text-gray-500";
   };
 
   return (
     <>
-      <div className="mt-6 overflow-hidden rounded-lg border border-gray-200">
+      <div className="mt-8 overflow-hidden rounded-xl border border-gray-200 shadow-md">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full">
+            {/* DEĞİŞİKLİK: Başlık arka planı, gövdeden ayrışması için tekrar gri yapıldı. */}
+            <thead className="border-b border-gray-200 bg-gray-100">
               <tr>
+                {/* DEĞİŞİKLİK: Yapışkan başlıkların arka planı da gri olarak güncellendi. */}
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="sticky left-0 z-20 w-40 min-w-[10rem] border-r bg-gray-100 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600"
+                >
+                  Request Number
+                </th>
+                <th
+                  scope="col"
+                  className="sticky left-40 z-20 w-48 min-w-[12rem] border-r bg-gray-100 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600"
                 >
                   ER Member
                 </th>
                 <th
                   scope="col"
-                  className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="w-32 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600"
                 >
                   Project
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="w-48 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600"
                 >
-                  Employee
+                  Manager
                 </th>
                 <th
                   scope="col"
-                  className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="w-48 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600"
+                >
+                  Emp. Name
+                </th>
+                <th
+                  scope="col"
+                  className="w-48 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600"
+                >
+                  Badge
+                </th>
+                <th
+                  scope="col"
+                  className="w-40 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600"
                 >
                   Case
                 </th>
                 <th
                   scope="col"
-                  className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="w-40 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600"
                 >
                   Subcase
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="w-32 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600"
                 >
                   Date
                 </th>
-                {/* New duration column */}
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="w-32 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600"
                 >
                   Duration
                 </th>
                 <th
                   scope="col"
-                  className="px-1 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="sticky right-[9rem] z-20 w-36 min-w-[9rem] border-l bg-gray-100 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600"
                 >
                   Status
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="sticky right-0 z-20 w-36 min-w-[9rem] bg-gray-100 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600"
                 >
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            {/* DEĞİŞİKLİK: Tablo gövdesi (tbody) tamamen beyaz arka plana sahip. */}
+            <tbody className="divide-y divide-gray-200">
               {requests.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="9"
-                    className="px-6 py-8 text-center text-sm text-gray-500"
+                    colSpan="11"
+                    className="bg-white py-16 text-center text-sm text-gray-500"
                   >
                     No requests found
                   </td>
                 </tr>
               ) : (
-                requests.map((request) => (
+                requests.map((request, index) => (
                   <tr
                     key={request.id}
-                    className="hover:bg-gray-50 transition-colors"
+                    className="group align-middle bg-white transition-colors duration-200 ease-in-out hover:bg-cyan-50"
                   >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <p className="text-sm font-medium text-gray-900">
+                    <td className="sticky left-0 z-10 w-40 min-w-[10rem] whitespace-nowrap border-r bg-white px-4 py-4 text-center text-xs font-medium text-gray-800 transition-colors duration-200 ease-in-out group-hover:bg-cyan-50">
+                      {(() => {
+                        if (!request.title) return "N/A";
+
+                        // 1. "ER" sözünün başladığı yeri tapırıq.
+                        const erIndex = request.title.indexOf("ER");
+                        if (erIndex === -1) return "N/A"; // Əgər "ER" tapılmazsa
+
+                        // 2. Mətni "ER"-dən başlayaraq kəsirik və ilk ":" işarəsinə qədər götürürük.
+                        const titlePart = request.title
+                          .slice(erIndex)
+                          .split(":")[0]
+                          .trim();
+
+                        return titlePart;
+                      })()}
+                    </td>
+                    <td className="sticky left-40 z-10 w-48 min-w-[12rem] whitespace-nowrap border-r bg-white px-4 py-4 text-center transition-colors duration-200 ease-in-out group-hover:bg-cyan-50">
+                      <p className="text-sm font-semibold text-gray-900">
                         {request.erMember}
                       </p>
                       <button
                         onClick={() => handleReassignClick(request)}
-                        className="text-xs text-[#06b6d4] hover:text-[#0891b2]"
+                        className="mt-1 text-xs font-medium text-cyan-600 transition-colors hover:text-cyan-800"
                       >
                         Reassign
                       </button>
                     </td>
-                    <td className="px-2 py-4 whitespace-nowrap">
-                      <div>
-                        <p className="text-sm text-gray-900">
-                          {request.projectCode}
-                        </p>
-                        {/* <p className="text-xs text-gray-500">
-                        {request.project}
-                        </p> */}
+                    <td className="whitespace-nowrap px-4 py-4 text-center text-sm text-gray-800">
+                      {request.projectCode}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-4 text-center text-xs text-gray-700">
+                      {request.employeeManager}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-4 text-center text-xs text-gray-700">
+                      {request.employee}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-4 text-center text-xs text-gray-700">
+                      {request.employeeBadge}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-4 text-center text-xs font-medium text-gray-800">
+                      {request.case}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-4 text-center text-xs text-gray-700">
+                      {request.subcase}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-4 text-center text-xs text-gray-500">
+                      <div className="flex items-center justify-center">
+                        <CalendarIcon className="mr-1.5 h-4 w-4" />
+                        <span>{request.date}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <p className="text-xs text-gray-900">
-                        {request.employee}
-                      </p>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <p className="text-xs text-gray-900">{request.case}</p>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <p className="text-xs text-gray-900">{request.subcase}</p>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <CalendarIcon className="h-3 w-3 text-gray-400 mr-2" />
-                        <p className="text-xs text-gray-500">{request.date}</p>
+                    <td className="whitespace-nowrap px-4 py-4 text-center">
+                      <div
+                        className={`flex items-center justify-center text-xs ${getDurationColor(
+                          request
+                        )}`}
+                      >
+                        <ClockIcon className="mr-1.5 h-4 w-4" />
+                        <span>{formatDuration(request)}</span>
                       </div>
                     </td>
-                    {/* New duration cell */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <ClockIcon className="h-3 w-3 text-gray-400 mr-2" />
-                        <p className={`text-xs ${getDurationColor(request)}`}>
-                          {formatDuration(request.duration)}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="px-1 py-4 whitespace-nowrap">
+                    <td className="sticky right-[9rem] z-10 w-36 min-w-[9rem] whitespace-nowrap border-l bg-white px-4 py-4 text-center transition-colors duration-200 ease-in-out group-hover:bg-cyan-50">
                       <StatusBadge statusCode={request.statusCode} />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <td className="sticky right-0 z-10 w-36 min-w-[9rem] whitespace-nowrap bg-white px-4 py-4 text-center transition-colors duration-200 ease-in-out group-hover:bg-cyan-50">
                       <button
                         onClick={() => onViewDetails(request.id)}
-                        className="inline-flex items-center px-3 py-1.5 border border-[#0D9BBF] shadow-sm text-sm leading-4 font-medium rounded-md text-[#0D9BBF] bg-white hover:bg-[#E6F7FB] focus:outline-none focus:ring-0 transition-colors"
+                        className="inline-flex items-center rounded-full bg-cyan-100 px-4 py-1.5 text-xs font-semibold text-cyan-800 ring-1 ring-inset ring-cyan-600/20 transition-all duration-200 hover:bg-cyan-200/60 hover:scale-105"
                       >
-                        <EyeIcon className="h-4 w-4 mr-1" />
-                        View
+                        <EyeIcon className="mr-1.5 h-4 w-4" />
+                        View Details
                       </button>
                     </td>
                   </tr>
@@ -207,39 +260,45 @@ const RequestsTable = ({ requests, onViewDetails }) => {
         </div>
       </div>
 
-      {/* Reassign Modal */}
+      {/* Modal (Değişiklik yok) */}
       {showReassignModal && selectedRequest && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-auto">
-            <div className="flex items-center justify-between mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-medium text-gray-900">
                 Reassign ER Member
               </h3>
               <button
-                className="text-gray-400 hover:text-gray-500"
+                className="text-gray-400 hover:text-gray-600"
                 onClick={() => setShowReassignModal(false)}
               >
                 <XIcon className="h-5 w-5" />
               </button>
             </div>
-
-            <div className="mb-4">
-              <p className="text-sm text-gray-600 mb-2">
+            <div className="mb-6">
+              <p className="mb-2 text-sm text-gray-600">
                 Currently assigned to:{" "}
-                <span className="font-medium">{selectedRequest.erMember}</span>
+                <span className="font-semibold text-gray-800">
+                  {selectedRequest.erMember}
+                </span>
               </p>
-              <p className="text-sm text-gray-600 mb-4">
-                Request: {selectedRequest.case} - {selectedRequest.subcase}
+              <p className="mb-4 text-sm text-gray-600">
+                Request:{" "}
+                <span className="font-medium text-gray-800">
+                  {selectedRequest.case} - {selectedRequest.subcase}
+                </span>
               </p>
-
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="er-member-select"
+                className="mb-2 block text-sm font-medium text-gray-700"
+              >
                 Select new ER Member:
               </label>
-
               <select
+                id="er-member-select"
                 value={newErMemberId}
                 onChange={(e) => setNewErMemberId(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0D9BBF] focus:border-[#0D9BBF]"
+                className="w-full rounded-md border-gray-300 p-2 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
               >
                 <option value="">Select ER Member</option>
                 {erMembers.map((member) => (
@@ -252,55 +311,23 @@ const RequestsTable = ({ requests, onViewDetails }) => {
                   </option>
                 ))}
               </select>
-
               {reassignError && (
                 <p className="mt-2 text-sm text-red-600">{reassignError}</p>
               )}
             </div>
-
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setShowReassignModal(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleReassignSubmit}
                 disabled={!newErMemberId || reassignLoading}
-                className={`px-4 py-2 rounded-md text-sm font-medium text-white ${
-                  !newErMemberId
-                    ? "bg-[#0D9BBF] opacity-50 cursor-not-allowed"
-                    : "bg-[#0D9BBF] hover:bg-[#0B89A9]"
-                }`}
+                className="rounded-md bg-[#0D9BBF] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#0B89A9] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {reassignLoading ? (
-                  <span className="flex items-center">
-                    <svg
-                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    Reassigning...
-                  </span>
-                ) : (
-                  "Reassign"
-                )}
+                {reassignLoading ? "Reassigning..." : "Reassign"}
               </button>
             </div>
           </div>
