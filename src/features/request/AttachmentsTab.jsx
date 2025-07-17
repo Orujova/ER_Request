@@ -255,7 +255,7 @@ const AttachmentsTab = ({
           </p>
         </div>
         {/* Single centralized upload button */}
-        {!isRegularUser && (
+        { (
           <button
             onClick={() => setIsUploadPanelOpen(!isUploadPanelOpen)}
             className="bg-sky-500 hover:bg-sky-600 text-white px-3 py-2 rounded-md text-sm flex items-center gap-1 transition-colors"
@@ -274,7 +274,7 @@ const AttachmentsTab = ({
       </div>
 
       {/* Upload/Link Panel - Centralized */}
-      {isUploadPanelOpen && !isRegularUser && (
+      {isUploadPanelOpen && (
         <div className="border border-slate-200 rounded-md mb-6 bg-white shadow-sm">
           {/* Upload Type Tabs */}
           <div className="flex border-b border-slate-200">
